@@ -5,6 +5,8 @@ import os
 import argparse
 import time
 import requests
+import json
+
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -12,43 +14,80 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import LoggingEventHandler
 from watchdog.events import FileSystemEventHandler
 
+
+class Sync(object):
+    METHODS = {"put": requests.put,
+        "delete": requests.delete,
+        "get": requests.get,
+        "post": requests.post}
+
+    def __init__(self, server_address):
+        self.server_address = server_address
+
+    def handler(self, event):
+        try:
+            if event.event_type == "modified":
+               self.make_request("put")
+            elif event.event_type == "deleted":
+               self.make_request("delete")
+            elif event.event_type == "created":
+               self.make_request("post")
+            elif event.event_type == "moved":
+               self.make_request("delete")
+        except (requests.HTTPError,requests.exceptions.ConnectionError,
+                requests.exceptions.MissingSchema) as e:
+            print e
+
+    def make_request(self, kind, params=None):
+        r = Sync.METHODS[kind](self.server_address)               
+        r.raise_for_status()
+        return r
+
+
 class DirectoryMonitor(FileSystemEventHandler):
     """ Daemon Monitor for file system events 
-        like moved deleted created modified
+        like: moved, deleted, created, modified
     """
-
-    def __init__(self):
+    def __init__(self, callback):
         FileSystemEventHandler.__init__(self)
+        self.callback = callback
         
-    def catch_all(self,event, method_to_call):
-        print event.event_type
-        print event.src_path
-        print event.is_directory        
-        response = method_to_call('http://127.0.0.1:5000/api/v1/')        
+    def catch_all(self, event):
+        """ Dispatcher events.
+        """
+        self.callback(event)        
 
-    def on_created(self, event):        
-        self.catch_all(event, requests.put)        
+    def on_created(self, event):
+         self.catch_all(event)        
 
     def on_deleted(self, event):        
-        self.catch_all(event, requests.delete)
+         self.catch_all(event)
 
     def on_modified(self, event):
-        self.catch_all(event, requests.put)
+        self.catch_all(event)
 
     def on_moved(self, event):
-        self.catch_all(event, requests.put)  
+        self.catch_all(event)  
 
+
+def load_json(conf_path):
+    if os.path.isfile(conf_path):
+        with open(conf_path,"r") as fo:
+             config = json.load(fo)
+        return config
+    else:
+        "There's not the config file"
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Daemon watchdog.')
-    parser.add_argument('path', help='Path to monitoring.')
-    args = parser.parse_args()
-    if os.path.isdir(args.path):
-        event_handler = DirectoryMonitor()
+    conf = load_json("config.json")
+    if os.path.isdir(conf["path"]):      
+        
+        sync = Sync(conf["server_address"]).handler
+        event_handler = DirectoryMonitor(sync)
         observer = Observer()
 
-        observer.schedule(event_handler, path=args.path, recursive=True)
+        observer.schedule(event_handler, path=conf["path"], recursive=True)
         observer.start()
 
         try:
@@ -57,5 +96,6 @@ if __name__ == "__main__":
         except KeyboardInterrupt:
             observer.stop()
         observer.join()
+    
     else:
         print "Directory inesistente."
