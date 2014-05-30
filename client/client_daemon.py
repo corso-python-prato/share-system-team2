@@ -26,14 +26,23 @@ class Sync(object):
 
     def handler(self, event):
         try:
-            if event.event_type == "modified":
-               self.make_request("put")
-            elif event.event_type == "deleted":
-               self.make_request("delete")
-            elif event.event_type == "created":
-               self.make_request("post")
-            elif event.event_type == "moved":
-               self.make_request("delete")
+            # in this way you can't create empty folder but who cares!
+            if event.is_directory == False:
+                if event.event_type == "modified":
+                   print ':'.join([event.event_type,event.src_path])               
+                   self.make_request("put")                   
+                elif event.event_type == "deleted":
+                   print ':'.join([event.event_type,event.src_path])               
+                   self.make_request("delete")
+                   
+                elif event.event_type == "created":
+                   print ':'.join([event.event_type,event.src_path])               
+                   self.make_request("post")
+                   
+                elif event.event_type == "moved":
+                   print ':'.join([event.event_type,event.src_path])               
+                   self.make_request("delete")
+                   
         except (requests.HTTPError,requests.exceptions.ConnectionError,
                 requests.exceptions.MissingSchema) as e:
             print e
@@ -76,7 +85,7 @@ def load_json(conf_path):
              config = json.load(fo)
         return config
     else:
-        "There's not the config file"
+        "There's not configuration file"
 
 
 if __name__ == "__main__":
@@ -98,4 +107,4 @@ if __name__ == "__main__":
         observer.join()
     
     else:
-        print "Directory inesistente."
+        print "Directory not found."
