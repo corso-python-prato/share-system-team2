@@ -24,13 +24,13 @@ def get_pw(username):
 
 @app.route(URL_PREFIX)
 def hello():
-    return "Autenticazione non necessaria"
+    return "Hello. This resource is available without authentication."
 
 
 @app.route("{}/test".format(URL_PREFIX))
 @auth.login_required
 def index():
-    return "ROUTE TEST - Autenticato come utente: %s!" % auth.username()
+    return "ROUTE TEST - Logged as: %s!" % auth.username()
 
 
 FILENAME = "myfile.dat"
