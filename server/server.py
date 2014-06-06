@@ -40,7 +40,7 @@ def file_content(filename):
         content = f.read()
     return content
 
-@app.route("/files/<filename>")		
+@app.route("/files/<filename>")     
 def download(filename):
     """
     This function downloads <filename> from  server directory 'upload'
@@ -52,25 +52,24 @@ def download(filename):
 
 @app.route("/files/<path:varargs>", methods = ["POST"])
 def upload(varargs):
-	"""
-		This function uploads a file to the server in the 'upload' folder
-	"""
-	upload_file = request.files["file"]
-	path = []
-	#filename = secure_filename(filename)
-	
-	dirname = os.path.dirname(varargs)
-	dirname = "upload/" + dirname
-	real_dirname = os.path.realpath(dirname)
-	real_root = os.path.realpath('upload/')
+    """
+        This function uploads a file to the server in the 'upload' folder
+    """
+    upload_file = request.files["file"]
+    path = []
+        
+    dirname = os.path.dirname(varargs)
+    dirname = "upload/" + dirname
+    real_dirname = os.path.realpath(dirname)
+    real_root = os.path.realpath('upload/')
 
-	if real_root not in real_dirname:
-		abort(403)
-	if not os.path.exists(dirname):
-		os.makedirs(dirname)
-	filename = os.path.split(varargs)[-1]	
-	upload_file.save(os.path.join(dirname, filename))
-	return "", 201
+    if real_root not in real_dirname:
+        abort(403)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    filename = os.path.split(varargs)[-1]   
+    upload_file.save(os.path.join(dirname, filename))
+    return "", 201
 
 if __name__ == "__main__":
     app.run(debug=True)
