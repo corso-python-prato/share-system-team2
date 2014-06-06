@@ -3,7 +3,7 @@
 import os
 import json
 
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request, abort
 from flask.ext.httpauth import HTTPBasicAuth
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
@@ -109,8 +109,7 @@ def file_content(filename):
         content = f.read()
     return content
 
-
-@app.route("/download/<filename>")
+@app.route("/files/<filename>")     
 def download(filename):
     """
     This function downloads <filename> from  server directory 'upload'
@@ -120,17 +119,26 @@ def download(filename):
     response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
     return response
 
-
-@app.route("/upload", methods=["POST"])
-def upload():
+@app.route("/files/<path:varargs>", methods = ["POST"])
+def upload(varargs):
     """
-    This function uploads a file to the server in the 'upload' folder
+        This function uploads a file to the server in the 'upload' folder
     """
     upload_file = request.files["file"]
-    filename = secure_filename(upload_file.filename)
-    upload_file.save(os.path.join("upload", filename))
-    return "", 201
+    path = []
+        
+    dirname = os.path.dirname(varargs)
+    dirname = "upload/" + dirname
+    real_dirname = os.path.realpath(dirname)
+    real_root = os.path.realpath('upload/')
 
+    if real_root not in real_dirname:
+        abort(403)
+    if not os.path.exists(dirname):
+        os.makedirs(dirname)
+    filename = os.path.split(varargs)[-1]   
+    upload_file.save(os.path.join(dirname, filename))
+    return "", 201
 
 if __name__ == "__main__":
     user_login_info = load_userdata()
