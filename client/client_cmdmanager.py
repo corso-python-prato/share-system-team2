@@ -2,8 +2,7 @@
 #-*- coding: utf-8 -*-
 
 import cmd
-# import requests
-import fake_request as requests
+import fake_requests as requests
 
 class CommandParser(cmd.Cmd):
     """Command line interpreter
@@ -44,7 +43,6 @@ class CommandParser(cmd.Cmd):
 
 
 if __name__ == '__main__':
-	print 'hello world'
     CommandParser().cmdloop()
 
 

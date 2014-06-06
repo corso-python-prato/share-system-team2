@@ -1,4 +1,5 @@
-__author__ = 'milly'
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
 
 from httmock import all_requests, response, HTTMock
 import requests
@@ -22,18 +23,7 @@ def create_fake_raise(code, message):
 
     with HTTMock(response_content):
             r = requests.get('https://api.github.com/users/whatever')
-
     return r
-
-
-# class Response(object):
-#     """Fake response object"""
-#     def __init__(self, code):
-#         self.status_code = code
-# 
-#     def raise_for_status(self):
-#         pass
-
 
 def post(url, data):
     if url != 'NEWUSER':
@@ -52,9 +42,8 @@ def post(url, data):
         return response
     else:
         users[new_user] = password
-        response = create_fake_raise(200, 'Uses added Successfully')
-
-    return response
+        response = create_fake_raise(200, 'User added Successfully')
+        return response
 
 
 
