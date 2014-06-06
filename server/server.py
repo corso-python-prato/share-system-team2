@@ -1,24 +1,68 @@
 # !/usr/bin/env python
 #-*- coding: utf-8 -*-
 import os
+import json
+
 from flask import Flask, make_response, request
 from flask.ext.httpauth import HTTPBasicAuth
 from werkzeug import secure_filename
+from passlib.hash import sha256_crypt
+
 
 URL_PREFIX = '/API/V1'
 
-user_login_info = {
-    "luca": "luca",
-    "iacopo": "iacopo"
-}
+# Users login data are stored in a json file in the server
+USERDATA_FILENAME = 'userdata.json'
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
 
 
-@auth.get_password
-def get_pw(username):
-    return user_login_info.get(username)
+def load_userdata():
+    data = {}
+    try:
+        with open(USERDATA_FILENAME, 'rb') as fp:
+            data = json.load(fp, 'utf-8')
+            print('{:,} users loaded'.format(len(data)))
+    except IOError:
+        print('No users loaded.')
+    return data
+
+
+def save_userdata(user_login_info):
+    with open(USERDATA_FILENAME, 'wb') as fp:
+        json.dump(user_login_info, fp, 'utf-8')
+    print('Saved {:,} users'.format(len(user_login_info)))
+
+
+def encrypt_password(password):
+    """
+    Return the password encrypted as a string.
+    :rtype : str
+    """
+    return sha256_crypt.encrypt(password)
+
+#
+# @auth.get_password
+# def get_pw(username):
+#     return user_login_info.get(username)
+
+
+@auth.verify_password
+def verify_password(username, password):
+    """
+    We redefine this function to check password with the encrypted one.
+    """
+    if not username:
+        # Warning/info?
+        return False
+    stored_pw = user_login_info.get(username)
+    if stored_pw:
+        res = sha256_crypt.verify(password, stored_pw)
+    else:
+        print('User "{}" does not exist!'.format(username))
+        res = False
+    return res
 
 
 @app.route(URL_PREFIX)
@@ -26,9 +70,34 @@ def hello():
     return "Hello. This resource is available without authentication."
 
 
+@app.route("{}/signup".format(URL_PREFIX), methods=['POST'])
+def create_user():
+    """
+    Handle the creation of a new user.
+    """
+    # Example of creation using requests:
+    # requests.post('http://127.0.0.1:5000/API/V1/signup', data={'username': 'Pippo', 'password': 'ciao'})
+    print('Creating user...')
+    username = request.form.get('username')
+    password = request.form.get('password')
+    if username and password:
+        if username in user_login_info:
+            # user already exists!
+            response = 'Error: username already exists!', 403
+        else:
+            user_login_info[username] = encrypt_password(password)
+            response = 'User "{}" created'.format(username), 201
+            save_userdata(user_login_info)
+    else:
+        response = 'Error: username or password is missing', 400
+    print(response)
+    return response
+
+
 @app.route("{}/test".format(URL_PREFIX))
 @auth.login_required
 def index():
+    print('Authenticated resource')
     return "ROUTE TEST - Logged as: %s!" % auth.username()
 
 
@@ -64,4 +133,5 @@ def upload():
 
 
 if __name__ == "__main__":
+    user_login_info = load_userdata()
     app.run(debug=True)
