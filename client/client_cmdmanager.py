@@ -2,18 +2,32 @@
 #-*- coding: utf-8 -*-
 
 import cmd
-import fake_requests as requests
+import socket
+import struct
+import json
+
+DEAMON_HOST = 'localhost'
+DEAMON_PORT = 50001
+
+
+def send_to_deamon(message=None):
+    if not message:
+        return
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((DEAMON_HOST, DEAMON_PORT))
+
+    lenght = struct.pack('!i', len(message))
+    s.sendall(lenght)
+    s.sendall(message)
+    s.close()
+
 
 class CommandParser(cmd.Cmd):
     """Command line interpreter
     Parse user input"""
 
     prompt = '(Share)>>>'
-
-    def do_google(self, line):
-        """Print Google source page"""
-        r = requests.get("http://www.google.it")
-        print r.text
 
     def do_quit(self, line):
         """Exit Command"""
@@ -35,11 +49,9 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'bad arguments'
         else:
-            r = requests.post('NEWUSER', data)
-            try:
-                r.raise_for_status()
-            except: # (work in progess) must catch specific exception
-                print r.reason
+            cmd = {"newUser": data}
+            send_to_deamon(json.dumps(cmd))
+
 
 
 if __name__ == '__main__':
