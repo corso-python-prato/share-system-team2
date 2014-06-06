@@ -42,11 +42,6 @@ def encrypt_password(password):
     """
     return sha256_crypt.encrypt(password)
 
-#
-# @auth.get_password
-# def get_pw(username):
-#     return user_login_info.get(username)
-
 
 @auth.verify_password
 def verify_password(username, password):
@@ -63,11 +58,6 @@ def verify_password(username, password):
         print('User "{}" does not exist!'.format(username))
         res = False
     return res
-
-
-@app.route(URL_PREFIX)
-def hello():
-    return "Hello. This resource is available without authentication."
 
 
 @app.route("{}/signup".format(URL_PREFIX), methods=['POST'])
@@ -94,13 +84,6 @@ def create_user():
     return response
 
 
-@app.route("{}/test".format(URL_PREFIX))
-@auth.login_required
-def index():
-    print('Authenticated resource')
-    return "ROUTE TEST - Logged as: %s!" % auth.username()
-
-
 def file_content(filename):
     """
     This function returns the content of the file that is being download
@@ -109,7 +92,8 @@ def file_content(filename):
         content = f.read()
     return content
 
-@app.route("/files/<filename>")     
+
+@app.route("/files/<filename>")
 def download(filename):
     """
     This function downloads <filename> from  server directory 'upload'
@@ -119,13 +103,13 @@ def download(filename):
     response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
     return response
 
+
 @app.route("/files/<path:varargs>", methods = ["POST"])
 def upload(varargs):
     """
         This function uploads a file to the server in the 'upload' folder
     """
     upload_file = request.files["file"]
-    path = []
         
     dirname = os.path.dirname(varargs)
     dirname = "upload/" + dirname
@@ -139,6 +123,7 @@ def upload(varargs):
     filename = os.path.split(varargs)[-1]   
     upload_file.save(os.path.join(dirname, filename))
     return "", 201
+
 
 if __name__ == "__main__":
     user_login_info = load_userdata()
