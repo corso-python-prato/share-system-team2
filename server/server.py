@@ -40,7 +40,7 @@ def file_content(filename):
         content = f.read()
     return content
 
-@app.route("/files/<filename>")		
+@app.route("{}/files/<filename>".format(URL_PREFIX))		
 def download(filename):
     """
     This function downloads <filename> from  server directory 'upload'
@@ -50,7 +50,7 @@ def download(filename):
     response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
     return response
 
-@app.route("/files/<path:varargs>", methods = ["POST"])
+@app.route("{}/files/<path:varargs>".format(URL_PREFIX), methods = ["POST"])
 def upload(varargs):
 	"""
 		This function uploads a file to the server in the 'upload' folder
