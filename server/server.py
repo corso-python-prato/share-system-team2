@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 import os
-from flask import Flask, make_response, request
+from flask import Flask, make_response, request, abort
 from flask.ext.httpauth import HTTPBasicAuth
 from werkzeug import secure_filename
 
@@ -42,7 +42,8 @@ def file_content(filename):
 	return content
 
 
-@app.route("/download/<filename>")				
+@app.route("/files/<filename>")		
+#@auth.login_required		
 def download(filename):
 	"""
 		This function downloads <filename> from  server directory 'upload'  
@@ -53,16 +54,27 @@ def download(filename):
 	return response
 
 
-@app.route("/upload", methods = ["POST"])
-def upload():
+@app.route("/files/<path:varargs>", methods = ["POST"])
+def upload(varargs):
 	"""
 		This function uploads a file to the server in the 'upload' folder
 	"""
-	upload_file = request.files["file"]	
-	filename = secure_filename(upload_file.filename)
-	upload_file.save(os.path.join("upload", filename))
-	return "", 201
+	upload_file = request.files["file"]
+	path = []
+	#filename = secure_filename(filename)
+	
+	dirname = os.path.dirname(varargs)
+	dirname = "upload/" + dirname
+	real_dirname = os.path.realpath(dirname)
+	real_root = os.path.realpath('upload/')
 
+	if real_root not in real_dirname:
+		abort(403)
+	if not os.path.exists(dirname):
+		os.makedirs(dirname)
+	filename = os.path.split(varargs)[-1]	
+	upload_file.save(os.path.join(dirname, filename))
+	return "", 201
 
 if __name__ == "__main__":
 	app.run(debug=True)
