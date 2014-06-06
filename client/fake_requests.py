@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-from httmock import all_requests, response, HTTMock
 import requests
+
+from httmock import all_requests, response, HTTMock
 
 
 users = {
@@ -44,7 +45,3 @@ def post(url, data):
         users[new_user] = password
         response = create_fake_raise(200, 'User added Successfully')
         return response
-
-
-
-
