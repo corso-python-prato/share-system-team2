@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 #-*- coding: utf-8 -*-
 import os
 from flask import Flask, make_response, request, abort
@@ -11,7 +11,6 @@ user_login_info = {
     "luca": "luca",
     "iacopo": "iacopo"
 }
-
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -33,26 +32,23 @@ def index():
     return "ROUTE TEST - Logged as: %s!" % auth.username()
 
 
-def file_content(filename): 
-	"""
-		This function returns the content of the file that is being download
-	"""		
-	with open(filename, "rb") as f:
-		content = f.read()
-	return content
-
+def file_content(filename):
+    """
+    This function returns the content of the file that is being download
+    """
+    with open(filename, "rb") as f:
+        content = f.read()
+    return content
 
 @app.route("/files/<filename>")		
-#@auth.login_required		
 def download(filename):
-	"""
-		This function downloads <filename> from  server directory 'upload'  
-	"""
-	s_filename = secure_filename(filename)
-	response = make_response(file_content(os.path.join("upload", s_filename)))
-	response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
-	return response
-
+    """
+    This function downloads <filename> from  server directory 'upload'
+    """
+    s_filename = secure_filename(filename)
+    response = make_response(file_content(os.path.join("upload", s_filename)))
+    response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
+    return response
 
 @app.route("/files/<path:varargs>", methods = ["POST"])
 def upload(varargs):
@@ -77,4 +73,4 @@ def upload(varargs):
 	return "", 201
 
 if __name__ == "__main__":
-	app.run(debug=True)
+    app.run(debug=True)
