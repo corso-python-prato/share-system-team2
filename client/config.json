@@ -1,1 +1,1 @@
-{"path": "/home/milly/CORSO-PYTHON/share_prova", "host": "localhost", "port": 50001, "api_suffix": "/api/v1"}
+{"path": "./sharing_folder", "host": "localhost", "port": 50001, "api_suffix": "/api/v1"}

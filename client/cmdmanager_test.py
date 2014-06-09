@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import cmd
 import socket
@@ -9,8 +9,10 @@ import random
 
 import client_cmdmanager
 
-def id_gen(size=int(random.random()*8), chars=string.ascii_uppercase + string.digits):
+
+def id_gen(size=int(random.random() * 8), chars=string.ascii_uppercase + string.digits):
     return ''.join(random.choice(chars) for _ in range(size))
+
 
 class Testcmdmanager(unittest.TestCase):
     def setUp(self):
@@ -38,6 +40,7 @@ class Testcmdmanager(unittest.TestCase):
 
     def test_failed_connection(self):
             self.assertRaises(socket.error, self.CommandParser.do_newUser, "user pass") is False
+
 
 if __name__ == "__main__":
     unittest.main()
