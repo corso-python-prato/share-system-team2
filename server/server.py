@@ -9,10 +9,19 @@ from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
 
 
-URL_PREFIX = '/API/V1'
+# HTTP STATUS CODES
+HTTP_OK = 200
+HTTP_CREATED = 201
+HTTP_ACCEPTED = 202
+HTTP_BAD_REQUEST = 400
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
+HTTP_NOT_FOUND = 404
 
+URL_PREFIX = '/API/V1'
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+
 
 app = Flask(__name__)
 auth = HTTPBasicAuth()
@@ -82,13 +91,13 @@ def create_user():
     if username and password:
         if username in userdata:
             # user already exists!
-            response = 'Error: username already exists!', 403
+            response = 'Error: username already exists!', HTTP_FORBIDDEN
         else:
             userdata[username] = _encrypt_password(password)
-            response = 'User "{}" created'.format(username), 201
+            response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
     else:
-        response = 'Error: username or password is missing', 400
+        response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     print(response)
     return response
 
@@ -117,12 +126,12 @@ def upload(varargs):
     real_root = os.path.realpath('upload/')
 
     if real_root not in real_dirname:
-        abort(403)
+        abort(HTTP_FORBIDDEN)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
     filename = os.path.split(varargs)[-1]   
     upload_file.save(os.path.join(dirname, filename))
-    return "", 201
+    return "", HTTP_CREATED
 
 
 if __name__ == "__main__":
