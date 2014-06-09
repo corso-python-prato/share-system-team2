@@ -108,8 +108,12 @@ def download(filename):
     This function downloads <filename> from  server directory 'upload'
     """
     s_filename = secure_filename(filename)
-    response = make_response(_read_file(os.path.join("upload", s_filename)))
-    response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
+    try:
+        response = make_response(_read_file(os.path.join("upload", s_filename)))
+    except IOError:
+        response = 'File not found', HTTP_NOT_FOUND
+    else:
+        response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
     return response
 
 
