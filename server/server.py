@@ -101,6 +101,7 @@ def create_user():
 class Files(Resource):
     @auth.login_required
     def get(self, path):
+        print request.authorization
         dirname = os.path.join("upload",os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
         real_root = os.path.realpath('upload/')
@@ -140,4 +141,4 @@ api.add_resource(Files, "{}/files/<path:path>".format(URL_PREFIX))
 
 if __name__ == "__main__":
     userdata = load_userdata()
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)
