@@ -72,6 +72,9 @@ class Daemon(object):
         """
         cmd = data.keys()[0]  # it will be always one key
         args = data[cmd]  # it will be a dict specifying the args
+
+        if cmd == 'stop':
+            self.stop()
         print cmd, args
         # self.api.send(cmd, args)
 
@@ -120,6 +123,9 @@ class Daemon(object):
         self.dir_manager.join()
         listener_socket.close()
 
+    def stop(self):
+        self.dir_manager.stop()
+        self.running = 0
 
 if __name__ == '__main__':
 
