@@ -3,6 +3,7 @@ import server
 import io
 import os
 
+
 class TestRequests(unittest.TestCase):
     def setUp(self):
         self.app = server.app.test_client()

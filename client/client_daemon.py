@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import json
 import socket
@@ -27,7 +27,7 @@ class DirectoryMonitor(FileSystemEventHandler):
         """
         it catpures any filesytem event and redirects it to the callback
         """
-        if event.is_directory == False:
+        if event.is_directory is False:
             self.callback(event)
 
     def start(self):
@@ -64,7 +64,6 @@ class Daemon(object):
         # self.api = Api()
         self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
         self.running = 0
-
 
     def cmd_dispatcher(self, data):
         """

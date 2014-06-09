@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import cmd
 import socket
@@ -26,7 +26,6 @@ class CommandParser(cmd.Cmd):
         if not message:
             return
 
-
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((self.DAEMON_HOST, self.DAEMON_PORT))
@@ -40,8 +39,6 @@ class CommandParser(cmd.Cmd):
             # log exception message
             print 'daemon is not running'
             return False
-
-
 
     def do_quit(self, line):
         """Exit Command"""
@@ -73,5 +70,3 @@ class CommandParser(cmd.Cmd):
 
 if __name__ == '__main__':
     CommandParser().cmdloop()
-
-
