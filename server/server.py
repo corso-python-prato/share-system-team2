@@ -5,6 +5,7 @@ import json
 
 from flask import Flask, make_response, request, abort
 from flask.ext.httpauth import HTTPBasicAuth
+from flask.ext.restful import Resource, Api
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
 
@@ -24,6 +25,7 @@ USERDATA_FILENAME = 'userdata.json'
 
 
 app = Flask(__name__)
+api = Api(app)
 auth = HTTPBasicAuth()
 
 
@@ -35,14 +37,12 @@ def _read_file(filename):
         content = f.read()
     return content
 
-
 def _encrypt_password(password):
     """
     Return the password encrypted as a string.
     :rtype : str
     """
     return sha256_crypt.encrypt(password)
-
 
 def load_userdata():
     data = {}
@@ -54,12 +54,10 @@ def load_userdata():
         print('No users loaded.')
     return data
 
-
 def save_userdata(data):
     with open(USERDATA_FILENAME, 'wb') as fp:
         json.dump(data, fp, 'utf-8')
     print('Saved {:,} users'.format(len(data)))
-
 
 @auth.verify_password
 def verify_password(username, password):
@@ -76,7 +74,6 @@ def verify_password(username, password):
         print('User "{}" does not exist!'.format(username))
         res = False
     return res
-
 
 @app.route("{}/signup".format(URL_PREFIX), methods=['POST'])
 def create_user():
@@ -101,38 +98,43 @@ def create_user():
     print(response)
     return response
 
+class Files(Resource):
+    def get(self, path):
+        dirname = os.path.join("upload",os.path.dirname(path))
+        real_dirname = os.path.realpath(dirname)
+        real_root = os.path.realpath('upload/')
 
-@app.route("{}/files/<filename>".format(URL_PREFIX))		
-def download(filename):
-    """
-    This function downloads <filename> from  server directory 'upload'
-    """
-    s_filename = secure_filename(filename)
-    response = make_response(_read_file(os.path.join("upload", s_filename)))
-    response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
-    return response
+        if real_root not in real_dirname:
+            abort(HTTP_FORBIDDEN)
+        if not os.path.exists(dirname):
+            abort(HTTP_NOT_FOUND)
+        s_filename = secure_filename(os.path.split(path)[-1])
+
+        try:
+            response = make_response(_read_file(os.path.join("upload",path)))
+        except IOError:
+            response = 'File not found', HTTP_NOT_FOUND
+        else:
+            response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
+        return response
+
+    def post(self, path):
+        upload_file = request.files["file"]
+        dirname = os.path.dirname(path)
+        dirname = "upload/" + dirname
+        real_dirname = os.path.realpath(dirname)
+        real_root = os.path.realpath('upload/')
+
+        if real_root not in real_dirname:
+            abort(HTTP_FORBIDDEN)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        filename = os.path.split(path)[-1]   
+        upload_file.save(os.path.join(dirname, filename))
+        return "", HTTP_CREATED
 
 
-@app.route("{}/files/<path:varargs>".format(URL_PREFIX), methods = ["POST"])
-def upload(varargs):
-    """
-    This function uploads a file to the server in the 'upload' folder
-    """
-    upload_file = request.files["file"]
-        
-    dirname = os.path.dirname(varargs)
-    dirname = "upload/" + dirname
-    real_dirname = os.path.realpath(dirname)
-    real_root = os.path.realpath('upload/')
-
-    if real_root not in real_dirname:
-        abort(HTTP_FORBIDDEN)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
-    filename = os.path.split(varargs)[-1]   
-    upload_file.save(os.path.join(dirname, filename))
-    return "", HTTP_CREATED
-
+api.add_resource(Files, "{}/files/<path:path>".format(URL_PREFIX))
 
 if __name__ == "__main__":
     userdata = load_userdata()
