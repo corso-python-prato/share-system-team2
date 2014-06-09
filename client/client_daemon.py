@@ -73,7 +73,7 @@ class Daemon(object):
         cmd = data.keys()[0]  # it will be always one key
         args = data[cmd]  # it will be a dict specifying the args
 
-        if cmd == 'stop':
+        if cmd == 'stop_daemon':
             self.stop()
         print cmd, args
         # self.api.send(cmd, args)
