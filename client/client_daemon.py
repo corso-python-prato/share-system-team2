@@ -1,16 +1,53 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-
-
-import select
+import sys
+import os
+import argparse
+import json
 import socket
 import struct
-import json
+import select
 
 
-COMMANDS = {
-    # 'cmd': api.<cmd>   --> ex. 'downloadFile': api.download_file
-}
+#!/usr/bin/env python
+#-*- coding: utf-8 -*-
+import time
+# we import PollingObserver instead of Observer because the deleted event
+# is not capturing https://github.com/gorakhargosh/watchdog/issues/46
+from watchdog.observers.polling import PollingObserver as Observer
+from watchdog.events import LoggingEventHandler
+from watchdog.events import FileSystemEventHandler
+from threading import Thread
+
+class DirectoryMonitor(FileSystemEventHandler):
+    """ The DirectoryMonitor for file system events 
+        like: moved, deleted, created, modified
+    """
+    def __init__(self):
+        FileSystemEventHandler.__init__(self)
+        self.observer = Observer()
+        self.observer.schedule(self, path='/home/pasquale/', recursive=True)
+
+    def on_any_event(self, event):
+        self.event_handler(event)
+    
+    def event_handler(self,event):
+        if event.is_directory == False:
+            print event.src_path,event.event_type
+
+    def start(self):    
+        
+        
+        self.observer.start()
+        try:   
+            while True:
+                time.sleep(1)            
+        except KeyboardInterrupt:
+            self.observer.stop()
+        self.observer.join()
+
+    def stop(self):
+        self.observer.stop() 
 
 
 def dispatcher(data):
@@ -18,11 +55,10 @@ def dispatcher(data):
 
     cmd = data.keys()[0]  # it will be always one key
     args = data[cmd]  # it will be a dict specifying the args
-
-    COMMANDS[cmd](args)  # fix-it: use try...except to manage exception
-
-
+    print cmd, args
+    
 def serve_forever():
+    """ The localserver listener for the cmd manager """
     # fix-it: import info from config file
     host = 'localhost'
     port = 50001
@@ -36,7 +72,7 @@ def serve_forever():
 
     running = 1
     while running:
-        r_ready, w_ready, e_ready = select.select(r_list, [], [])
+        r_ready, w_ready, e_ready = select.select(r_list, [], [], 0.5)
 
         for s in r_ready:
 
@@ -58,6 +94,12 @@ def serve_forever():
     deamon_server.close()
 
 
-if __name__ == "__main__":
-    serve_forever()
+if __name__ == '__main__':
+    
+    #first thread is the dirmonitor
+    thread = Thread(target = DirectoryMonitor().start)
+    thread.start()
 
+    #second thread is the localserver for the cmd_manager
+    thread2 = Thread(target = serve_forever)
+    thread2.start()
