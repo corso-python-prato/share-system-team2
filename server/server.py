@@ -102,14 +102,25 @@ def create_user():
     return response
 
 
-@app.route("{}/files/<filename>".format(URL_PREFIX))		
-def download(filename):
+@app.route("{}/files/<path:path>".format(URL_PREFIX))	
+@auth.login_required    	
+def download(path):
     """
-    This function downloads <filename> from  server directory 'upload'
+    This function downloads a file from server directory "path"
     """
-    s_filename = secure_filename(filename)
+
+    dirname = os.path.join("upload",os.path.dirname(path))
+    real_dirname = os.path.realpath(dirname)
+    real_root = os.path.realpath('upload/')
+
+    if real_root not in real_dirname:
+        abort(HTTP_FORBIDDEN)
+    if not os.path.exists(dirname):
+        abort(HTTP_NOT_FOUND)
+    s_filename = secure_filename(os.path.split(path)[-1])
+
     try:
-        response = make_response(_read_file(os.path.join("upload", s_filename)))
+        response = make_response(_read_file(os.path.join("upload",path)))
     except IOError:
         response = 'File not found', HTTP_NOT_FOUND
     else:
@@ -117,14 +128,15 @@ def download(filename):
     return response
 
 
-@app.route("{}/files/<path:varargs>".format(URL_PREFIX), methods = ["POST"])
-def upload(varargs):
+@app.route("{}/files/<path:path>".format(URL_PREFIX), methods = ["POST"])
+@auth.login_required
+def upload(path):
     """
     This function uploads a file to the server in the 'upload' folder
     """
     upload_file = request.files["file"]
         
-    dirname = os.path.dirname(varargs)
+    dirname = os.path.dirname(path)
     dirname = "upload/" + dirname
     real_dirname = os.path.realpath(dirname)
     real_root = os.path.realpath('upload/')
@@ -133,7 +145,7 @@ def upload(varargs):
         abort(HTTP_FORBIDDEN)
     if not os.path.exists(dirname):
         os.makedirs(dirname)
-    filename = os.path.split(varargs)[-1]   
+    filename = os.path.split(path)[-1]   
     upload_file.save(os.path.join(dirname, filename))
     return "", HTTP_CREATED
 
