@@ -99,6 +99,7 @@ def create_user():
     return response
 
 class Files(Resource):
+    @auth.login_required
     def get(self, path):
         dirname = os.path.join("upload",os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
@@ -118,6 +119,7 @@ class Files(Resource):
             response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
         return response
 
+    @auth.login_required
     def post(self, path):
         upload_file = request.files["file"]
         dirname = os.path.dirname(path)
