@@ -22,6 +22,7 @@ HTTP_NOT_FOUND = 404
 URL_PREFIX = '/API/V1'
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+DEFAULT_REGISTERED_USER = 'pybox', 'pw'
 
 
 app = Flask(__name__)
@@ -48,12 +49,17 @@ def _encrypt_password(password):
 
 def load_userdata():
     data = {}
+    # Register a fake user on-the-fly to use it with tests under auth
+    default_user, default_user_password = DEFAULT_REGISTERED_USER
+    data[default_user] = _encrypt_password(default_user_password)
+
     try:
         with open(USERDATA_FILENAME, 'rb') as fp:
             data = json.load(fp, 'utf-8')
-            print('{:,} users loaded'.format(len(data)))
     except IOError:
-        print('No users loaded.')
+        pass
+    print 'Registered user(s):', ', '.join(data.keys())
+    print('{:,} registered user(s) found'.format(len(data)))
     return data
 
 
