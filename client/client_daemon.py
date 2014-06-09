@@ -1,110 +1,63 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
-import sys
-import os
-import argparse
-import time
-import requests
+
+
+import select
+import socket
+import struct
 import json
 
 
-# we import PollingObserver instead of Observer because the deleted event
-# is not capturing https://github.com/gorakhargosh/watchdog/issues/46
-from watchdog.observers.polling import PollingObserver as Observer
-from watchdog.events import LoggingEventHandler
-from watchdog.events import FileSystemEventHandler
+COMMANDS = {
+    # 'cmd': api.<cmd>   --> ex. 'downloadFile': api.download_file
+}
 
 
-class Sync(object):
-    METHODS = {"put": requests.put,
-        "delete": requests.delete,
-        "get": requests.get,
-        "post": requests.post}
+def dispatcher(data):
+    """It dispatch cmd and args to the api manager object"""
 
-    def __init__(self, server_address):
-        self.server_address = server_address
+    cmd = data.keys()[0]  # it will be always one key
+    args = data[cmd]  # it will be a dict specifying the args
 
-    def handler(self, event):
-        try:
-            # in this way you can't create empty folder but who cares!
-            if event.is_directory == False:
-                if event.event_type == "modified":
-                   print ':'.join([event.event_type,event.src_path])               
-                   self.make_request("put")                   
-                elif event.event_type == "deleted":
-                   print ':'.join([event.event_type,event.src_path])               
-                   self.make_request("delete")
-                   
-                elif event.event_type == "created":
-                   print ':'.join([event.event_type,event.src_path])               
-                   self.make_request("post")
-                   
-                elif event.event_type == "moved":
-                   print ':'.join([event.event_type,event.src_path])               
-                   self.make_request("delete")
-                   
-        except (requests.HTTPError,requests.exceptions.ConnectionError,
-                requests.exceptions.MissingSchema) as e:
-            print e
-
-    def make_request(self, kind, params=None):
-        r = Sync.METHODS[kind](self.server_address)               
-        r.raise_for_status()
-        return r
+    COMMANDS[cmd](args)  # fix-it: use try...except to manage exception
 
 
-class DirectoryMonitor(FileSystemEventHandler):
-    """ Daemon Monitor for file system events 
-        like: moved, deleted, created, modified
-    """
-    def __init__(self, callback):
-        FileSystemEventHandler.__init__(self)
-        self.callback = callback
-        
-    def catch_all(self, event):
-        """ Dispatcher events.
-        """
-        self.callback(event)        
+def serve_forever():
+    # fix-it: import info from config file
+    host = 'localhost'
+    port = 50001
+    backlog = 5
+    int_size = struct.calcsize('!i')
 
-    def on_created(self, event):
-         self.catch_all(event)        
+    deamon_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    deamon_server.bind((host, port))
+    deamon_server.listen(backlog)
+    r_list = [deamon_server]
 
-    def on_deleted(self, event):        
-         self.catch_all(event)
+    running = 1
+    while running:
+        r_ready, w_ready, e_ready = select.select(r_list, [], [])
 
-    def on_modified(self, event):
-        self.catch_all(event)
+        for s in r_ready:
 
-    def on_moved(self, event):
-        self.catch_all(event)  
-
-
-def load_json(conf_path):
-    if os.path.isfile(conf_path):
-        with open(conf_path,"r") as fo:
-             config = json.load(fo)
-        return config
-    else:
-        "There's not configuration file"
+            if s == deamon_server:
+                # handle the server socket
+                client, address = deamon_server.accept()
+                r_list.append(client)
+            else:
+                # handle all other sockets
+                lenght = s.recv(int_size)
+                if lenght:
+                    lenght = int(struct.unpack('!i', lenght)[0])
+                    data = s.recv(lenght)
+                    data = json.loads(data)
+                    dispatcher(data)
+                else:
+                    s.close()
+                    r_list.remove(s)
+    deamon_server.close()
 
 
 if __name__ == "__main__":
-    conf = load_json("config.json")
-    if os.path.isdir(conf["path"]):      
-        
-        sync = Sync(conf["server_address"]).handler
-        event_handler = DirectoryMonitor(sync)
-        observer = Observer()
+    serve_forever()
 
-        observer.schedule(event_handler, path=conf["path"], recursive=True)
-        observer.start()
-
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
-    
-    else:
-        print "Directory not found."
