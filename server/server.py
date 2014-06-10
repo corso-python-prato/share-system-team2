@@ -126,7 +126,11 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        pass
+        {
+        'delete': self._delete,
+        'copy': self._copy,
+        'move': self._move
+        }.get(cmd)()
 
     def _delete(self):
         pass
