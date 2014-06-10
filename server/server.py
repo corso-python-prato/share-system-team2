@@ -20,12 +20,12 @@ HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 FILE_ROOT = 'filestorage'
 
-URL_PREFIX = '/API/V1'
+URL_PREFIX = '/API/V1'  # TODO?: make a cross-platform path using os.path.join
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
-DEFAULT_REGISTERED_USER = 'pybox', 'pw'
 
+userdata = {}
 
 app = Flask(__name__)
 api = Api(app)
@@ -60,14 +60,12 @@ def _encrypt_password(password):
 
 def load_userdata():
     data = {}
-    # Register a fake user on-the-fly to use it with tests under auth
-    default_user, default_user_password = DEFAULT_REGISTERED_USER
-    data[default_user] = _encrypt_password(default_user_password)
-
     try:
         with open(_path(USERDATA_FILENAME), 'rb') as fp:
             data = json.load(fp, 'utf-8')
     except IOError:
+        # If the user data file does not exists, don't raise an exception.
+        # (the file will be created with the first user creation)
         pass
     print 'Registered user(s):', ', '.join(data.keys())
     print('{:,} registered user(s) found'.format(len(data)))
@@ -116,7 +114,7 @@ def create_user():
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
-            os.makedirs(os.path.join(FILE_ROOT, username))           
+            os.makedirs(os.path.join(FILE_ROOT, username))
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     print(response)
@@ -143,7 +141,6 @@ class Actions(Resource):
 class Files(Resource):
     @auth.login_required
     def get(self, path):
-
         username = request.authorization['username']
         dirname = os.path.join(FILE_ROOT, username, os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
@@ -199,12 +196,12 @@ class Files(Resource):
            upload_file.save(os.path.join(dirname, filename))
            return '', HTTP_CREATED
         else:
-            abort(HTTP_NOT_FOUND)   
-    
+            abort(HTTP_NOT_FOUND)
+
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<cmd>'.format(URL_PREFIX))
 
 if __name__ == '__main__':
-    userdata = load_userdata()
+    userdata.update(load_userdata())
     app.run(host='0.0.0.0', debug=True)
