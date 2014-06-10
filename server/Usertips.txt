@@ -1,16 +1,18 @@
------------  Using curl library to call server upload/download file ------------
+# "Testing" the server with the curl library
 
-upload example (GET):
+Upload (POST):
 
-curl --form "file=@file3.dat" http://127.0.0.1:5000/API/V1/files/test6/test7/file10.dat
+    curl --form "file=@file3.dat" http://127.0.0.1:5000/API/V1/files/test6/test7/file10.dat
 
-download example:
+Download (GET):
 
-curl http://127.0.0.1:5000/API/V1/files/index.jpeg 
+    curl http://127.0.0.1:5000/API/V1/files/index.jpeg
+
 Note: file index.jpeg must exists in the upload directory
 
-Instead, there is a graphic interface (see upload.html attached file) to directly try upload one file from the browser to the server root directory (upload).
+Instead, there is a graphic interface (see upload.html attached file) to directly try upload
+one file from the browser to the server root directory (upload).
 
+Creating new user (signup):
 
-
-
+    curl localhost:5000/API/V1/signup --data "username=youruser&password=yourpassword"
