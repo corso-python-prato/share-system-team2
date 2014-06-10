@@ -5,7 +5,11 @@ import json
 import socket
 import struct
 import select
+
 import os
+
+import connection_manager
+
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -89,9 +93,14 @@ class Daemon(object):
 
     def __init__(self):
         self.cfg = json.loads(open('config.json', 'r').read())
+<<<<<<< HEAD
         # self.api = Api()
         
         self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)        
+=======
+        self.conn_mng = connection_manager.ConnectionManager()
+        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
+>>>>>>> afc374f6188e0fa2e2bde1125e56668d295252ff
         self.running = 0
 
     def cmd_dispatcher(self, data):
@@ -101,10 +110,12 @@ class Daemon(object):
         cmd = data.keys()[0]  # it will be always one key
         args = data[cmd]  # it will be a dict specifying the args
 
-        if cmd == 'stop_daemon':
-            self.stop()
         print cmd, args
-        # self.api.send(cmd, args)
+
+        if cmd == 'shutdown':
+            self.shutdown()
+        else:
+            self.conn_mng.dispatch_request(cmd, args)
 
     def event_dispatcher(self, data):
         """
@@ -127,31 +138,34 @@ class Daemon(object):
         self.dir_manager.start()
 
         self.running = 1
-        while self.running:
-            r_ready, w_ready, e_ready = select.select(r_list, [], [], self.TIMEOUT)
+        try:
+            while self.running:
+                r_ready, w_ready, e_ready = select.select(r_list, [], [], self.TIMEOUT)
 
-            for s in r_ready:
+                for s in r_ready:
 
-                if s == listener_socket:
-                    # handle the server socket
-                    client_socket, client_address = listener_socket.accept()
-                    r_list.append(client_socket)
-                else:
-                    # handle all other sockets
-                    lenght = s.recv(int_size)
-                    if lenght:
-                        lenght = int(struct.unpack('!i', lenght)[0])
-                        data = s.recv(lenght)
-                        data = json.loads(data)
-                        self.cmd_dispatcher(data)
+                    if s == listener_socket:
+                        # handle the server socket
+                        client_socket, client_address = listener_socket.accept()
+                        r_list.append(client_socket)
                     else:
-                        s.close()
-                        r_list.remove(s)
+                        # handle all other sockets
+                        lenght = s.recv(int_size)
+                        if lenght:
+                            lenght = int(struct.unpack('!i', lenght)[0])
+                            data = s.recv(lenght)
+                            data = json.loads(data)
+                            self.cmd_dispatcher(data)
+                        else:
+                            s.close()
+                            r_list.remove(s)
+        except KeyboardInterrupt:
+            self.shutdown()
 
         self.dir_manager.join()
         listener_socket.close()
 
-    def stop(self):
+    def shutdown(self):
         self.dir_manager.stop()
         self.running = 0
 
