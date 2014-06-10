@@ -114,7 +114,7 @@ def create_user():
 class Files(Resource):
     @auth.login_required
     def get(self, path):
-        #print request.authorization
+        print request.authorization
         dirname = os.path.join("upload",os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
         real_root = os.path.realpath('upload/')
