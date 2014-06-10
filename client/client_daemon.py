@@ -5,6 +5,7 @@ import json
 import socket
 import struct
 import select
+import os
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -20,6 +21,8 @@ class DirectoryMonitor(FileSystemEventHandler):
     def __init__(self, folder_path, callback):
         FileSystemEventHandler.__init__(self)
         self.callback = callback
+        self.folder_path = folder_path
+        self.folder_watched = self.folder_path.split(os.sep)[-1]
         self.observer = Observer()
         self.observer.schedule(self, path=folder_path, recursive=True)
 
@@ -27,14 +30,38 @@ class DirectoryMonitor(FileSystemEventHandler):
         """
         it catpures any filesytem event and redirects it to the callback
         """
-        if event.is_directory is False:
-            self.callback(event)
+        data = {}
+
+        if event.is_directory is False:        
+            e = event           
+                        
+            if e.event_type == 'modified':
+
+                data['upload'] = (self.relative_path(e.src_path))
+
+            elif e.event_type == 'deleted':
+
+                data['delete'] = (self.relative_path(e.src_path))
+
+            elif e.event_type == 'created':
+
+                data['upload'] = (self.relative_path(e.src_path))
+
+            elif e.event_type == 'moved':
+
+                data['move'] = (self.relative_path(e.src_path),self.relative_path(e.dest_path))            
+            self.callback(data)
+
+    def relative_path(self,path_to_clean):
+        return ''.join([self.folder_watched,path_to_clean.split(self.folder_watched)[-1]])
+
 
     def start(self):
         """
         starts the observer thread
-        """
+        """        
         self.observer.start()
+        
 
     def stop(self):
         """
@@ -45,8 +72,9 @@ class DirectoryMonitor(FileSystemEventHandler):
     def join(self):
         """
         waits for observer execution finalize
-        """
+        """        
         self.observer.join()
+
 
 
 class Daemon(object):
@@ -62,7 +90,8 @@ class Daemon(object):
     def __init__(self):
         self.cfg = json.loads(open('config.json', 'r').read())
         # self.api = Api()
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
+        
+        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)        
         self.running = 0
 
     def cmd_dispatcher(self, data):
@@ -77,11 +106,11 @@ class Daemon(object):
         print cmd, args
         # self.api.send(cmd, args)
 
-    def event_dispatcher(self, event):
+    def event_dispatcher(self, data):
         """
         It dispatch the captured events to the api manager object
         """
-        print event  # fix-it
+        print data  # TODO: call the function for requestes to server
 
     def serve_forever(self):
         """
