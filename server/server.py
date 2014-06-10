@@ -139,6 +139,7 @@ class Actions(Resource):
 class Files(Resource):
     @auth.login_required
     def get(self, path):
+
         username = request.authorization['username']
         dirname = os.path.join(FILE_ROOT, username, os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
