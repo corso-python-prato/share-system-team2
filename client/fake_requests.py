@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import requests
 
@@ -25,6 +25,7 @@ def create_fake_raise(code, message):
     with HTTMock(response_content):
             r = requests.get('https://api.github.com/users/whatever')
     return r
+
 
 def post(url, data):
     if url != 'NEWUSER':

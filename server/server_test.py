@@ -3,17 +3,19 @@ import server
 import io
 import os
 
+
 class TestRequests(unittest.TestCase):
     def setUp(self):
         self.app = server.app.test_client()
 
+    
     def test_files_get_with_auth(self):
         test = self.app.get("/API/V1/files/file1.txt")
         self.assertEqual(test.status_code, 200)
 
     def test_files_get_without_auth(self):
         test = self.app.get("/API/V1/files/file1.txt")
-        self.assertEqual(test.status_code, 200)
+        self.assertEqual(test.status_code, 403)
 
     def test_files_get_with_not_existing_file(self):
         test = self.app.get("/API/V1/files/file1.cat")

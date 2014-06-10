@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import cmd
 import socket
@@ -27,6 +27,7 @@ class CommandParser(cmd.Cmd):
             return
 
         message = json.dumps(message)
+
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             s.connect((self.DAEMON_HOST, self.DAEMON_PORT))
@@ -60,7 +61,7 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'newUser': (user, password)}
             print message
-            self._send_to_daemon(json.dumps(message))
+            self._send_to_daemon(message)
 
     def do_reguser(self, line):
         """
@@ -80,5 +81,3 @@ class CommandParser(cmd.Cmd):
 
 if __name__ == '__main__':
     CommandParser().cmdloop()
-
-
