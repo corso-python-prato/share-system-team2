@@ -20,6 +20,7 @@ HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 
 URL_PREFIX = '/API/V1'
+WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
 DEFAULT_REGISTERED_USER = 'pybox', 'pw'
@@ -28,6 +29,15 @@ DEFAULT_REGISTERED_USER = 'pybox', 'pw'
 app = Flask(__name__)
 api = Api(app)
 auth = HTTPBasicAuth()
+
+
+def _path(*relpath):
+    """
+    Build the path under WORKDIR.
+    :param relpath:
+    :return:
+    """
+    return os.path.join(WORKDIR, *relpath)
 
 
 def _read_file(filename):
@@ -54,7 +64,7 @@ def load_userdata():
     data[default_user] = _encrypt_password(default_user_password)
 
     try:
-        with open(USERDATA_FILENAME, 'rb') as fp:
+        with open(_path(USERDATA_FILENAME), 'rb') as fp:
             data = json.load(fp, 'utf-8')
     except IOError:
         pass
@@ -64,7 +74,7 @@ def load_userdata():
 
 
 def save_userdata(data):
-    with open(USERDATA_FILENAME, 'wb') as fp:
+    with open(_path(USERDATA_FILENAME), 'wb') as fp:
         json.dump(data, fp, 'utf-8')
     print('Saved {:,} users'.format(len(data)))
 
@@ -114,7 +124,7 @@ def create_user():
 class Files(Resource):
     @auth.login_required
     def get(self, path):
-        print request.authorization
+
         dirname = os.path.join("upload",os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
         real_root = os.path.realpath('upload/')
