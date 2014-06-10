@@ -18,6 +18,7 @@ HTTP_BAD_REQUEST = 400
 HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
+FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
@@ -44,7 +45,7 @@ def _read_file(filename):
     """
     This function reads and returns the content of the file.
     """
-    with open(filename, "rb") as f:
+    with open(filename, 'rb') as f:
         content = f.read()
     return content
 
@@ -96,7 +97,7 @@ def verify_password(username, password):
     return res
 
 
-@app.route("{}/signup".format(URL_PREFIX), methods=['POST'])
+@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def create_user():
     """
     Handle the creation of a new user.
@@ -115,19 +116,33 @@ def create_user():
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
+            os.makedirs(os.path.join(FILE_ROOT, username))           
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     print(response)
     return response
 
 
+class Actions(Resource):
+    @auth.login_required
+    def post(self, cmd):
+        pass
+
+    def _delete(self):
+        pass
+    def _move(self):
+        pass
+    def _copy(self):
+        pass
+
+
 class Files(Resource):
     @auth.login_required
     def get(self, path):
-        #print request.authorization
-        dirname = os.path.join("upload", os.path.dirname(path))
+        username = request.authorization['username']
+        dirname = os.path.join(FILE_ROOT, username, os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath('upload/')
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
 
         if real_root not in real_dirname:
             abort(HTTP_FORBIDDEN)
@@ -136,32 +151,55 @@ class Files(Resource):
         s_filename = secure_filename(os.path.split(path)[-1])
 
         try:
-            response = make_response(_read_file(os.path.join("upload", path)))
+            response = make_response(_read_file(os.path.join(FILE_ROOT, username, path)))
         except IOError:
             response = 'File not found', HTTP_NOT_FOUND
         else:
-            response.headers["Content-Disposition"] = "attachment; filename=%s" % s_filename
+            response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
         return response
 
     @auth.login_required
     def post(self, path):
-        upload_file = request.files["file"]
+        username = request.authorization['username']
+        upload_file = request.files['file']
         dirname = os.path.dirname(path)
-        dirname = "upload/" + dirname
+        dirname = (os.path.join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath('upload/')
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        filename = os.path.split(path)[-1]
 
         if real_root not in real_dirname:
             abort(HTTP_FORBIDDEN)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
-        filename = os.path.split(path)[-1]
+        else:
+            if os.path.isfile(os.path.join(dirname, filename)):
+                abort(HTTP_FORBIDDEN)
         upload_file.save(os.path.join(dirname, filename))
-        return "", HTTP_CREATED
+        return '', HTTP_CREATED
 
+    @auth.login_required
+    def put(self, path):
+        username = request.authorization['username']
+        upload_file = request.files['file']
+        dirname = os.path.dirname(path)
+        dirname = (os.path.join(FILE_ROOT, username, dirname))
+        real_dirname = os.path.realpath(dirname)
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        filename = os.path.split(path)[-1]
 
-api.add_resource(Files, "{}/files/<path:path>".format(URL_PREFIX))
+        if real_root not in real_dirname:
+            abort(HTTP_FORBIDDEN)
+        if os.path.isfile(os.path.join(dirname, filename)):
+           upload_file.save(os.path.join(dirname, filename))
+           return '', HTTP_CREATED
+        else:
+            abort(HTTP_NOT_FOUND)   
+    
 
-if __name__ == "__main__":
+api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX))
+api.add_resource(Actions, '{}/actions/<cmd>'.format(URL_PREFIX))
+
+if __name__ == '__main__':
     userdata = load_userdata()
-    app.run(host="0.0.0.0", debug=True)
+    app.run(host='0.0.0.0', debug=True)
