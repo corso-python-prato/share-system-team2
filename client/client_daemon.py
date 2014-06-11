@@ -93,14 +93,9 @@ class Daemon(object):
 
     def __init__(self):
         self.cfg = json.loads(open('config.json', 'r').read())
-<<<<<<< HEAD
-        # self.api = Api()
-        
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)        
-=======
+        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
         self.conn_mng = connection_manager.ConnectionManager()
         self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
->>>>>>> afc374f6188e0fa2e2bde1125e56668d295252ff
         self.running = 0
 
     def cmd_dispatcher(self, data):
