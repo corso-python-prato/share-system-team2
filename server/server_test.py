@@ -114,7 +114,7 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(UPLOAD_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data=dict(file=(io.BytesIO(b"this is a test"), "test.pdf"),),
+                             data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),),
                              follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
@@ -125,10 +125,10 @@ class TestRequests(unittest.TestCase):
         """
         Test that creating a directory upper than the user root is not allowed.
         """
-        user_filepath = "../../../test/myfile2.dat"  # path forbidden
+        user_filepath = '../../../test/myfile2.dat'  # path forbidden
         test = self.app.post(os.path.join(SERVER_FILES_API, user_filepath),
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data=dict(file=(io.BytesIO(b"this is a test"), "test.pdf"),), follow_redirects=True)
+                             data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
 
@@ -152,5 +152,5 @@ class TestUsers(unittest.TestCase):
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
