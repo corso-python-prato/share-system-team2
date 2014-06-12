@@ -28,8 +28,8 @@ import json
 
 class ConnectionManager(object):
 
-    def __init__(self):
-        self.conn = json.loads(open('config.json', 'r').read())
+    def __init__(self, cfg):
+        self.cfg = cfg        
 
     def dispatch_request(self, command, args):
 
@@ -40,9 +40,9 @@ class ConnectionManager(object):
         pass
 
     def do_reguser(self, param):
-        path = '/API/V1/signup'
+        
         data = {'username': param[0], 'password': param[1]}
-        r = requests.post('http://192.168.48.216:5000' + path, data=data)
+        r = requests.post(self.cfg['server_address'] + self.cfg['api_suffix'], data=data)
 
         print r.status_code
 

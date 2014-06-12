@@ -1,1 +1,7 @@
-{"path": "./sharing_folder", "host": "localhost", "port": 50001, "api_suffix": "/api/v1"}
+{
+ "path": "./sharing_folder", 
+ "host": "localhost", 
+ "port": 50001, 
+ "api_suffix": "/api/v1",
+ "server_address":"http://192.168.48.216:5000"
+}

@@ -19,7 +19,7 @@ class Testcmdmanager(unittest.TestCase):
         self.CommandParser = client_cmdmanager.CommandParser()
         self.random_strings = []
         for num in range(10):
-            self.random_strings.append(id_gen() + id_gen() + " " + id_gen() + "   " + id_gen() + " " + id_gen())
+            self.random_strings.append(id_gen() + id_gen() + ' ' + id_gen() + '   ' + id_gen() + ' ' + id_gen())
 
     def tearDown(self):
         pass
@@ -39,8 +39,8 @@ class Testcmdmanager(unittest.TestCase):
             self.assertTrue(self.CommandParser.do_EOF(string))
 
     def test_failed_connection(self):
-            self.assertRaises(socket.error, self.CommandParser.do_newUser, "user pass") is False
+            self.assertRaises(socket.error, self.CommandParser.do_newUser, 'user pass') is False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

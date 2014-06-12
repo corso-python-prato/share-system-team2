@@ -3,6 +3,9 @@
 import os
 import json
 import shutil
+import logging
+import datetime
+import argparse
 
 from flask import Flask, make_response, request, abort
 from flask.ext.httpauth import HTTPBasicAuth
@@ -25,8 +28,36 @@ URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
-DEFAULT_REGISTERED_USER = 'pybox', 'pw'
 
+
+# Logging configuration
+# =====================
+LOG_FILENAME = 'log/server.log'
+if not os.path.isdir('log'):
+    os.mkdir('log')
+
+logger = logging.getLogger('Server log')
+logger.setLevel(logging.DEBUG)
+# It's useful to log all messages of all severities to a text file while simultaneously
+# logging errors or above to the console. You set this up simply configuring the appropriate handlers.
+# Create file handler which logs even debug messages:
+file_handler = logging.FileHandler(LOG_FILENAME)
+file_handler.setLevel(logging.DEBUG)
+# Create console handler with a higher log level:
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.ERROR)  # changeable from command line passing verbosity option or --verbose or --debug
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# First log message
+launched_or_imported = {True: 'launched', False: 'imported'}[__name__ == '__main__']
+logger.info('-' * 79)
+logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
+
+
+# Server initialization
+# =====================
+userdata = {}
 
 app = Flask(__name__)
 api = Api(app)
@@ -61,24 +92,22 @@ def _encrypt_password(password):
 
 def load_userdata():
     data = {}
-    # Register a fake user on-the-fly to use it with tests under auth
-    default_user, default_user_password = DEFAULT_REGISTERED_USER
-    data[default_user] = _encrypt_password(default_user_password)
-
     try:
         with open(_path(USERDATA_FILENAME), 'rb') as fp:
             data = json.load(fp, 'utf-8')
     except IOError:
+        # If the user data file does not exists, don't raise an exception.
+        # (the file will be created with the first user creation)
         pass
-    print 'Registered user(s):', ', '.join(data.keys())
-    print('{:,} registered user(s) found'.format(len(data)))
+    logger.debug('Registered user(s): {}'.format(', '.join(data.keys())))
+    logger.info('{:,} registered user(s) found'.format(len(data)))
     return data
 
 
 def save_userdata(data):
     with open(_path(USERDATA_FILENAME), 'wb') as fp:
         json.dump(data, fp, 'utf-8')
-    print('Saved {:,} users'.format(len(data)))
+    logger.info('Saved {:,} users'.format(len(data)))
 
 
 @auth.verify_password
@@ -93,7 +122,7 @@ def verify_password(username, password):
     if stored_pw:
         res = sha256_crypt.verify(password, stored_pw)
     else:
-        print('User "{}" does not exist!'.format(username))
+        logger.info('User "{}" does not exist'.format(username))
         res = False
     return res
 
@@ -106,7 +135,7 @@ def create_user():
     # Example of creation using requests:
     # requests.post('http://127.0.0.1:5000/API/V1/signup',
     #               data={'username': 'Pippo', 'password': 'ciao'})
-    print('Creating user...')
+    logger.debug('Creating user...')
     username = request.form.get('username')
     password = request.form.get('password')
     if username and password:
@@ -117,10 +146,10 @@ def create_user():
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
-            os.makedirs(os.path.join(FILE_ROOT, username))           
+            os.makedirs(os.path.join(FILE_ROOT, username))
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
-    print(response)
+    logger.debug(response)
     return response
 
 
@@ -187,7 +216,6 @@ class Actions(Resource):
 class Files(Resource):
     @auth.login_required
     def get(self, path):
-
         username = request.authorization['username']
         dirname = os.path.join(FILE_ROOT, username, os.path.dirname(path))
         real_dirname = os.path.realpath(dirname)
@@ -243,12 +271,44 @@ class Files(Resource):
            upload_file.save(os.path.join(dirname, filename))
            return '', HTTP_CREATED
         else:
-            abort(HTTP_NOT_FOUND)   
-    
+            abort(HTTP_NOT_FOUND)
+
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
+
 if __name__ == '__main__':
-    userdata = load_userdata()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', default=False, action='store_true',
+                        help='set console verbosity level to DEBUG (4) [default: %(default)s]')
+    parser.add_argument('--verbose', default=False, action='store_true',
+                        help='set console verbosity level to INFO (3) [default: %(default)s]. \
+                        Ignored if --debug option is set.')
+    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, nargs='?',
+                        help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
+                        [default: %(default)s]. Ignored if --verbose or --debug option is set.')
+    args = parser.parse_args()
+
+    if args.debug:
+        # If set to True, win against verbosity and verbose parameter
+        console_handler.setLevel(logging.DEBUG)
+    elif args.verbose:
+        # If set to True, win against verbosity parameter
+        console_handler.setLevel(logging.INFO)
+    else:
+        if args.verbosity == 0:  # Only show critical error message (very quiet)
+            console_handler.setLevel(logging.CRITICAL)
+        if args.verbosity == 1:  # Only show error message (quite quiet)
+            console_handler.setLevel(logging.ERROR)
+        elif args.verbosity == 2:  # Show only warning and error messages
+            console_handler.setLevel(logging.WARNING)
+        elif args.verbosity == 3:  # Verbose: show all messages except the debug ones
+            console_handler.setLevel(logging.INFO)
+        elif args.verbosity == 4:  # Show *all* messages
+            console_handler.setLevel(logging.DEBUG)
+
+    logger.debug('File logging level: {}'.format(file_handler.level))
+
+    userdata.update(load_userdata())
     app.run(host='0.0.0.0', debug=True)
