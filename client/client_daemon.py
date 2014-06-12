@@ -151,11 +151,10 @@ class Daemon(object):
                         r_list.append(client_socket)
                     else:
                         # handle all other sockets
-                        lenght = s.recv(int_size)
-                        if lenght:
-                            lenght = int(struct.unpack('!i', lenght)[0])
-                            data = s.recv(lenght)
-                            data = json.loads(data)
+                        length = s.recv(int_size)
+                        if length:
+                            length = int(struct.unpack('!i', length)[0])
+                            data = json.loads(s.recv(length))
                             self.cmd_dispatcher(data)
                         else:
                             s.close()
