@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import shutil
 
 from flask import Flask, make_response, request, abort
 from flask.ext.httpauth import HTTPBasicAuth
@@ -133,12 +134,55 @@ class Actions(Resource):
         }.get(cmd)()
 
     def _delete(self):
-        pass
-    def _move(self):
-        pass
-    def _copy(self):
-        pass
+        username = request.authorization['username']
+        filepath = request.form['filepath']
+        filepath = os.path.abspath(os.path.join(FILE_ROOT, username, filepath))
 
+        if not os.path.isfile(filepath):
+            abort(HTTP_NOT_FOUND)
+        try:
+            os.remove(filepath)
+        except OSError:
+            abort(HTTP_NOT_FOUND)
+            
+    def _copy(self):
+        username = request.authorization['username']
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
+
+        if os.path.isfile(src_path):
+            if not os.path.exists(os.path.dirname(dst_path)):
+                os.makedirs(os.path.dirname(dst_path))
+            shutil.copy(src_path, dst_path)        
+        else:
+            abort(HTTP_NOT_FOUND)
+
+    def _move(self):
+        username = request.authorization['username']
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
+        
+        if os.path.isfile(src_path):
+            if not os.path.exists(os.path.dirname(dst_path)):
+                os.makedirs(os.path.dirname(dst_path))
+            shutil.move(src_path, dst_path)        
+        else:
+            abort(HTTP_NOT_FOUND)
+    
 
 class Files(Resource):
     @auth.login_required
