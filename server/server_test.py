@@ -6,21 +6,22 @@ import io
 import os
 import base64
 import shutil
+import urlparse
 
 import server
 
-SERVER_API = '/API/V1'
-SERVER_FILES_API = os.path.join(SERVER_API, 'files/')
+SERVER_API = '/API/V1/'
+SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 
 # Test-user stuff
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
 # WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
 USER_RELATIVE_DOWNLOAD_FILEPATH = 'testdownload/testfile.txt'
-DOWNLOAD_TEST_URL = os.path.join(SERVER_FILES_API, USER_RELATIVE_DOWNLOAD_FILEPATH)
+DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
 USER_RELATIVE_UPLOAD_FILEPATH = 'testupload/testfile.txt'
-UPLOAD_TEST_URL = os.path.join(SERVER_FILES_API, USER_RELATIVE_UPLOAD_FILEPATH)
-UNEXISTING_TEST_URL = os.path.join(SERVER_FILES_API, 'testdownload/unexisting.txt')
+UPLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_UPLOAD_FILEPATH
+UNEXISTING_TEST_URL = SERVER_FILES_API + 'testdownload/unexisting.txt'
 
 
 def userpath2serverpath(username, path):
@@ -63,7 +64,7 @@ class TestRequests(unittest.TestCase):
 
         _manually_remove_user(USR)
         # Create test user
-        self.app.post(os.path.join(SERVER_API, 'signup'),
+        self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                       data={'username': USR, 'password': PW})
 
         # Create temporary file
@@ -126,7 +127,8 @@ class TestRequests(unittest.TestCase):
         Test that creating a directory upper than the user root is not allowed.
         """
         user_filepath = '../../../test/myfile2.dat'  # path forbidden
-        test = self.app.post(os.path.join(SERVER_FILES_API, user_filepath),
+        url = SERVER_FILES_API + user_filepath
+        test = self.app.post(url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
@@ -147,7 +149,7 @@ class TestUsers(unittest.TestCase):
         """
         Test for registration of a new user.
         """
-        test = self.app.post(os.path.join(SERVER_API, 'signup'),
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': USR, 'password': PW})
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 

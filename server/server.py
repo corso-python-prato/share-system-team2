@@ -23,7 +23,7 @@ HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 FILE_ROOT = 'filestorage'
 
-URL_PREFIX = '/API/V1'  # TODO?: make a cross-platform path using os.path.join
+URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
