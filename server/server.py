@@ -203,7 +203,7 @@ class Files(Resource):
     
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX))
-api.add_resource(Actions, '{}/actions/<cmd>'.format(URL_PREFIX))
+api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
 if __name__ == '__main__':
     userdata = load_userdata()
