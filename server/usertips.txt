@@ -1,5 +1,7 @@
 # "Testing" the server with the curl library
 
+----------- Files ---------
+
 Upload (POST):
 
     curl --form "file=@file3.dat" http://username:password@127.0.0.1:5000/API/V1/files/test6/test7/<nomefile.extension>
@@ -11,12 +13,28 @@ Download (GET):
 Update (PUT):
 
 	curl -X PUT "http://username:password@127.0.0.1:5000/API/V1/files/test/<nomefile.extension>"
-	
-
 
 
 Instead, there is a graphic interface (see upload.html attached file) to directly try upload
 one file from the browser to the server root directory (upload).
+
+
+------------ Actions -----------
+
+Delete (POST):
+	
+	curl --form "filepath=<path>" http://username:password@127.0.0.1:5000/API/V1/actions/delete -X POST
+	curl --data "filepath=<path>" http://username:password@127.0.0.1:5000/API/V1/actions/delete -X POST
+
+Copy (POST):
+	
+	curl --data "src=<sourcepath>&dst=<dstpath>" http://username:password@127.0.0.1:5000/API/V1/actions/copy -X POST
+
+Move (POST):
+
+	curl --data "src=<sourcepath>&dst=<dstpath>" http://username:password@127.0.0.1:5000/API/V1/actions/move -X POST
+
+--------------Signup--------------
 
 Creating new user (signup):
 

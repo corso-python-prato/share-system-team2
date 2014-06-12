@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
+import shutil
 import logging
 import datetime
 import argparse
@@ -29,7 +30,11 @@ WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
-SNAPSHOT_KEY = 'files'
+SNAPSHOT = 'files'
+# Single file dict keys:
+FILEPATH = 'filepath'
+MTIME = 'mtime'
+MD5 = 'md5'
 
 
 # Logging configuration
@@ -165,18 +170,62 @@ class Actions(Resource):
         }.get(cmd)()
 
     def _delete(self):
-        pass
-    def _move(self):
-        pass
+        username = request.authorization['username']
+        filepath = request.form['filepath']
+        filepath = os.path.abspath(os.path.join(FILE_ROOT, username, filepath))
+
+        if not os.path.isfile(filepath):
+            abort(HTTP_NOT_FOUND)
+        try:
+            os.remove(filepath)
+        except OSError:
+            abort(HTTP_NOT_FOUND)
+            
     def _copy(self):
-        pass
+        username = request.authorization['username']
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
 
+        if os.path.isfile(src_path):
+            if not os.path.exists(os.path.dirname(dst_path)):
+                os.makedirs(os.path.dirname(dst_path))
+            shutil.copy(src_path, dst_path)        
+        else:
+            abort(HTTP_NOT_FOUND)
 
-def calc_md5(fp, chunk_len=2 ** 16):
+    def _move(self):
+        username = request.authorization['username']
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
+        
+        if os.path.isfile(src_path):
+            if not os.path.exists(os.path.dirname(dst_path)):
+                os.makedirs(os.path.dirname(dst_path))
+            shutil.move(src_path, dst_path)        
+        else:
+            abort(HTTP_NOT_FOUND)
+    
+
+def calculate_file_md5(fp, chunk_len=2**16):
     """
     Return the md5 digest of the file content of file_path as a string
     containing only hexadecimal digits.
-    chunk_len - number of file bytes read per cycle (default = 2^16)
+    :fp: file (an open file object)
+    :chunk_len: int (number of file bytes read per cycle - default = 2^16)
     """
     h = hashlib.md5()
     while True:
@@ -191,20 +240,49 @@ def calc_md5(fp, chunk_len=2 ** 16):
 
 def dir_snapshot(root_path):
     """
-    Walk on root_path returning a snapshot in a list of tuples.
+    Walk on root_path returning a snapshot in a list of dictionaries.
+    Every dict has FILEPATH, MTIME, MD5 keys.
     :param root_path: str
     :return: list
+
+    >>> snap = dir_snapshot('.')
+    >>> isinstance(snap, list)
+    True
+    >>> d = snap[0]
+    >>> isinstance(d, dict)
+    True
+    >>> FILEPATH in d
+    True
+    >>> MTIME in d
+    True
+    >>> MD5 in d
+    True
+    >>> d[FILEPATH].__class__.__name__
+    'str'
+    >>> d[MTIME].__class__.__name__
+    'float'
+    >>> d[MD5].__class__.__name__
+    'str'
+    >>> os.path.exists(d[FILEPATH])
+    True
     """
     res = []
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = os.path.join(dirpath, filename)
             lastmod_timestamp = os.path.getmtime(filepath)
+
+            # Open file and calculate md5. TODO: catch and handle os errors.
             with open(filepath, 'rb') as fp:
-                md5_string = calc_md5(fp)
-            r = {'filepath': filepath[len(root_path) + 1:], 'mtime': lastmod_timestamp, 'md5': md5_string}
-            res.append(r)
-    print('snap result =', res)
+                md5_string = calculate_file_md5(fp)
+
+            # dict info for each file (we could use a tuple)
+            d = {
+                 FILEPATH: filepath[len(root_path) + 1:],
+                 MTIME: lastmod_timestamp,
+                 MD5: md5_string,
+            }
+            res.append(d)
     return res
 
 
@@ -213,7 +291,6 @@ class Files(Resource):
     def get(self, path=''):
         logger.debug('Files.get({})'.format(repr(path)))
         username = request.authorization['username']
-
         user_rootpath = os.path.join(FILE_ROOT, username)
         if path:
             # Download the file specified by <path>.
@@ -237,8 +314,8 @@ class Files(Resource):
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
             snapshot = dir_snapshot(user_rootpath)
-            logger.info('snapshot return {:,} files'.format(len(snapshot)))
-            response = jsonify({SNAPSHOT_KEY: snapshot})
+            logger.info('snapshot returned {:,} files'.format(len(snapshot)))
+            response = jsonify({SNAPSHOT: snapshot})
         logging.debug(response)
         return response
 
@@ -282,7 +359,7 @@ class Files(Resource):
 
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
-api.add_resource(Actions, '{}/actions/<cmd>'.format(URL_PREFIX))
+api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
 
 if __name__ == '__main__':

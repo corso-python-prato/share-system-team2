@@ -41,22 +41,26 @@ class DirectoryMonitor(FileSystemEventHandler):
                         
             if e.event_type == 'modified':
 
-                data['upload'] = (self.relative_path(e.src_path))
+                data['modified'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'deleted':
 
-                data['delete'] = (self.relative_path(e.src_path))
+                data['deleted'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'created':
 
-                data['upload'] = (self.relative_path(e.src_path))
+                data['created'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'moved':
 
-                data['move'] = (self.relative_path(e.src_path),self.relative_path(e.dest_path))            
+                data['moved'] = (self.relativize_path(e.src_path),self.relativize_path(e.dest_path))            
             self.callback(data)
 
-    def relative_path(self,path_to_clean):
+    def relativize_path(self,path_to_clean):
+        """ 
+        This function relativize the path watched by watchdog:
+        for example: /home/user/watched/subfolder will be watched/subfolder
+        """
         return ''.join([self.folder_watched,path_to_clean.split(self.folder_watched)[-1]])
 
 
@@ -92,11 +96,13 @@ class Daemon(object):
     TIMEOUT = 0.5
 
     def __init__(self):
-        self.cfg = json.loads(open('config.json', 'r').read())
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-        self.conn_mng = connection_manager.ConnectionManager()
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-        self.running = 0
+        if load_json('config.json'):
+            self.cfg = load_json('config.json')
+            self.conn_mng = connection_manager.ConnectionManager(self.cfg)
+            self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
+            self.running = 0
+        else:
+            "No Config File"
 
     def cmd_dispatcher(self, data):
         """
@@ -163,6 +169,14 @@ class Daemon(object):
     def shutdown(self):
         self.dir_manager.stop()
         self.running = 0
+
+def load_json(conf_path):
+    if os.path.isfile(conf_path):
+        with open(conf_path,"r") as fo:
+            config = json.load(fo)
+        return config
+    else:
+        return False
 
 if __name__ == '__main__':
 
