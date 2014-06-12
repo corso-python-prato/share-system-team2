@@ -41,19 +41,19 @@ class DirectoryMonitor(FileSystemEventHandler):
                         
             if e.event_type == 'modified':
 
-                data['upload'] = (self.relativize_path(e.src_path))
+                data['modified'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'deleted':
 
-                data['delete'] = (self.relativize_path(e.src_path))
+                data['deleted'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'created':
 
-                data['upload'] = (self.relativize_path(e.src_path))
+                data['created'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'moved':
-relativize_path
-                data['move'] = (self.relativize_path(e.src_path),self.relativize_path(e.dest_path))            
+
+                data['moved'] = (self.relativize_path(e.src_path),self.relativize_path(e.dest_path))            
             self.callback(data)
 
     def relativize_path(self,path_to_clean):
@@ -103,11 +103,6 @@ class Daemon(object):
             self.running = 0
         else:
             "No Config File"
-        self.cfg = json.loads(open('config.json', 'r').read())
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-        self.conn_mng = connection_manager.ConnectionManager()
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-        self.running = 0
 
     def cmd_dispatcher(self, data):
         """
