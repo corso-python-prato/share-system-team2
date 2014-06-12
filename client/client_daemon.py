@@ -41,22 +41,26 @@ class DirectoryMonitor(FileSystemEventHandler):
                         
             if e.event_type == 'modified':
 
-                data['upload'] = (self.relative_path(e.src_path))
+                data['upload'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'deleted':
 
-                data['delete'] = (self.relative_path(e.src_path))
+                data['delete'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'created':
 
-                data['upload'] = (self.relative_path(e.src_path))
+                data['upload'] = (self.relativize_path(e.src_path))
 
             elif e.event_type == 'moved':
-
-                data['move'] = (self.relative_path(e.src_path),self.relative_path(e.dest_path))            
+relativize_path
+                data['move'] = (self.relativize_path(e.src_path),self.relativize_path(e.dest_path))            
             self.callback(data)
 
-    def relative_path(self,path_to_clean):
+    def relativize_path(self,path_to_clean):
+        """ 
+        This function relativize the path watched by watchdog:
+        for example: /home/user/watched/subfolder will be watched/subfolder
+        """
         return ''.join([self.folder_watched,path_to_clean.split(self.folder_watched)[-1]])
 
 
