@@ -168,6 +168,14 @@ class Daemon(object):
         self.dir_manager.stop()
         self.running = 0
 
+def load_json(conf_path):
+    if os.path.isfile(conf_path):
+        with open(conf_path,"r") as fo:
+            config = json.load(fo)
+        return config
+    else:
+        return False
+
 if __name__ == '__main__':
 
     daemon = Daemon()
