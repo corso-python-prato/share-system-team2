@@ -177,11 +177,11 @@ class Daemon(object):
         else:
             self.conn_mng.dispatch_request(cmd, args)
 
-    def event_dispatcher(self, cmd, data_file):
+    def event_dispatcher(self, cmd, data_file = None):
         """
         It dispatch the captured events to the api manager object
         """
-        self.conn_mng.dispatch_request(cmd, data_file)
+        return self.conn_mng.dispatch_request(cmd, data_file)
 
     def serve_forever(self):
         """
