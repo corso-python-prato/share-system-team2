@@ -40,24 +40,29 @@ class DirectoryMonitor(FileSystemEventHandler):
                 "filepath": self.relativize_path(e.src_path), 
                 "mtime": os.path.getmtime(e.src_path), 
                 "md5": hashlib.md5(e.src_path).hexdigest()
-            }
+            }         
             return data        
         
         if event.is_directory is False:        
             e = event           
             
             if e.event_type == 'modified':
-                data = build_data('upload', e)                
-
-            elif e.event_type == 'deleted':
-                data = build_data('delete', e)
+                data = build_data('upload', e)
 
             elif e.event_type == 'created':
-                data = build_data('upload', e)
+                data = build_data('upload', e)                
 
             elif e.event_type == 'moved':
-                data = build_data('upload', e)
+                data = {'cmd':'move'}
+                data['file'] = {
+                    'src_path': self.relativize_path(e.src_path),
+                    'dest_path': self.relativize_path(e.dest_path)}
 
+            elif e.event_type == 'deleted':
+                data = {'cmd':'delete'}
+                data['file'] = {
+                    "filepath": self.relativize_path(e.src_path)} 
+            
             self.event_dispatcher(data['cmd'], data['file'])
 
     def relativize_path(self,path_to_clean):
