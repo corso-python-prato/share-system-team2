@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-__author__ = 'milly'
+__author__ = 'milly, eatsjobs'
 
 # API:
 #  - GET /diffs, con parametro timestamp
@@ -24,6 +24,7 @@ __author__ = 'milly'
 
 import requests
 import json
+import os
 
 
 class ConnectionManager(object):
@@ -42,7 +43,7 @@ class ConnectionManager(object):
     def do_reguser(self, param):
         
         data = {'username': param[0], 'password': param[1]}
-        r = requests.post(self.cfg['server_address'] + self.cfg['api_suffix'], data=data)
+        r = requests.post(''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'signup']), data=data)
 
         print r.status_code
 
@@ -50,28 +51,52 @@ class ConnectionManager(object):
 
 
     def do_upload(self, data):
-        print data        
+        print 'do_upload'
+        abspath = os.path.abspath(''.join(['sharing_folder/', data['filepath'] ]))
+        d = {
+            'file': (open(abspath,'rb')),
+        }
+        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
+        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), files=d)
+        print r.status_code
+
 
     def do_download(self, data):
         print data
 
     def do_modify(self, data):
-        print data        
+        print 'do_modify'
+        abspath = os.path.abspath(''.join(['sharing_folder/', data['filepath'] ]))
+        d = {
+            'file': (open(abspath,'rb')),
+        }
+        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
+        r = requests.put(url, auth=(self.cfg['user'],self.cfg['pass']), files=d)
+        print r.status_code                
 
     #actions:
     def do_move(self, data):
-        print data
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'move'])
-        #r = requests.post(url, )
-
+        print 'do_move'
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'move'])        
+        d = {'src_path':data['src_path'], 'dest_path':data['dest_path']}
+        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), data=json.dumps(d))
+        print r.status_code
 
     def do_delete(self, data):
         print data
         url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'delete'])
-        #requests.post(url, )
+        
+        r = requests.post(url, data=json.dumps(data))
+        print r
 
     def do_copy(self, data):
         print data
+
+    def do_get_server_state(self):
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'files'])
+        r = requests.get(url)
+
+        return json.loads(r.content)
 
     def _default(self, data):
         print 'Unknown Command'
