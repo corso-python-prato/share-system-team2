@@ -111,7 +111,8 @@ class Daemon(object):
             self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
             self.running = 0
         else:
-            "No Config File"
+           print "No config File"
+           exit()
 
     def cmd_dispatcher(self, data):
         """
