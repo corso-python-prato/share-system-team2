@@ -110,11 +110,11 @@ class Daemon(object):
             print "No config File!"
             exit()           
         self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-        self.search_diff_from_server(self.cfg['sharing_path'])
+        self.sync_with_server(self.cfg['sharing_path'])
         self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
         self.running = 0
 
-    def search_diff_from_server(self, sharing_path):
+    def sync_with_server(self):
         """
         download from server the files state and find the difference from actual state
         """
