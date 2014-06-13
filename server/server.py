@@ -360,7 +360,7 @@ api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.f
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', default=False, action='store_true',
                         help='set console verbosity level to DEBUG (4) [default: %(default)s]')
@@ -394,3 +394,7 @@ if __name__ == '__main__':
 
     userdata.update(load_userdata())
     app.run(host='0.0.0.0', debug=True)
+
+
+if __name__ == '__main__':
+    main()
