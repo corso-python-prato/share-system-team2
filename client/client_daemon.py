@@ -47,7 +47,7 @@ class DirectoryMonitor(FileSystemEventHandler):
             e = event           
             
             if e.event_type == 'modified':
-                data = build_data('upload', e)
+                data = build_data('modify', e)
 
             elif e.event_type == 'created':
                 data = build_data('upload', e)                
