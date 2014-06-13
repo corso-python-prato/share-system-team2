@@ -150,27 +150,17 @@ class Daemon(object):
         def download_files_state():
             """download from server the files state"""
             server_state = self.event_dispatcher('get_server_state')
-            print server_state
-            server_state = {'files': { '<path>': '<md5>'}}
             return server_state['files']
-        
-        def make_client_state():
-            client_state = {}
-            for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-            for filename in files:
-                file_path = os.path.join(dirpath, filename)
-                with open(file_path, 'rb') as fp:
-                    md5_string = calculate_file_md5(fp)
-                client_state[file_path] = md5_string
-            return client_state
 
         server_state = download_files_state()
-        client_state = make_client_state()
         for file_path in server_state:
-            if file_path not in client_state[file_path]:
-                # TODO files/crea
+            if file_path not in self.client_state:
+                self.client_state[file_path] = server_state[file_path]
+                data = {'filepath' : file_path }
+                self.event_dispatcher('download', data )
             else:
-                if server_state[file_path] != client_state[file_path]:
+                if server_state[file_path] != self.client_state[file_path]:
+                    print 'aggiora file'
                     pass # TODO files/aggiorna
 
     def cmd_dispatcher(self, data):
