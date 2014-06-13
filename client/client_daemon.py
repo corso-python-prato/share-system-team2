@@ -47,7 +47,7 @@ class DirectoryMonitor(FileSystemEventHandler):
             e = event           
             
             if e.event_type == 'modified':
-                data = build_data('upload', e)
+                data = build_data('modify', e)
 
             elif e.event_type == 'created':
                 data = build_data('upload', e)                
@@ -68,9 +68,11 @@ class DirectoryMonitor(FileSystemEventHandler):
     def relativize_path(self,path_to_clean):
         """ 
         This function relativize the path watched by watchdog:
-        for example: /home/user/watched/subfolder will be /subfolder
+        for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        return path_to_clean.split(self.folder_watched)[-1]
+        cleaned_path = path_to_clean.split(self.folder_watched)[-1]
+        # cleaned from first slash character
+        return cleaned_path[1:]
 
 
     def start(self):

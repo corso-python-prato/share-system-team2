@@ -139,6 +139,45 @@ class TestRequests(unittest.TestCase):
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_OK)
 
+    def test_files_get_existing_file_with_wrong_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the given password is wrong.
+        """
+        wrong_password = PW + 'a'
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, wrong_password))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the password is an empty string.
+        """
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_username(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user is an empty string and the password is not empty.
+        """
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_unexisting_user(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user does not exist.
+        """
+        user = 'UnExIsTiNgUsEr'
+        assert not user in server.userdata
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
     def test_files_get_without_auth(self):
         """
         Test unauthorized download of an existsing file.
