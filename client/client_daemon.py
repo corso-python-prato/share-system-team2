@@ -191,6 +191,7 @@ class Daemon(object):
         int_size = struct.calcsize('!i')
 
         listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener_socket.bind((self.cfg['host'], self.cfg['port']))
         listener_socket.listen(backlog)
         r_list = [listener_socket]
