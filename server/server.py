@@ -31,10 +31,6 @@ WORKDIR = os.path.dirname(__file__)
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
-# Single file dict keys:
-FILEPATH = 'filepath'
-MTIME = 'mtime'
-MD5 = 'md5'
 
 
 # Logging configuration
@@ -243,52 +239,23 @@ def calculate_file_md5(fp, chunk_len=2**16):
     return res
 
 
-def dir_snapshot(root_path):
+def get_dir_snapshot(root_path):
     """
-    Walk on root_path returning a snapshot in a list of dictionaries.
-    Every dict has FILEPATH, MTIME, MD5 keys.
+    Walk on root_path returning a snapshot in a dictionaries.
     :param root_path: str
-    :return: list
-
-    >>> snap = dir_snapshot('.')
-    >>> isinstance(snap, list)
-    True
-    >>> d = snap[0]
-    >>> isinstance(d, dict)
-    True
-    >>> FILEPATH in d
-    True
-    >>> MTIME in d
-    True
-    >>> MD5 in d
-    True
-    >>> d[FILEPATH].__class__.__name__
-    'str'
-    >>> d[MTIME].__class__.__name__
-    'float'
-    >>> d[MD5].__class__.__name__
-    'str'
-    >>> os.path.exists(d[FILEPATH])
-    True
+    :return: dictionary
     """
-    res = []
+    result = {}
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = os.path.join(dirpath, filename)
-            lastmod_timestamp = os.path.getmtime(filepath)
 
             # Open file and calculate md5. TODO: catch and handle os errors.
             with open(filepath, 'rb') as fp:
-                md5_string = calculate_file_md5(fp)
+                md5 = calculate_file_md5(fp)
 
-            # dict info for each file (we could use a tuple)
-            d = {
-                 FILEPATH: filepath[len(root_path) + 1:],
-                 MTIME: lastmod_timestamp,
-                 MD5: md5_string,
-            }
-            res.append(d)
-    return res
+            result[filepath[len(root_path) + 1:]] = md5
+    return result
 
 
 class Files(Resource):
@@ -318,7 +285,7 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            snapshot = dir_snapshot(user_rootpath)
+            snapshot = get_dir_snapshot(user_rootpath)
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
             response = jsonify({SNAPSHOT: snapshot})
         logging.debug(response)
