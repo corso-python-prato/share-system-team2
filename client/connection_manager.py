@@ -35,7 +35,7 @@ class ConnectionManager(object):
     def dispatch_request(self, command, args):
 
         method_name = ''.join(['do_', command])
-        getattr(self, method_name, self._default)(args)
+        return getattr(self, method_name, self._default)(args)
 
     def _send_request(self, api_method, resource, args):
         pass
