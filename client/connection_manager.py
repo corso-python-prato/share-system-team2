@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-__author__ = 'milly'
+__author__ = 'milly, eatsjobs'
 
 # API:
 #  - GET /diffs, con parametro timestamp
@@ -91,6 +91,12 @@ class ConnectionManager(object):
 
     def do_copy(self, data):
         print data
+
+    def do_get_server_state(self):
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'files'])
+        r = requests.get(url)
+
+        return json.loads(r.content)
 
     def _default(self, data):
         print 'Unknown Command'
