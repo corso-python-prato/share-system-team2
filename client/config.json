@@ -2,8 +2,8 @@
  "path": "./sharing_folder", 
  "host": "localhost", 
  "port": 50001, 
- "api_suffix": "/api/v1",
+ "api_suffix": "/API/V1/",
  "server_address":"http://192.168.48.216:5000",
- "user":"user",
- "pass":"pass"
+ "user":"pasquale",
+ "pass":"secretpass"
 }
