@@ -5,16 +5,16 @@ import json
 import socket
 import struct
 import select
-import time
 import os
 import hashlib
-import connection_manager
-
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
+
+import connection_manager
+
 
 class DirectoryMonitor(FileSystemEventHandler):
     """
