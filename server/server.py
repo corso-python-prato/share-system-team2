@@ -173,6 +173,7 @@ class Actions(Resource):
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
+        self._clean_dirs(os.path.dirname(filepath), username)
             
     def _copy(self):
         username = request.authorization['username']
@@ -211,7 +212,11 @@ class Actions(Resource):
             shutil.move(src_path, dst_path)        
         else:
             abort(HTTP_NOT_FOUND)
-    
+
+    def _clean_dirs(self, path, root): 
+        for r, d, f in os.walk(path, topdown=False):
+            print r,d
+
 
 class Files(Resource):
     @auth.login_required
