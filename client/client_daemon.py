@@ -119,12 +119,11 @@ class Daemon(object):
         download from server the files state and find the difference from actual state
         """
         def download_files_state():
-            """download from server the saved files_state"""
-            #TODO implement the real function
-            pass
-
-        files_state = {self.cfg['sharing_path'] : '<md5>'}
-        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+            """download from server the files state"""
+            server_state = self.event_dispatcher('get_server_state')
+            print server_state
+            server_state = {'files': { '<path>': '<md5>'}}
+            return server_state['files']
             for filename in files:
                 file_path = os.path.join(dirpath, filename)
                 if file_path in files_state:
@@ -137,6 +136,7 @@ class Daemon(object):
                 else:
                     print "creato nuovo file"
                     pass#TODO files/crea
+        server_state = download_files_state()
 
     def cmd_dispatcher(self, data):
         """
