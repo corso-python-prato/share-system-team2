@@ -39,7 +39,7 @@ class DirectoryMonitor(FileSystemEventHandler):
             data['file'] = {
                 "filepath": self.relativize_path(e.src_path), 
                 "mtime": os.path.getmtime(e.src_path), 
-                "md5": hashlib.md5(e.src_path).hexdigest()
+                "md5": hashlib.md5(e.src_path).h0exdigest()
             }         
             return data        
         
