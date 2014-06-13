@@ -21,8 +21,9 @@ class DirectoryMonitor(FileSystemEventHandler):
     The DirectoryMonitor for file system events
     like: moved, deleted, created, modified
     """
-    def __init__(self, folder_path, event_dispatcher):
+    def __init__(self, folder_path, event_dispatcher, client_state):
         FileSystemEventHandler.__init__(self)
+        self.client_state = client_state
         self.event_dispatcher = event_dispatcher
         self.folder_path = folder_path
         self.folder_watched = self.folder_path.split(os.sep)[-1]
@@ -117,9 +118,11 @@ class Daemon(object):
         if not self.cfg:
             print "No config File!"
             exit()           
+        self.client_state = {}
+        self.update_client_state()
+        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher, self.client_state)
         self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-        self.sync_with_server(self.cfg['sharing_path'])
-        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
+        self.sync_with_server()
         self.running = 0
 
     def relativize_path(self,path_to_clean):
@@ -131,6 +134,15 @@ class Daemon(object):
         cleaned_path = path_to_clean.split(folder_watched)[-1]
         # cleaned from first slash character
         return cleaned_path[1:]
+
+    def update_client_state(self):
+            for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+                for filename in files:
+                    file_path = os.path.join(dirpath, filename)
+                    relative_file_path = self.relativize_path(file_path)
+                    with open(file_path, 'rb') as f:
+                        self.client_state[relative_file_path] = hashlib.md5(f.read()).hexdigest()
+
     def sync_with_server(self):
         """
         download from server the files state and find the difference from actual state
