@@ -197,18 +197,18 @@ class TestRequests(unittest.TestCase):
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
-    # def test_files_get_snapshot(self):
-    #     """
-    #     Test lato-server user files snapshot.
-    #     """
-    #     # The test user is created in setUp
-    #     target = {server.SNAPSHOT: build_testuser_dir(USR)}
-    #     test = self.app.get(SERVER_FILES_API,
-    #                         headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-    #                         )
-    #     self.assertEqual(test.status_code, server.HTTP_OK)
-    #     obj = json.loads(test.data)
-    #     self.assertEqual(obj, target)
+    def test_files_get_snapshot(self):
+        """
+        Test lato-server user files snapshot.
+        """
+        # The test user is created in setUp
+        target = {server.SNAPSHOT: build_testuser_dir(USR)}
+        test = self.app.get(SERVER_FILES_API,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                            )
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        obj = json.loads(test.data)
+        self.assertEqual(obj, target)
 
     def test_files_post_with_auth(self):
         """
