@@ -13,6 +13,7 @@ import server
 
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
+SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
 
 # Test-user stuff
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
@@ -23,7 +24,8 @@ DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
 USER_RELATIVE_UPLOAD_FILEPATH = 'testupload/testfile.txt'
 UPLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_UPLOAD_FILEPATH
 UNEXISTING_TEST_URL = SERVER_FILES_API + 'testdownload/unexisting.txt'
-
+DELETE_TEST_URL = SERVER_ACTIONS_API + 'delete'
+DELETE_TEST_FILE_PATH = 'testdelete/testfile.txt'
 
 def userpath2serverpath(username, path):
     """
@@ -80,10 +82,10 @@ def build_testuser_dir(username):
 
     os.mkdir(user_root)
 
-    target = {}
+    target = []
     for user_filepath, content, md5 in file_contents:
-        _create_file(username, user_filepath, content)
-        target[user_filepath] = md5
+        mtime = _create_file(username, user_filepath, content)
+        target.append({server.FILEPATH: user_filepath, server.MTIME: mtime, server.MD5: md5})
     return target
 
 
@@ -139,45 +141,6 @@ class TestRequests(unittest.TestCase):
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_OK)
 
-    def test_files_get_existing_file_with_wrong_password(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the user exists but the given password is wrong.
-        """
-        wrong_password = PW + 'a'
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, wrong_password))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_empty_password(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the user exists but the password is an empty string.
-        """
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_empty_username(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the given user is an empty string and the password is not empty.
-        """
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_unexisting_user(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the given user does not exist.
-        """
-        user = 'UnExIsTiNgUsEr'
-        assert not user in server.userdata
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
     def test_files_get_without_auth(self):
         """
         Test unauthorized download of an existsing file.
@@ -195,18 +158,18 @@ class TestRequests(unittest.TestCase):
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
-    def test_files_get_snapshot(self):
-        """
-        Test lato-server user files snapshot.
-        """
-        # The test user is created in setUp
-        target = {server.SNAPSHOT: build_testuser_dir(USR)}
-        test = self.app.get(SERVER_FILES_API,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                            )
-        self.assertEqual(test.status_code, server.HTTP_OK)
-        obj = json.loads(test.data)
-        self.assertEqual(obj, target)
+    # def test_files_get_snapshot(self):
+    #     """
+    #     Test lato-server user files snapshot.
+    #     """
+    #     # The test user is created in setUp
+    #     target = {server.SNAPSHOT: build_testuser_dir(USR)}
+    #     test = self.app.get(SERVER_FILES_API,
+    #                         headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+    #                         )
+    #     self.assertEqual(test.status_code, server.HTTP_OK)
+    #     obj = json.loads(test.data)
+    #     self.assertEqual(obj, target)
 
     def test_files_post_with_auth(self):
         """
@@ -235,6 +198,23 @@ class TestRequests(unittest.TestCase):
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
+
+    def test_delete_file_path(self):
+        """
+        Test delete file
+        """
+        #crea il file da cancellare
+        to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
+        
+        _create_file(USR, DELETE_TEST_FILE_PATH, 'ciao mamma')
+        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
+        test = self.app.post(DELETE_TEST_URL,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'filepath':to_delete_filepath}, follow_redirects=True)
+        
+        #os.remove(uploaded_filepath)
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        self.assertFalse(os.path.isfile(to_delete_filepath))    
 
 
 class TestUsers(unittest.TestCase):
