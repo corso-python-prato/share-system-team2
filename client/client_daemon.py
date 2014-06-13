@@ -5,16 +5,16 @@ import json
 import socket
 import struct
 import select
-import time
 import os
 import hashlib
-import connection_manager
-
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
+
+import connection_manager
+
 
 class DirectoryMonitor(FileSystemEventHandler):
     """
@@ -107,14 +107,38 @@ class Daemon(object):
     TIMEOUT = 0.5
 
     def __init__(self):
-        if load_json('config.json'):
-            self.cfg = load_json('config.json')
-            self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-            self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-            self.running = 0
-        else:
-           print "No config File"
-           exit()
+        self.cfg = load_json('config.json')
+        if not self.cfg:
+            print "No config File!"
+            exit()           
+        self.conn_mng = connection_manager.ConnectionManager(self.cfg)
+        self.search_diff_from_server(self.cfg['sharing_path'])
+        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
+        self.running = 0
+
+    def search_diff_from_server(self, sharing_path):
+        """
+        download from server the files state and find the difference from actual state
+        """
+        def download_files_state():
+            """download from server the saved files_state"""
+            #TODO implement the real function
+            pass
+
+        files_state = {self.cfg['sharing_path'] : '<md5>'}
+        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+            for filename in files:
+                file_path = os.path.join(dirpath, filename)
+                if file_path in files_state:
+                    # Open file and calculate md5. TODO: catch and handle os errors.
+                    with open(file_path, 'rb') as fp:
+                        md5_string = calculate_file_md5(fp)
+                        print md5_string
+                    if files_state[file_path] != md5_string:
+                        pass #TODO files/aggiorna
+                else:
+                    print "creato nuovo file"
+                    pass#TODO files/crea
 
     def cmd_dispatcher(self, data):
         """
