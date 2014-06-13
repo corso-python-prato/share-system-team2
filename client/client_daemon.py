@@ -124,19 +124,25 @@ class Daemon(object):
             print server_state
             server_state = {'files': { '<path>': '<md5>'}}
             return server_state['files']
+        
+        def make_client_state():
+            client_state = {}
+            for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
             for filename in files:
                 file_path = os.path.join(dirpath, filename)
-                if file_path in files_state:
-                    # Open file and calculate md5. TODO: catch and handle os errors.
-                    with open(file_path, 'rb') as fp:
-                        md5_string = calculate_file_md5(fp)
-                        print md5_string
-                    if files_state[file_path] != md5_string:
-                        pass #TODO files/aggiorna
-                else:
-                    print "creato nuovo file"
-                    pass#TODO files/crea
+                with open(file_path, 'rb') as fp:
+                    md5_string = calculate_file_md5(fp)
+                client_state[file_path] = md5_string
+            return client_state
+
         server_state = download_files_state()
+        client_state = make_client_state()
+        for file_path in server_state:
+            if file_path not in client_state[file_path]:
+                # TODO files/crea
+            else:
+                if server_state[file_path] != client_state[file_path]:
+                    pass # TODO files/aggiorna
 
     def cmd_dispatcher(self, data):
         """
