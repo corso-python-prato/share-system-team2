@@ -105,14 +105,14 @@ class Daemon(object):
     TIMEOUT = 0.5
 
     def __init__(self):
-        if load_json('config.json'):
-            self.cfg = load_json('config.json')
-            self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-            self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
-            self.running = 0
-        else:
-           print "No config File"
-           exit()
+        self.cfg = load_json('config.json')
+        if not self.cfg:
+            print "No config File!"
+            exit()           
+        self.conn_mng = connection_manager.ConnectionManager(self.cfg)
+        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
+        self.running = 0
+
 
     def cmd_dispatcher(self, data):
         """
