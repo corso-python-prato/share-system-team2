@@ -62,7 +62,12 @@ class ConnectionManager(object):
 
 
     def do_download(self, data):
-        print data
+        print 'do_download'
+        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
+        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
+        with open(os.path.join(self.cfg['sharing_path'],data['filepath']), 'wb') as f:
+            f.write(r.content)
+        return r.content
 
     def do_modify(self, data):
         print 'do_modify'
