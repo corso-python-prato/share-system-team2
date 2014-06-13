@@ -122,6 +122,15 @@ class Daemon(object):
         self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
         self.running = 0
 
+    def relativize_path(self,path_to_clean):
+        """
+        This function relativize the path watched by watchdog:
+        for example: /home/user/watched/subfolder/ will be subfolder/
+        """
+        folder_watched = self.cfg['sharing_path'].split(os.sep)[-1]
+        cleaned_path = path_to_clean.split(folder_watched)[-1]
+        # cleaned from first slash character
+        return cleaned_path[1:]
     def sync_with_server(self):
         """
         download from server the files state and find the difference from actual state
