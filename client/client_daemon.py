@@ -61,6 +61,7 @@ class DirectoryMonitor(FileSystemEventHandler):
         This function relativize the path watched by watchdog:
         for example: /home/user/watched/subfolder will be watched/subfolder
         """
+        return path_to_clean.split(self.folder_watched)[-1]
         return ''.join([self.folder_watched,path_to_clean.split(self.folder_watched)[-1]])
 
 
