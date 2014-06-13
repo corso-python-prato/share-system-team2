@@ -33,7 +33,7 @@ class ConnectionManager(object):
 
     def dispatch_request(self, command, args):
 
-        method_name = 'do_' + command
+        method_name = ''.join(['do_', command])
         getattr(self, method_name, self._default)(args)
 
     def _send_request(self, api_method, resource, args):
@@ -41,7 +41,7 @@ class ConnectionManager(object):
 
     def do_reguser(self, param):
         
-        data = {'username': self.cfg['user'], 'password': self.cfg['password']}
+        data = {'username': param[0], 'password': param[1]}
         r = requests.post(self.cfg['server_address'] + self.cfg['api_suffix'], data=data)
 
         print r.status_code
@@ -49,23 +49,31 @@ class ConnectionManager(object):
         # we will manages the response
 
 
-    def do_copy(self, data):
-        print data        
-
     def do_upload(self, data):
         print data        
 
     def do_download(self, data):
-        print data        
+        print data
 
     def do_modify(self, data):
         print data        
 
+    #actions:
     def do_move(self, data):
         print data
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'move'])
+        #r = requests.post(url, )
+
 
     def do_delete(self, data):
+        print data
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'delete'])
+        #requests.post(url, )
+
+    def do_copy(self, data):
         print data
 
     def _default(self, data):
         print 'Unknown Command'
+
+    #shares:
