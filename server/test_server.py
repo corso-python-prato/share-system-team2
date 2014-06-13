@@ -59,6 +59,15 @@ def _create_file(username, user_relpath, content):
     return mtime
 
 
+def create_user_dir(username):
+    """
+    Create user directory (must not exist)
+    :param username:
+    :return:
+    """
+    os.makedirs(userpath2serverpath(username, ''))
+
+
 def build_testuser_dir(username):
     """
     Create a directory with files and return its structure
@@ -89,6 +98,11 @@ def build_testuser_dir(username):
     return target
 
 
+def _manually_create_user(username, pw):
+    server.userdata[username] = server._encrypt_password(pw)
+    create_user_dir(username)
+
+
 def _manually_remove_user(username):  # TODO: make this from server module
     # WARNING: Removing the test-user manually from db if it exists!
     # (is it the right way to make sure that the test user don't exist?)
@@ -115,9 +129,7 @@ class TestRequests(unittest.TestCase):
         server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
-        # Create test user
-        self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                      data={'username': USR, 'password': PW})
+        _manually_create_user(USR, PW)
 
         # Create temporary file
         server_filepath = userpath2serverpath(USR, USER_RELATIVE_DOWNLOAD_FILEPATH)
