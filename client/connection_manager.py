@@ -88,10 +88,9 @@ class ConnectionManager(object):
         print r.status_code
 
     def do_delete(self, data):
-        print data
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'delete'])
-        
-        r = requests.post(url, data=json.dumps(data))
+        print 'do_move'
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'], 'actions/delete'])
+        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), data=data )
         print r
 
     def do_copy(self, data):
