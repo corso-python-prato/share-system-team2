@@ -6,8 +6,9 @@ import shutil
 import logging
 import datetime
 import argparse
+import hashlib
 
-from flask import Flask, make_response, request, abort
+from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, Api
 from werkzeug import secure_filename
@@ -28,6 +29,12 @@ URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+# json key to access to the user directory snapshot:
+SNAPSHOT = 'files'
+# Single file dict keys:
+FILEPATH = 'filepath'
+MTIME = 'mtime'
+MD5 = 'md5'
 
 
 # Logging configuration
@@ -218,26 +225,103 @@ class Actions(Resource):
             print r,d
 
 
+def calculate_file_md5(fp, chunk_len=2**16):
+    """
+    Return the md5 digest of the file content of file_path as a string
+    containing only hexadecimal digits.
+    :fp: file (an open file object)
+    :chunk_len: int (number of file bytes read per cycle - default = 2^16)
+    """
+    h = hashlib.md5()
+    while True:
+        chunk = fp.read(chunk_len)
+        if chunk:
+            h.update(chunk)
+        else:
+            break
+    res = h.hexdigest()
+    return res
+
+
+def dir_snapshot(root_path):
+    """
+    Walk on root_path returning a snapshot in a list of dictionaries.
+    Every dict has FILEPATH, MTIME, MD5 keys.
+    :param root_path: str
+    :return: list
+
+    >>> snap = dir_snapshot('.')
+    >>> isinstance(snap, list)
+    True
+    >>> d = snap[0]
+    >>> isinstance(d, dict)
+    True
+    >>> FILEPATH in d
+    True
+    >>> MTIME in d
+    True
+    >>> MD5 in d
+    True
+    >>> d[FILEPATH].__class__.__name__
+    'str'
+    >>> d[MTIME].__class__.__name__
+    'float'
+    >>> d[MD5].__class__.__name__
+    'str'
+    >>> os.path.exists(d[FILEPATH])
+    True
+    """
+    res = []
+    for dirpath, dirs, files in os.walk(root_path):
+        for filename in files:
+            filepath = os.path.join(dirpath, filename)
+            lastmod_timestamp = os.path.getmtime(filepath)
+
+            # Open file and calculate md5. TODO: catch and handle os errors.
+            with open(filepath, 'rb') as fp:
+                md5_string = calculate_file_md5(fp)
+
+            # dict info for each file (we could use a tuple)
+            d = {
+                 FILEPATH: filepath[len(root_path) + 1:],
+                 MTIME: lastmod_timestamp,
+                 MD5: md5_string,
+            }
+            res.append(d)
+    return res
+
+
 class Files(Resource):
     @auth.login_required
-    def get(self, path):
+    def get(self, path=''):
+        logger.debug('Files.get({})'.format(repr(path)))
         username = request.authorization['username']
-        dirname = os.path.join(FILE_ROOT, username, os.path.dirname(path))
-        real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        user_rootpath = os.path.join(FILE_ROOT, username)
+        if path:
+            # Download the file specified by <path>.
+            dirname = os.path.join(user_rootpath, os.path.dirname(path))
+            real_dirname = os.path.realpath(dirname)
+            real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
 
-        if real_root not in real_dirname:
-            abort(HTTP_FORBIDDEN)
-        if not os.path.exists(dirname):
-            abort(HTTP_NOT_FOUND)
-        s_filename = secure_filename(os.path.split(path)[-1])
+            if real_root not in real_dirname:
+                abort(HTTP_FORBIDDEN)
+            if not os.path.exists(dirname):
+                abort(HTTP_NOT_FOUND)
+            s_filename = secure_filename(os.path.split(path)[-1])
 
-        try:
-            response = make_response(_read_file(os.path.join(FILE_ROOT, username, path)))
-        except IOError:
-            response = 'File not found', HTTP_NOT_FOUND
+            try:
+                response = make_response(_read_file(os.path.join(FILE_ROOT, username, path)))
+            except IOError:
+                response = 'File not found', HTTP_NOT_FOUND
+            else:
+                response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
         else:
-            response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
+            # If path is not given, return the snapshot of user directory.
+            logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
+            snapshot = dir_snapshot(user_rootpath)
+            logger.info('snapshot returned {:,} files'.format(len(snapshot)))
+            response = jsonify({SNAPSHOT: snapshot})
+        logging.debug(response)
         return response
 
     @auth.login_required
@@ -279,7 +363,7 @@ class Files(Resource):
             abort(HTTP_NOT_FOUND)
 
 
-api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX))
+api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
 
