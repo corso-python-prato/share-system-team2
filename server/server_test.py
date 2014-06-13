@@ -80,10 +80,10 @@ def build_testuser_dir(username):
 
     os.mkdir(user_root)
 
-    target = []
+    target = {}
     for user_filepath, content, md5 in file_contents:
-        mtime = _create_file(username, user_filepath, content)
-        target.append({server.FILEPATH: user_filepath, server.MTIME: mtime, server.MD5: md5})
+        _create_file(username, user_filepath, content)
+        target[user_filepath] = md5
     return target
 
 
