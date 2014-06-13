@@ -45,25 +45,31 @@ class DirectoryMonitor(FileSystemEventHandler):
 
         if event.is_directory is False:        
             e = event           
-            
+
             if e.event_type == 'modified':
                 data = build_data('modify', e)
+                self.event_dispatcher(data['cmd'], data['file'])
 
             elif e.event_type == 'created':
-                data = build_data('upload', e)                
+                data = build_data('upload', e)
+                if data['file']['filepath'] not in self.client_state:
+                    self.event_dispatcher(data['cmd'], data['file'])
+                else:
+                    print 'FILE ESISTENTE, TODO VERIFICA md5 INVECE DEL path'
 
             elif e.event_type == 'moved':
                 data = {'cmd':'move'}
                 data['file'] = {
                     'src_path': self.relativize_path(e.src_path),
                     'dest_path': self.relativize_path(e.dest_path)}
+                self.event_dispatcher(data['cmd'], data['file'])
 
             elif e.event_type == 'deleted':
                 data = {'cmd':'delete'}
                 data['file'] = {
-                    "filepath": self.relativize_path(e.src_path)} 
-            
-            self.event_dispatcher(data['cmd'], data['file'])
+                    "filepath": self.relativize_path(e.src_path)}
+                self.event_dispatcher(data['cmd'], data['file'])
+
 
     def relativize_path(self,path_to_clean):
         """ 
