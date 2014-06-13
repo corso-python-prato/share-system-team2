@@ -22,8 +22,10 @@ class DirectoryMonitor(FileSystemEventHandler):
     The DirectoryMonitor for file system events
     like: moved, deleted, created, modified
     """
+    def __init__(self, folder_path, event_dispatcher):
     def __init__(self, folder_path, callback):
         FileSystemEventHandler.__init__(self)
+        self.event_dispatcher = event_dispatcher
         self.callback = callback
         self.folder_path = folder_path
         self.folder_watched = self.folder_path.split(os.sep)[-1]
