@@ -41,28 +41,31 @@ class ConnectionManager(object):
 
     def do_reguser(self, param):
         
-        data = {'username': param[0], 'password': param[1]}
+        data = {'username': self.cfg['user'], 'password': self.cfg['password']}
         r = requests.post(self.cfg['server_address'] + self.cfg['api_suffix'], data=data)
 
         print r.status_code
 
-        # you will manages the response
+        # we will manages the response
 
 
-    def do_copy(self):
-        pass
+    def do_copy(self, data):
+        print data        
 
-    def do_upload(self):
-        pass
+    def do_upload(self, data):
+        print data        
 
-    def do_download(self):
-        pass
+    def do_download(self, data):
+        print data        
 
-    def do_modify(self):
-        pass
+    def do_modify(self, data):
+        print data        
 
-    def do_move(self):
-        pass
+    def do_move(self, data):
+        print data
 
-    def _default(self):
+    def do_delete(self, data):
+        print data
+
+    def _default(self, data):
         print 'Unknown Command'

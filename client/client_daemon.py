@@ -5,9 +5,9 @@ import json
 import socket
 import struct
 import select
-
+import time
 import os
-
+import hashlib
 import connection_manager
 
 
@@ -16,15 +16,14 @@ import connection_manager
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 
-
 class DirectoryMonitor(FileSystemEventHandler):
     """
     The DirectoryMonitor for file system events
     like: moved, deleted, created, modified
     """
-    def __init__(self, folder_path, callback):
+    def __init__(self, folder_path, event_dispatcher):
         FileSystemEventHandler.__init__(self)
-        self.callback = callback
+        self.event_dispatcher = event_dispatcher
         self.folder_path = folder_path
         self.folder_watched = self.folder_path.split(os.sep)[-1]
         self.observer = Observer()
@@ -32,36 +31,46 @@ class DirectoryMonitor(FileSystemEventHandler):
 
     def on_any_event(self, event):
         """
-        it catpures any filesytem event and redirects it to the callback
+        it catpures any filesytem event and redirects it to the event_dispatcher
         """
-        data = {}
-
+        def build_data(cmd,e):
+            data = {}
+            data['cmd'] = cmd
+            data['file'] = {
+                "filepath": self.relativize_path(e.src_path), 
+                "mtime": os.path.getmtime(e.src_path), 
+                "md5": hashlib.md5(e.src_path).hexdigest()
+            }         
+            return data        
+        
         if event.is_directory is False:        
             e = event           
-                        
+            
             if e.event_type == 'modified':
-
-                data['modified'] = (self.relativize_path(e.src_path))
-
-            elif e.event_type == 'deleted':
-
-                data['deleted'] = (self.relativize_path(e.src_path))
+                data = build_data('upload', e)
 
             elif e.event_type == 'created':
-
-                data['created'] = (self.relativize_path(e.src_path))
+                data = build_data('upload', e)                
 
             elif e.event_type == 'moved':
+                data = {'cmd':'move'}
+                data['file'] = {
+                    'src_path': self.relativize_path(e.src_path),
+                    'dest_path': self.relativize_path(e.dest_path)}
 
-                data['moved'] = (self.relativize_path(e.src_path),self.relativize_path(e.dest_path))            
-            self.callback(data)
+            elif e.event_type == 'deleted':
+                data = {'cmd':'delete'}
+                data['file'] = {
+                    "filepath": self.relativize_path(e.src_path)} 
+            
+            self.event_dispatcher(data['cmd'], data['file'])
 
     def relativize_path(self,path_to_clean):
         """ 
         This function relativize the path watched by watchdog:
-        for example: /home/user/watched/subfolder will be watched/subfolder
+        for example: /home/user/watched/subfolder will be /subfolder
         """
-        return ''.join([self.folder_watched,path_to_clean.split(self.folder_watched)[-1]])
+        return path_to_clean.split(self.folder_watched)[-1]
 
 
     def start(self):
@@ -118,11 +127,11 @@ class Daemon(object):
         else:
             self.conn_mng.dispatch_request(cmd, args)
 
-    def event_dispatcher(self, data):
+    def event_dispatcher(self, cmd, data_file):
         """
         It dispatch the captured events to the api manager object
         """
-        print data  # TODO: call the function for requestes to server
+        self.conn_mng.dispatch_request(cmd, data_file)
 
     def serve_forever(self):
         """
