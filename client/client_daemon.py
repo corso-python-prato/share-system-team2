@@ -40,9 +40,9 @@ class DirectoryMonitor(FileSystemEventHandler):
                 "filepath": self.relativize_path(e.src_path), 
                 "mtime": os.path.getmtime(e.src_path), 
                 "md5": hashlib.md5(e.src_path).hexdigest()
-            }         
-            return data        
-        
+            } # TODO update struct with new implemantation data = {<md5> : <filepath>}
+            return data
+
         if event.is_directory is False:        
             e = event           
             
