@@ -163,14 +163,39 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        {
+        username = request.authorization['username']
+        methods = {
         'delete': self._delete,
         'copy': self._copy,
         'move': self._move
-        }.get(cmd)()
+        }
+        if methods:
+            methods.get(cmd)(username)
+        else:
+            abort(HTTP_NOT_FOUND)
+    
+    def _get_src_dst(self, username):
+        """
+        Gets the source and destination paths to complete _move and _copy actions.
+        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and 
+        returns the absolute paths of them
+        """ 
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
 
-    def _delete(self):
-        username = request.authorization['username']
+        return src_path, dst_path               
+
+    def _delete(self, username):
+        """
+        Delete a file for a given <filepath>
+        """
         filepath = request.form['filepath']
         filepath = os.path.abspath(os.path.join(FILE_ROOT, username, filepath))
 
@@ -180,19 +205,14 @@ class Actions(Resource):
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
-        self._clean_dirs(os.path.dirname(filepath), username)
+
+        self._clear_dirs(os.path.dirname(filepath), username)
             
-    def _copy(self):
-        username = request.authorization['username']
-        src = request.form['src']
-        dst = request.form['dst']
-        
-        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
-        
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
+    def _copy(self, username):
+        """
+        Copy a file from a given source path to a destination path
+        """
+        src_path, dst_path = self._get_src_dst(username)
 
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
@@ -201,17 +221,11 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-    def _move(self):
-        username = request.authorization['username']
-        src = request.form['src']
-        dst = request.form['dst']
-        
-        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
-        
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
+    def _move(self, username):
+        """
+        Move a file from a given source path to a destination path
+        """
+        src_path, dst_path = self._get_src_dst(username)
         
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
@@ -219,16 +233,28 @@ class Actions(Resource):
             shutil.move(src_path, dst_path)        
         else:
             abort(HTTP_NOT_FOUND)
+        self._clear_dirs(os.path.dirname(src_path), username)    
 
-    def _clean_dirs(self, path, root): 
-        for r, d, f in os.walk(path, topdown=False):
-            print r,d
+    def _clear_dirs(self, path, root): 
+        """
+        Recursively removes all the empty directories that exists after the remotion of a file
+        """
+
+        path_to_clear, clean = os.path.split(path)
+        path_to_storage, storage = os.path.split(path_to_clear)
+        if clean == root and storage == FILE_ROOT:
+            return
+        try: 
+            os.rmdir(path)
+        except OSError:
+            return
+        self._clear_dirs(path_to_clear, root)
 
 
 def calculate_file_md5(fp, chunk_len=2**16):
     """
     Return the md5 digest of the file content of file_path as a string
-    containing only hexadecimal digits.
+    with only hexadecimal digits.
     :fp: file (an open file object)
     :chunk_len: int (number of file bytes read per cycle - default = 2^16)
     """
