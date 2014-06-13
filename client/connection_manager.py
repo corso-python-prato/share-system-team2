@@ -96,11 +96,10 @@ class ConnectionManager(object):
     def do_copy(self, data):
         print data
 
-    def do_get_server_state(self):
+    def do_get_server_state(self, data):
         url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'files'])
-        r = requests.get(url)
-
-        return json.loads(r.content)
+        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
+        return r.content
 
     def _default(self, data):
         print 'Unknown Command'
