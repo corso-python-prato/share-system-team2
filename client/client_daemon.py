@@ -110,7 +110,7 @@ class Daemon(object):
             print "No config File!"
             exit()           
         self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-        self.dir_manager = DirectoryMonitor(self.cfg['path'], self.event_dispatcher)
+        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
         self.running = 0
 
 
