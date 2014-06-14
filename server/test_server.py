@@ -8,8 +8,12 @@ import base64
 import shutil
 import urlparse
 import json
+import logging
 
 import server
+
+# Very basic logging configuration for this test module:
+logging.basicConfig(level=logging.ERROR)
 
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
@@ -112,9 +116,9 @@ def _manually_remove_user(username):  # TODO: make this from server module
     user_dirpath = userpath2serverpath(USR, '')
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
-        print '"%s" user directory removed' % user_dirpath
+        logging.info('"%s" user directory removed' % user_dirpath)
     else:
-        print '"%s" user directory does not exist...' % user_dirpath
+        logging.info('"%s" user directory does not exist...' % user_dirpath)
 
 
 class TestRequests(unittest.TestCase):
@@ -236,7 +240,7 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
         os.remove(uploaded_filepath)
-        print('"{}" removed'.format(uploaded_filepath))
+        logging.info('"{}" removed'.format(uploaded_filepath))
 
     def test_files_post_with_not_allowed_path(self):
         """
