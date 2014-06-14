@@ -7,11 +7,13 @@ import os
 import base64
 import shutil
 import urlparse
+import json
 
 import server
 
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
+SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
 
 # Test-user stuff
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
@@ -22,7 +24,8 @@ DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
 USER_RELATIVE_UPLOAD_FILEPATH = 'testupload/testfile.txt'
 UPLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_UPLOAD_FILEPATH
 UNEXISTING_TEST_URL = SERVER_FILES_API + 'testdownload/unexisting.txt'
-
+DELETE_TEST_URL = SERVER_ACTIONS_API + 'delete'
+DELETE_TEST_FILE_PATH = 'testdelete/testfile.txt'
 
 def userpath2serverpath(username, path):
     """
@@ -35,6 +38,69 @@ def userpath2serverpath(username, path):
     # This function depends on server module
     # TODO: define this function into the server module and call from it
     return os.path.realpath(os.path.join(server.FILE_ROOT, username, path))
+
+
+def _create_file(username, user_relpath, content):
+    """
+    Create an user file with path <user_relpath> and content <content>
+    and return it's last modification time (== creation time).
+    :param username: str
+    :param user_relpath: str
+    :param content: str
+    :return: float
+    """
+    filepath = userpath2serverpath(username, user_relpath)
+    dirpath = os.path.dirname(filepath)
+    if not os.path.isdir(dirpath):
+        os.makedirs(dirpath)
+    with open(filepath, 'wb') as fp:
+        fp.write(content)
+    mtime = os.path.getmtime(filepath)
+    return mtime
+
+
+def create_user_dir(username):
+    """
+    Create user directory (must not exist)
+    :param username:
+    :return:
+    """
+    os.makedirs(userpath2serverpath(username, ''))
+
+
+def build_testuser_dir(username):
+    """
+    Create a directory with files and return its structure
+    in a list.
+    :param username: str
+    :return: list
+    """
+    # md5("foo") = "acbd18db4cc2f85cedef654fccc4a4d8"
+    # md5("bar") = "37b51d194a7513e45b56f6524f2d51f2"
+    # md5("spam") = "e09f6a7593f8ae3994ea57e1117f67ec"
+    file_contents = [
+        ('spamfile', 'spam', 'e09f6a7593f8ae3994ea57e1117f67ec'),
+        (os.path.join('subdir', 'foofile.txt'), 'foo', 'acbd18db4cc2f85cedef654fccc4a4d8'),
+        (os.path.join('subdir', 'barfile.md'), 'bar', '37b51d194a7513e45b56f6524f2d51f2'),
+    ]
+
+    user_root = userpath2serverpath(username, '')
+    # If directory already exists, destroy it
+    if os.path.isdir(user_root):
+        shutil.rmtree(user_root)
+
+    os.mkdir(user_root)
+
+    target = {}
+    for user_filepath, content, md5 in file_contents:
+        _create_file(username, user_filepath, content)
+        target[user_filepath] = md5
+    return target
+
+
+def _manually_create_user(username, pw):
+    server.userdata[username] = server._encrypt_password(pw)
+    create_user_dir(username)
 
 
 def _manually_remove_user(username):  # TODO: make this from server module
@@ -63,9 +129,7 @@ class TestRequests(unittest.TestCase):
         server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
-        # Create test user
-        self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                      data={'username': USR, 'password': PW})
+        _manually_create_user(USR, PW)
 
         # Create temporary file
         server_filepath = userpath2serverpath(USR, USER_RELATIVE_DOWNLOAD_FILEPATH)
@@ -76,8 +140,8 @@ class TestRequests(unittest.TestCase):
 
     def tearDown(self):
         server_filepath = userpath2serverpath(USR, USER_RELATIVE_DOWNLOAD_FILEPATH)
-        os.remove(server_filepath)
-        print 'deleted temporary resource', server_filepath
+        if os.path.exists(server_filepath):
+            os.remove(server_filepath)
         _manually_remove_user(USR)
 
     def test_files_get_with_auth(self):
@@ -88,6 +152,45 @@ class TestRequests(unittest.TestCase):
         test = self.app.get(DOWNLOAD_TEST_URL,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_OK)
+
+    def test_files_get_existing_file_with_wrong_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the given password is wrong.
+        """
+        wrong_password = PW + 'a'
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, wrong_password))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the password is an empty string.
+        """
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_username(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user is an empty string and the password is not empty.
+        """
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_unexisting_user(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user does not exist.
+        """
+        user = 'UnExIsTiNgUsEr'
+        assert not user in server.userdata
+        test = self.app.get(DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_without_auth(self):
         """
@@ -105,6 +208,19 @@ class TestRequests(unittest.TestCase):
         test = self.app.get(UNEXISTING_TEST_URL,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_files_get_snapshot(self):
+        """
+        Test lato-server user files snapshot.
+        """
+        # The test user is created in setUp
+        target = {server.SNAPSHOT: build_testuser_dir(USR)}
+        test = self.app.get(SERVER_FILES_API,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                            )
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        obj = json.loads(test.data)
+        self.assertEqual(obj, target)
 
     def test_files_post_with_auth(self):
         """
@@ -133,6 +249,23 @@ class TestRequests(unittest.TestCase):
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
+
+    def test_delete_file_path(self):
+        """
+        Test delete file
+        """
+        #crea il file da cancellare
+        to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
+        
+        _create_file(USR, DELETE_TEST_FILE_PATH, 'ciao mamma')
+        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
+        test = self.app.post(DELETE_TEST_URL,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'filepath':to_delete_filepath}, follow_redirects=True)
+        
+        #os.remove(uploaded_filepath)
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        self.assertFalse(os.path.isfile(to_delete_filepath))    
 
 
 class TestUsers(unittest.TestCase):

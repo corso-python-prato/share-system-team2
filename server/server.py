@@ -31,10 +31,6 @@ WORKDIR = os.path.dirname(__file__)
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
-# Single file dict keys:
-FILEPATH = 'filepath'
-MTIME = 'mtime'
-MD5 = 'md5'
 
 
 # Logging configuration
@@ -163,14 +159,39 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        {
+        username = request.authorization['username']
+        methods = {
         'delete': self._delete,
         'copy': self._copy,
         'move': self._move
-        }.get(cmd)()
+        }
+        if methods:
+            methods.get(cmd)(username)
+        else:
+            abort(HTTP_NOT_FOUND)
+    
+    def _get_src_dst(self, username):
+        """
+        Gets the source and destination paths to complete _move and _copy actions.
+        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and 
+        returns the absolute paths of them
+        """ 
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        
+        if real_root not in src_path and real_root not in dst_path:
+            abort(HTTP_FORBIDDEN)
 
-    def _delete(self):
-        username = request.authorization['username']
+        return src_path, dst_path               
+
+    def _delete(self, username):
+        """
+        Delete a file for a given <filepath>
+        """
         filepath = request.form['filepath']
         rootpath = os.path.join(FILE_ROOT, username, filepath)
         filepath = os.path.abspath(rootpath)
@@ -181,18 +202,14 @@ class Actions(Resource):
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
+
+        self._clear_dirs(os.path.dirname(filepath), username)
             
-    def _copy(self):
-        username = request.authorization['username']
-        src = request.form['src']
-        dst = request.form['dst']
-        
-        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
-        
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
+    def _copy(self, username):
+        """
+        Copy a file from a given source path to a destination path
+        """
+        src_path, dst_path = self._get_src_dst(username)
 
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
@@ -201,17 +218,11 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-    def _move(self):
-        username = request.authorization['username']
-        src = request.form['src']
-        dst = request.form['dst']
-        
-        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
-        
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
+    def _move(self, username):
+        """
+        Move a file from a given source path to a destination path
+        """
+        src_path, dst_path = self._get_src_dst(username)
         
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
@@ -219,12 +230,28 @@ class Actions(Resource):
             shutil.move(src_path, dst_path)        
         else:
             abort(HTTP_NOT_FOUND)
-    
+        self._clear_dirs(os.path.dirname(src_path), username)    
+
+    def _clear_dirs(self, path, root): 
+        """
+        Recursively removes all the empty directories that exists after the remotion of a file
+        """
+
+        path_to_clear, clean = os.path.split(path)
+        path_to_storage, storage = os.path.split(path_to_clear)
+        if clean == root and storage == FILE_ROOT:
+            return
+        try: 
+            os.rmdir(path)
+        except OSError:
+            return
+        self._clear_dirs(path_to_clear, root)
+
 
 def calculate_file_md5(fp, chunk_len=2**16):
     """
     Return the md5 digest of the file content of file_path as a string
-    containing only hexadecimal digits.
+    with only hexadecimal digits.
     :fp: file (an open file object)
     :chunk_len: int (number of file bytes read per cycle - default = 2^16)
     """
@@ -239,52 +266,23 @@ def calculate_file_md5(fp, chunk_len=2**16):
     return res
 
 
-def dir_snapshot(root_path):
+def get_dir_snapshot(root_path):
     """
-    Walk on root_path returning a snapshot in a list of dictionaries.
-    Every dict has FILEPATH, MTIME, MD5 keys.
+    Walk on root_path returning a snapshot in a dictionaries.
     :param root_path: str
-    :return: list
-
-    >>> snap = dir_snapshot('.')
-    >>> isinstance(snap, list)
-    True
-    >>> d = snap[0]
-    >>> isinstance(d, dict)
-    True
-    >>> FILEPATH in d
-    True
-    >>> MTIME in d
-    True
-    >>> MD5 in d
-    True
-    >>> d[FILEPATH].__class__.__name__
-    'str'
-    >>> d[MTIME].__class__.__name__
-    'float'
-    >>> d[MD5].__class__.__name__
-    'str'
-    >>> os.path.exists(d[FILEPATH])
-    True
+    :return: dictionary
     """
-    res = []
+    result = {}
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = os.path.join(dirpath, filename)
-            lastmod_timestamp = os.path.getmtime(filepath)
 
             # Open file and calculate md5. TODO: catch and handle os errors.
             with open(filepath, 'rb') as fp:
-                md5_string = calculate_file_md5(fp)
+                md5 = calculate_file_md5(fp)
 
-            # dict info for each file (we could use a tuple)
-            d = {
-                 FILEPATH: filepath[len(root_path) + 1:],
-                 MTIME: lastmod_timestamp,
-                 MD5: md5_string,
-            }
-            res.append(d)
-    return res
+            result[filepath[len(root_path) + 1:]] = md5
+    return result
 
 
 class Files(Resource):
@@ -314,7 +312,7 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            snapshot = dir_snapshot(user_rootpath)
+            snapshot = get_dir_snapshot(user_rootpath)
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
             response = jsonify({SNAPSHOT: snapshot})
         logging.debug(response)
@@ -363,7 +361,7 @@ api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.f
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', default=False, action='store_true',
                         help='set console verbosity level to DEBUG (4) [default: %(default)s]')
@@ -397,3 +395,7 @@ if __name__ == '__main__':
 
     userdata.update(load_userdata())
     app.run(host='0.0.0.0', debug=True)
+
+
+if __name__ == '__main__':
+    main()
