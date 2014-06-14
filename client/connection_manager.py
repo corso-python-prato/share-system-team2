@@ -57,8 +57,10 @@ class ConnectionManager(object):
             'file': (open(abspath,'rb')),
         }
         url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
+        print url
         r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), files=d)
-        print r.status_code
+
+        return r
 
 
     def do_download(self, data):
