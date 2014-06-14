@@ -62,7 +62,6 @@ class ConnectionManager(object):
 
         return r
 
-
     def do_download(self, data):
         print 'do_download'
         url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
