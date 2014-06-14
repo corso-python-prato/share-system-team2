@@ -172,7 +172,8 @@ class Actions(Resource):
     def _delete(self):
         username = request.authorization['username']
         filepath = request.form['filepath']
-        filepath = os.path.abspath(os.path.join(FILE_ROOT, username, filepath))
+        rootpath = os.path.join(FILE_ROOT, username, filepath)
+        filepath = os.path.abspath(rootpath)
 
         if not os.path.isfile(filepath):
             abort(HTTP_NOT_FOUND)
