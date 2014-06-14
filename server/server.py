@@ -40,7 +40,9 @@ if not os.path.isdir('log'):
     os.mkdir('log')
 
 logger = logging.getLogger('Server log')
-logger.setLevel(logging.DEBUG)
+# Set the default logging level, actually used if the module is imported:
+logger.setLevel(logging.WARN)
+
 # It's useful to log all messages of all severities to a text file while simultaneously
 # logging errors or above to the console. You set this up simply configuring the appropriate handlers.
 # Create file handler which logs even debug messages:
@@ -67,15 +69,6 @@ api = Api(app)
 auth = HTTPBasicAuth()
 
 
-def _path(*relpath):
-    """
-    Build the path under WORKDIR.
-    :param relpath:
-    :return:
-    """
-    return os.path.join(WORKDIR, *relpath)
-
-
 def _read_file(filename):
     """
     This function reads and returns the content of the file.
@@ -96,7 +89,7 @@ def _encrypt_password(password):
 def load_userdata():
     data = {}
     try:
-        with open(_path(USERDATA_FILENAME), 'rb') as fp:
+        with open(USERDATA_FILENAME, 'rb') as fp:
             data = json.load(fp, 'utf-8')
     except IOError:
         # If the user data file does not exists, don't raise an exception.
@@ -108,7 +101,7 @@ def load_userdata():
 
 
 def save_userdata(data):
-    with open(_path(USERDATA_FILENAME), 'wb') as fp:
+    with open(USERDATA_FILENAME, 'wb') as fp:
         json.dump(data, fp, 'utf-8')
     logger.info('Saved {:,} users'.format(len(data)))
 
