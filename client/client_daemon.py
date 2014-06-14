@@ -21,8 +21,9 @@ class DirectoryMonitor(FileSystemEventHandler):
     The DirectoryMonitor for file system events
     like: moved, deleted, created, modified
     """
-    def __init__(self, folder_path, event_dispatcher):
+    def __init__(self, folder_path, event_dispatcher, client_state):
         FileSystemEventHandler.__init__(self)
+        self.client_state = client_state
         self.event_dispatcher = event_dispatcher
         self.folder_path = folder_path
         self.folder_watched = self.folder_path.split(os.sep)[-1]
@@ -39,31 +40,37 @@ class DirectoryMonitor(FileSystemEventHandler):
             data['file'] = {
                 "filepath": self.relativize_path(e.src_path), 
                 "mtime": os.path.getmtime(e.src_path), 
-                "md5": hashlib.md5(e.src_path).h0exdigest()
-            }         
-            return data        
-        
+                "md5": hashlib.md5(e.src_path).hexdigest()
+            } # TODO update struct with new implemantation data = {<md5> : <filepath>}
+            return data
+
         if event.is_directory is False:        
             e = event           
-            
+
             if e.event_type == 'modified':
                 data = build_data('modify', e)
+                self.event_dispatcher(data['cmd'], data['file'])
 
             elif e.event_type == 'created':
-                data = build_data('upload', e)                
+                data = build_data('upload', e)
+                if data['file']['filepath'] not in self.client_state:
+                    self.event_dispatcher(data['cmd'], data['file'])
+                else:
+                    print 'FILE ESISTENTE, TODO VERIFICA md5 INVECE DEL path'
 
             elif e.event_type == 'moved':
                 data = {'cmd':'move'}
                 data['file'] = {
                     'src_path': self.relativize_path(e.src_path),
                     'dest_path': self.relativize_path(e.dest_path)}
+                self.event_dispatcher(data['cmd'], data['file'])
 
             elif e.event_type == 'deleted':
                 data = {'cmd':'delete'}
                 data['file'] = {
-                    "filepath": self.relativize_path(e.src_path)} 
-            
-            self.event_dispatcher(data['cmd'], data['file'])
+                    "filepath": self.relativize_path(e.src_path)}
+                self.event_dispatcher(data['cmd'], data['file'])
+
 
     def relativize_path(self,path_to_clean):
         """ 
@@ -111,10 +118,30 @@ class Daemon(object):
         if not self.cfg:
             print "No config File!"
             exit()           
+        self.client_state = {}
+        self.update_client_state()
+        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher, self.client_state)
         self.conn_mng = connection_manager.ConnectionManager(self.cfg)
-        self.sync_with_server(self.cfg['sharing_path'])
-        self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher)
+        self.sync_with_server()
         self.running = 0
+
+    def relativize_path(self,path_to_clean):
+        """
+        This function relativize the path watched by watchdog:
+        for example: /home/user/watched/subfolder/ will be subfolder/
+        """
+        folder_watched = self.cfg['sharing_path'].split(os.sep)[-1]
+        cleaned_path = path_to_clean.split(folder_watched)[-1]
+        # cleaned from first slash character
+        return cleaned_path[1:]
+
+    def update_client_state(self):
+            for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+                for filename in files:
+                    file_path = os.path.join(dirpath, filename)
+                    relative_file_path = self.relativize_path(file_path)
+                    with open(file_path, 'rb') as f:
+                        self.client_state[relative_file_path] = hashlib.md5(f.read()).hexdigest()
 
     def sync_with_server(self):
         """
@@ -123,27 +150,17 @@ class Daemon(object):
         def download_files_state():
             """download from server the files state"""
             server_state = self.event_dispatcher('get_server_state')
-            print server_state
-            server_state = {'files': { '<path>': '<md5>'}}
             return server_state['files']
-        
-        def make_client_state():
-            client_state = {}
-            for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-            for filename in files:
-                file_path = os.path.join(dirpath, filename)
-                with open(file_path, 'rb') as fp:
-                    md5_string = calculate_file_md5(fp)
-                client_state[file_path] = md5_string
-            return client_state
 
         server_state = download_files_state()
-        client_state = make_client_state()
         for file_path in server_state:
-            if file_path not in client_state[file_path]:
-                # TODO files/crea
+            if file_path not in self.client_state:
+                self.client_state[file_path] = server_state[file_path]
+                data = {'filepath' : file_path }
+                self.event_dispatcher('download', data )
             else:
-                if server_state[file_path] != client_state[file_path]:
+                if server_state[file_path] != self.client_state[file_path]:
+                    print 'aggiora file'
                     pass # TODO files/aggiorna
 
     def cmd_dispatcher(self, data):
@@ -160,11 +177,11 @@ class Daemon(object):
         else:
             self.conn_mng.dispatch_request(cmd, args)
 
-    def event_dispatcher(self, cmd, data_file):
+    def event_dispatcher(self, cmd, data_file = None):
         """
         It dispatch the captured events to the api manager object
         """
-        self.conn_mng.dispatch_request(cmd, data_file)
+        return self.conn_mng.dispatch_request(cmd, data_file)
 
     def serve_forever(self):
         """
@@ -174,6 +191,7 @@ class Daemon(object):
         int_size = struct.calcsize('!i')
 
         listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener_socket.bind((self.cfg['host'], self.cfg['port']))
         listener_socket.listen(backlog)
         r_list = [listener_socket]

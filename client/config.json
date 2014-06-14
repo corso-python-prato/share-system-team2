@@ -3,7 +3,7 @@
  "host": "localhost", 
  "port": 50001, 
  "api_suffix": "/API/V1/",
- "server_address":"http://192.168.48.216:5000",
+ "server_address":"http://localhost:5000",
  "user":"pasquale",
  "pass":"secretpass"
 }
