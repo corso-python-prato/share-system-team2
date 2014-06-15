@@ -40,7 +40,7 @@ class DirectoryMonitor(FileSystemEventHandler):
             data['file'] = {
                 "filepath": self.relativize_path(e.src_path), 
                 "mtime": os.path.getmtime(e.src_path), 
-                "md5": hashlib.md5(e.src_path).hexdigest()
+                "md5": hashlib.md5(e.src_path).hexdigest(),
             } # TODO update struct with new implemantation data = {<md5> : <filepath>}
             return data
 
@@ -56,7 +56,7 @@ class DirectoryMonitor(FileSystemEventHandler):
                 if data['file']['filepath'] not in self.client_state:
                     self.event_dispatcher(data['cmd'], data['file'])
                 else:
-                    print 'FILE ESISTENTE, TODO VERIFICA md5 INVECE DEL path'
+                    print 'FILE ESISTENTE, TODO: VERIFICA md5 INVECE DEL path'
 
             elif e.event_type == 'moved':
                 data = {'cmd':'move'}
@@ -119,7 +119,7 @@ class Daemon(object):
             print "No config File!"
             exit()           
         self.client_state = {}
-        self.update_client_state()
+        self.update_client_state()       
         self.dir_manager = DirectoryMonitor(self.cfg['sharing_path'], self.event_dispatcher, self.client_state)
         self.conn_mng = connection_manager.ConnectionManager(self.cfg)
         self.sync_with_server()
@@ -155,12 +155,13 @@ class Daemon(object):
         server_state = download_files_state()
         for file_path in server_state:
             if file_path not in self.client_state:
-                self.client_state[file_path] = server_state[file_path]
-                data = {'filepath' : file_path }
-                self.event_dispatcher('download', data )
+                # to do : check if download succeed, if so update clientstate with the new file
+                self.event_dispatcher('download', {'filepath' : file_path } )
+
+                self.client_state[file_path] = server_state[file_path]                
             else:
                 if server_state[file_path] != self.client_state[file_path]:
-                    print 'aggiora file'
+                    print 'aggiorna file'
                     pass # TODO files/aggiorna
 
     def cmd_dispatcher(self, data):
