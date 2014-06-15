@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 #-*- coding: utf-8 -*-
 
-__author__ = 'milly, eatsjobs'
-
 # API:
 #  - GET /diffs, con parametro timestamp
 #
@@ -19,90 +17,122 @@ __author__ = 'milly, eatsjobs'
 #  - POST /shares/<root_path>/<user> - crea (se necessario) lo share, e l’utente che “vede” la condivisione
 #  - DELETE /shares/<root_path> - elimina del tutto lo share
 #  - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
-#
-
 
 import requests
 import json
 import os
 
-
 class ConnectionManager(object):
 
+    EXCEPTIONS_CATCHED = (requests.HTTPError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema)
+   
     def __init__(self, cfg):
-        self.cfg = cfg        
+        self.cfg = cfg
+        self.auth = (self.cfg['user'],self.cfg['pass'])
+
+        # http://localhost:5000/API/V1/
+        self.base_url =  ''.join([ self.cfg['server_address'], self.cfg['api_suffix'] ])
+        self.files_url = ''.join([self.base_url, 'files/'])
+        self.actions_url = ''.join([self.base_url, 'actions/'])
+        self.shares_url = ''.join([self.base_url, 'shares/'])
 
     def dispatch_request(self, command, args):
 
         method_name = ''.join(['do_', command])
         return getattr(self, method_name, self._default)(args)
 
-    def _send_request(self, api_method, resource, args):
-        pass
-
-    def do_reguser(self, param):
+    def do_reguser(self, data):
         
-        data = {'username': param[0], 'password': param[1]}
-        r = requests.post(''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'signup']), data=data)
-
-        print r.status_code
-
-        # we will manages the response
-
+        data = {'username': data[0], 'password': data[1]}
+        url = ''.join([self.base_url, 'signup'])
+        try:
+            r = requests.post(url, data=data)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore REGUSER: ", url, "Codice Errore: ", e
+        return r.status_code
 
     def do_upload(self, data):
-        print 'do_upload'
-        abspath = os.path.abspath(''.join(['sharing_folder/', data['filepath'] ]))
-        d = {
-            'file': (open(abspath,'rb')),
-        }
-        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
-        print url
-        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), files=d)
-
-        return r
+        
+        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
+        url = ''.join([self.base_url, 'files/', data['filepath']])
+        _file = {'file': (open(file_path,'rb')) }
+        print 'do_upload', url
+        try:
+            r = requests.post(url, auth=self.auth, files=_file)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore UPLOAD: ", url, "Codice Errore: ", e
+        return r.status_code
 
     def do_download(self, data):
-        print 'do_download'
-        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
-        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
-        with open(os.path.join(self.cfg['sharing_path'],data['filepath']), 'wb') as f:
-            f.write(r.content)
-        return r.content
+        url = ''.join([self.files_url, data['filepath']])
+        print 'do_download', url
+
+        try:
+            r = requests.get(url, auth=self.auth)         
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore DOWNLOAD: ", url, "Codice Errore: ", e
+        else:
+            with open(os.path.join(self.cfg['sharing_path'],data['filepath']), 'wb') as f:
+                f.write(r.content)
+        return r.status_code
 
     def do_modify(self, data):
-        print 'do_modify'
-        abspath = os.path.abspath(''.join(['sharing_folder/', data['filepath'] ]))
-        d = {
-            'file': (open(abspath,'rb')),
-        }
-        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
-        r = requests.put(url, auth=(self.cfg['user'],self.cfg['pass']), files=d)
-        print r.status_code                
+            
+        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])        
+        url = ''.join([self.files_url, data['filepath']])
+        _file = {'file': (open(file_path,'rb')),}
+        print 'do_modify', url
+        try:
+            r = requests.put(url, auth=self.auth, files=_file)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore MODIFY: ", url, "Codice Errore: ", e
+        return r.status_code
 
     #actions:
     def do_move(self, data):
-        print 'do_move'
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'move'])        
-        d = {'src_path':data['src_path'], 'dest_path':data['dest_path']}
-        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), data=json.dumps(d))
-        print r.status_code
+        
+        url = ''.join([self.actions_url,'move'])
+        d = {'src':data['src_path'], 'dst':data['dest_path']}
+        print 'do_move', url
+        try:            
+            r = requests.post(url, auth=self.auth, data=d)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore MOVE: ", url, "Codice Errore: ", e
+        return r.status_code
 
     def do_delete(self, data):
-        print 'do_move'
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'], 'actions/delete'])
-        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), data=data )
-        print r
+        
+        url = ''.join([self.actions_url, 'delete'])
+        print 'do_delete', url
+        d = {'filepath':data['filepath']}
+        try:
+            r = requests.post(url, auth=self.auth, data=d)          
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore DELETE: ", url, "Codice Errore: ", e
+        return r.status_code
 
     def do_copy(self, data):
-        print data
+        print 'do_copy', data
 
     def do_get_server_state(self, data):
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'files'])
-        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
-        return json.loads(r.content)
+        url = ''.join([self.base_url, 'files'])
+        print "get_server_state", url
+        try:
+            r = requests.get(url, auth=self.auth)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore GET_SERVER_STATE: ", url, "Codice Errore: ", e
+        else:            
+            return json.loads(r.content)
+        return False
 
     def _default(self, data):
-        print 'Unknown Command'
+        print 'Received Unknown Command'
 
     #shares:
