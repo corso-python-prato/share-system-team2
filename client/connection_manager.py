@@ -36,7 +36,7 @@ class ConnectionManager(object):
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
 
-    def dispatch_request(self, command, args):
+    def dispatch_request(self, command, args=None):
 
         method_name = ''.join(['do_', command])
         return getattr(self, method_name, self._default)(args)
@@ -45,11 +45,13 @@ class ConnectionManager(object):
         
         data = {'username': data[0], 'password': data[1]}
         url = ''.join([self.base_url, 'signup'])
+        print 'do_reguser', url, data
         try:
             r = requests.post(url, data=data)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore REGUSER: ", url, "Codice Errore: ", e
+        print r.content
         return r.status_code
 
     def do_upload(self, data):
@@ -120,14 +122,14 @@ class ConnectionManager(object):
     def do_copy(self, data):
         print 'do_copy', data
 
-    def do_get_server_state(self, data):
+    def do_get_server_snapshot(self, data):
         url = ''.join([self.base_url, 'files'])
-        print "get_server_state", url
+        print "get_server_snapshot", url
         try:
             r = requests.get(url, auth=self.auth)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            print "Errore GET_SERVER_STATE: ", url, "Codice Errore: ", e
+            print "Errore GET_SERVER_SNAPSHOT: ", url, "Codice Errore: ", e
         else:            
             return json.loads(r.content)
         return False

@@ -1,7 +1,7 @@
 {
  "sharing_path": "./sharing_folder",
- "host": "localhost", 
- "port": 50001, 
+ "cmd_address": "localhost", 
+ "cmd_port": 50001, 
  "api_suffix": "/API/V1/",
  "server_address":"http://localhost:5000",
  "user":"pasquale",

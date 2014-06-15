@@ -49,7 +49,7 @@ class CommandParser(cmd.Cmd):
     def do_EOF(self, line):
         return True
 
-    def do_newUser(self, line):
+    def do_reguser(self, line):
         """ Create new User
             Usage: newUser <username> <password>
         """
@@ -59,7 +59,7 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'usage: newUser <username> <password>'
         else:
-            message = {'newUser': (user, password)}
+            message = {'reguser': (user, password)}
             print message
             self._send_to_daemon(message)
 
