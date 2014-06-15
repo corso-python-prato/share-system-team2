@@ -35,7 +35,7 @@ class ConnectionManager(object):
     def dispatch_request(self, command, args):
 
         method_name = ''.join(['do_', command])
-        getattr(self, method_name, self._default)(args)
+        return getattr(self, method_name, self._default)(args)
 
     def _send_request(self, api_method, resource, args):
         pass
@@ -62,9 +62,13 @@ class ConnectionManager(object):
 
         return r
 
-
     def do_download(self, data):
-        print data
+        print 'do_download'
+        url = ''.join([self.cfg['server_address'], self.cfg['api_suffix'], 'files/', data['filepath']])
+        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
+        with open(os.path.join(self.cfg['sharing_path'],data['filepath']), 'wb') as f:
+            f.write(r.content)
+        return r.content
 
     def do_modify(self, data):
         print 'do_modify'
@@ -85,19 +89,17 @@ class ConnectionManager(object):
         print r.status_code
 
     def do_delete(self, data):
-        print data
-        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'delete'])
-        
-        r = requests.post(url, data=json.dumps(data))
+        print 'do_move'
+        url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'], 'actions/delete'])
+        r = requests.post(url, auth=(self.cfg['user'],self.cfg['pass']), data=data )
         print r
 
     def do_copy(self, data):
         print data
 
-    def do_get_server_state(self):
+    def do_get_server_state(self, data):
         url = ''.join([self.cfg['server_address'],self.cfg['api_suffix'],'files'])
-        r = requests.get(url, auth=())
-
+        r = requests.get(url, auth=(self.cfg['user'],self.cfg['pass']))
         return json.loads(r.content)
 
     def _default(self, data):
