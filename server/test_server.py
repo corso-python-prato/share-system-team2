@@ -265,7 +265,7 @@ class TestRequests(unittest.TestCase):
 
     def test_delete_file_path(self):
         """
-        Test delete file
+        Test if a created file is deleted and assures it doesn't exists anymore with assertFalse
         """
         #create file to be deleted
         to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
@@ -282,7 +282,8 @@ class TestRequests(unittest.TestCase):
 
     def test_copy_file_path(self):
         """
-        Test copy file
+        Test if a created source file is copied in a new created destination and assures the source file
+        still exists
         """
         #create source file to be copied and its destination
         src_copy_filepath = userpath2serverpath(USR, SRC_COPY_TEST_FILE_PATH)
@@ -302,7 +303,8 @@ class TestRequests(unittest.TestCase):
 
     def test_move_file_path(self):
         """
-        Test move file
+        TTest if a created source file is moved in a new created destination and assures the source file
+        doesn't exists after
         """
         #create source file to be moved and its destination
         src_move_filepath = userpath2serverpath(USR, SRC_MOVE_TEST_FILE_PATH)
