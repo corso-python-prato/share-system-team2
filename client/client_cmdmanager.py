@@ -63,17 +63,6 @@ class CommandParser(cmd.Cmd):
             print message
             self._send_to_daemon(message)
 
-    def do_reguser(self, line):
-        """
-        Register new user to the server
-        """
-        try:
-            user, password = line.split()
-        except ValueError:
-            print 'usage: reguser <username> <password>'
-        message = {'reguser': (user, password)}
-        self._send_to_daemon(message)
-
     def do_shutdown(self, line):
         message = {'shutdown': ()}
         self._send_to_daemon(message)
