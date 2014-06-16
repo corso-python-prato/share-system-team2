@@ -15,6 +15,7 @@ from flask.ext.restful import Resource, Api
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
 
+__title__ = 'PyBOX'
 
 # HTTP STATUS CODES
 HTTP_OK = 200
@@ -122,6 +123,14 @@ def verify_password(username, password):
         logger.info('User "{}" does not exist'.format(username))
         res = False
     return res
+
+
+@app.route('/')
+def welcome():
+    """
+    Simple welcome public url.
+    """
+    return 'Welcome from {} server!\n'.format(__title__), HTTP_OK
 
 
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
