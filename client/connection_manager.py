@@ -39,7 +39,11 @@ class ConnectionManager(object):
     def dispatch_request(self, command, args=None):
 
         method_name = ''.join(['do_', command])
-        return getattr(self, method_name, self._default)(args)
+        try:
+            return getattr(self, method_name)(args)
+        except AttributeError:
+            self._default(method_name)
+
 
     def do_reguser(self, data):
         
@@ -143,7 +147,7 @@ class ConnectionManager(object):
             return json.loads(r.content)
         return False
 
-    def _default(self, data):
-        print 'Received Unknown Command'
+    def _default(self, method):
+        print 'Received Unknown Command:', method
 
     #shares:
