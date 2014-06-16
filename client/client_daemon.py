@@ -184,7 +184,7 @@ class Daemon(FileSystemEventHandler):
                             length = int(struct.unpack('!i', length)[0])
                             message = json.loads(s.recv(length))
                             for cmd, data in message.items():
-                                if cmd == 'shutdown' : self.stop()
+                                if cmd == 'shutdown' : raise KeyboardInterrupt
                                 self.conn_mng.dispatch_request(cmd, data)
                         else:
                             s.close()
@@ -192,15 +192,13 @@ class Daemon(FileSystemEventHandler):
         except KeyboardInterrupt:
             self.stop()
 
-        self.observer.join()
-        listener_socket.close()
-
-
     def stop(self):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
         self.observer.stop()
+        self.observer.join()
+        self.listener_socket.close()
         self.running = 0
 
 
