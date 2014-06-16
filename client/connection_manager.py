@@ -25,7 +25,7 @@ import os
 class ConnectionManager(object):
 
     EXCEPTIONS_CATCHED = (requests.HTTPError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema)
-   
+
     def __init__(self, cfg):
         self.cfg = cfg
         self.auth = (self.cfg['user'],self.cfg['pass'])
@@ -46,7 +46,7 @@ class ConnectionManager(object):
 
 
     def do_reguser(self, data):
-        
+
         data = {'username': data[0], 'password': data[1]}
         url = ''.join([self.base_url, 'signup'])
         print 'do_reguser', url, data
@@ -58,25 +58,15 @@ class ConnectionManager(object):
         print r.content
         return r.status_code
 
-    def do_upload(self, data):
-        
-        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
-        url = ''.join([self.base_url, 'files/', data['filepath']])
-        _file = {'file': (open(file_path,'rb')) }
-        print 'do_upload', url
-        try:
-            r = requests.post(url, auth=self.auth, files=_file)
-            r.raise_for_status()
-        except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            print "Errore UPLOAD: ", url, "Codice Errore: ", e
-        return r.status_code
+    # files
 
     def do_download(self, data):
+
         url = ''.join([self.files_url, data['filepath']])
         print 'do_download', url
 
         try:
-            r = requests.get(url, auth=self.auth)         
+            r = requests.get(url, auth=self.auth)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore DOWNLOAD: ", url, "Codice Errore: ", e
@@ -85,9 +75,22 @@ class ConnectionManager(object):
                 f.write(r.content)
         return r.status_code
 
+    def do_upload(self, data):
+
+        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
+        url = ''.join([self.base_url, 'files/', data['filepath']])
+        _file = {'file': (open(file_path,'rb')) }
+        print 'do_upload', url
+        try:
+            r = requests.post(url, auth=self.auth, files=_file)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore upload: ", url, "Codice Errore: ", e
+        return r.status_code
+
     def do_modify(self, data):
-            
-        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])        
+
+        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
         url = ''.join([self.files_url, data['filepath']])
         _file = {'file': (open(file_path,'rb')),}
         print 'do_modify', url
@@ -98,7 +101,8 @@ class ConnectionManager(object):
             print "Errore MODIFY: ", url, "Codice Errore: ", e
         return r.status_code
 
-    #actions:
+    # actions:
+
     def do_move(self, data):
 
         url = ''.join([self.actions_url,'move'])
@@ -112,12 +116,12 @@ class ConnectionManager(object):
         return r.status_code
 
     def do_delete(self, data):
-        
+
         url = ''.join([self.actions_url, 'delete'])
         print 'do_delete', url
         d = {'filepath':data['filepath']}
         try:
-            r = requests.post(url, auth=self.auth, data=d)          
+            r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore DELETE: ", url, "Codice Errore: ", e
@@ -134,7 +138,6 @@ class ConnectionManager(object):
             print "Errore COPY: ", url, "Codice Errore: ", e
         return r.status_code
 
-
     def do_get_server_snapshot(self, data):
         url = ''.join([self.base_url, 'files'])
         print "get_server_snapshot", url
@@ -143,7 +146,7 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore GET_SERVER_SNAPSHOT: ", url, "Codice Errore: ", e
-        else:            
+        else:
             return json.loads(r.content)
         return False
 
