@@ -50,8 +50,8 @@ class CommandParser(cmd.Cmd):
         return True
 
     def do_reguser(self, line):
-        """ Create new User
-            Usage: newUser <username> <password>
+        """ Create new user
+            Usage: reguser <username> <password>
         """
 
         try:
