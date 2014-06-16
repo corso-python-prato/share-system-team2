@@ -7,6 +7,7 @@ import logging
 import datetime
 import argparse
 import hashlib
+join = os.path.join
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -142,7 +143,7 @@ def create_user():
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
-            os.makedirs(os.path.join(FILE_ROOT, username))
+            os.makedirs(join(FILE_ROOT, username))
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     logger.debug(response)
@@ -172,9 +173,9 @@ class Actions(Resource):
         src = request.form['src']
         dst = request.form['dst']
         
-        src_path = os.path.abspath(os.path.join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(os.path.join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        src_path = os.path.abspath(join(FILE_ROOT, username, src))
+        dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
+        real_root = os.path.realpath(join(FILE_ROOT, username))
         
         if real_root not in src_path and real_root not in dst_path:
             abort(HTTP_FORBIDDEN)
@@ -186,7 +187,7 @@ class Actions(Resource):
         Delete a file for a given <filepath>
         """
         filepath = request.form['filepath']
-        rootpath = os.path.join(FILE_ROOT, username, filepath)
+        rootpath = join(FILE_ROOT, username, filepath)
         filepath = os.path.abspath(rootpath)
 
         if not os.path.isfile(filepath):
@@ -268,7 +269,7 @@ def get_dir_snapshot(root_path):
     result = {}
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
-            filepath = os.path.join(dirpath, filename)
+            filepath = join(dirpath, filename)
 
             # Open file and calculate md5.
             try:
@@ -286,12 +287,12 @@ class Files(Resource):
     def get(self, path=''):
         logger.debug('Files.get({})'.format(repr(path)))
         username = request.authorization['username']
-        user_rootpath = os.path.join(FILE_ROOT, username)
+        user_rootpath = join(FILE_ROOT, username)
         if path:
             # Download the file specified by <path>.
-            dirname = os.path.join(user_rootpath, os.path.dirname(path))
+            dirname = join(user_rootpath, os.path.dirname(path))
             real_dirname = os.path.realpath(dirname)
-            real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+            real_root = os.path.realpath(join(FILE_ROOT, username))
 
             if real_root not in real_dirname:
                 abort(HTTP_FORBIDDEN)
@@ -300,7 +301,7 @@ class Files(Resource):
             s_filename = secure_filename(os.path.split(path)[-1])
 
             try:
-                response = make_response(_read_file(os.path.join(FILE_ROOT, username, path)))
+                response = make_response(_read_file(join(FILE_ROOT, username, path)))
             except IOError:
                 response = 'File not found', HTTP_NOT_FOUND
             else:
@@ -319,9 +320,9 @@ class Files(Resource):
         username = request.authorization['username']
         upload_file = request.files['file']
         dirname = os.path.dirname(path)
-        dirname = (os.path.join(FILE_ROOT, username, dirname))
+        dirname = (join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        real_root = os.path.realpath(join(FILE_ROOT, username))
         filename = os.path.split(path)[-1]
 
         if real_root not in real_dirname:
@@ -329,9 +330,9 @@ class Files(Resource):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
-            if os.path.isfile(os.path.join(dirname, filename)):
+            if os.path.isfile(join(dirname, filename)):
                 abort(HTTP_FORBIDDEN)
-        upload_file.save(os.path.join(dirname, filename))
+        upload_file.save(join(dirname, filename))
         return '', HTTP_CREATED
 
     @auth.login_required
@@ -339,15 +340,15 @@ class Files(Resource):
         username = request.authorization['username']
         upload_file = request.files['file']
         dirname = os.path.dirname(path)
-        dirname = (os.path.join(FILE_ROOT, username, dirname))
+        dirname = (join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(os.path.join(FILE_ROOT, username))
+        real_root = os.path.realpath(join(FILE_ROOT, username))
         filename = os.path.split(path)[-1]
 
         if real_root not in real_dirname:
             abort(HTTP_FORBIDDEN)
-        if os.path.isfile(os.path.join(dirname, filename)):
-           upload_file.save(os.path.join(dirname, filename))
+        if os.path.isfile(join(dirname, filename)):
+           upload_file.save(join(dirname, filename))
            return '', HTTP_CREATED
         else:
             abort(HTTP_NOT_FOUND)
