@@ -25,12 +25,12 @@ class Daemon(FileSystemEventHandler):
     "api_suffix": "/API/V1/",
     "server_address":"http://localhost:5000",
     "user":"default_user",
-    "pass":"default_pass"
+    "pass":"default_pass",
+    "timeout_listener_sock" : 0.5,
+    "backlog_listener_sock" : 5
     }
 
     PATH_CONFIG = 'config.json'
-    TIMEOUT = 0.5
-    BACKLOG = 5
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
@@ -41,6 +41,7 @@ class Daemon(FileSystemEventHandler):
         self.cfg = load_json(Daemon.PATH_CONFIG)
         self.conn_mng = ConnectionManager(self.cfg)
         self.connect_to_server()
+        self.build_client_snapshot()
         self.sync_with_server()
         self.observer = Observer()
         self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
@@ -59,12 +60,12 @@ class Daemon(FileSystemEventHandler):
             } # TODO update struct with new implemantation data = {<md5> : <filepath>}
             return data
 
-        if event.is_directory is False:        
-            e = event           
+        if event.is_directory is False:
+            e = event
 
             if e.event_type == 'modified':
                 print "evento modifica catturato!"
-                data = build_data('modify', e)                
+                data = build_data('modify', e)
                 self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
             elif e.event_type == 'created':
@@ -87,7 +88,7 @@ class Daemon(FileSystemEventHandler):
                     "filepath": self.relativize_path(e.src_path)}
                 self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
-            
+
     def build_client_snapshot(self):
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
@@ -104,15 +105,17 @@ class Daemon(FileSystemEventHandler):
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
         server_snapshot = server_snapshot['files']
         print server_snapshot
-        
         for file_path in server_snapshot:
             if file_path not in self.client_snapshot:
-                # TODO : check if download succeed, if so update clientstate with the new file                
+                # TODO : check if download succeed, if so update client_snapshot with the new file
                 self.conn_mng.dispatch_request('download', {'filepath' : file_path } )
                 self.client_snapshot[file_path] = server_snapshot[file_path]
             else:
-                if server_snapshot[file_path] != self.client_snapshot[file_path]:                   
+                if server_snapshot[file_path] != self.client_snapshot[file_path]:
                     self.conn_mng.dispatch_request('modify', {'filepath' : file_path } )
+        for file_path in self.client_snapshot:
+            if file_path not in server_snapshot:
+                self.conn_mng.dispatch_request('upload', {'filepath': file_path})
 
     def relativize_path(self, path_to_clean):
         """
@@ -128,12 +131,12 @@ class Daemon(FileSystemEventHandler):
     def start(self):
         """
         starts the Daemon
-        """        
-        
+        """
+
         listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
-        listener_socket.listen(Daemon.BACKLOG)
+        listener_socket.listen(self.cfg['backlog_listener_sock'])
         r_list = [listener_socket]
 
         self.observer.start()
@@ -141,7 +144,7 @@ class Daemon(FileSystemEventHandler):
         self.running = 1
         try:
             while self.running:
-                r_ready, w_ready, e_ready = select.select(r_list, [], [], Daemon.TIMEOUT)
+                r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
 
                 for s in r_ready:
 
@@ -172,8 +175,8 @@ class Daemon(FileSystemEventHandler):
         """
         stop the Daemon(observer and listener_socket)
         """
-        self.observer.stop()        
-        self.running = 0    
+        self.observer.stop()
+        self.running = 0
 
     def connect_to_server(self):
         # self.cfg['server_address']
