@@ -116,8 +116,13 @@ class Daemon(FileSystemEventHandler):
         """
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
-        server_snapshot = server_snapshot['files']
-        print server_snapshot
+        try:
+            server_snapshot = server_snapshot['files']
+        except TypeError:
+            # TODO this exception catch the server down, fix this with proper option
+            print '\nServer Down!!\n'
+            exit()
+
         for file_path in server_snapshot:
             if file_path not in self.client_snapshot:
                 # TODO : check if download succeed, if so update client_snapshot with the new file
