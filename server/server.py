@@ -283,8 +283,17 @@ def get_dir_snapshot(root_path):
 
 
 class Files(Resource):
+    """
+    Class that handle files as web resources.
+    """
     @auth.login_required
     def get(self, path=''):
+        """
+        Download an authenticated user file from server, if <path> is not empty,
+        otherwise get a server snapshot of user directory.
+        <path> is the path relative to the user local directory.
+        :param path: str
+        """
         logger.debug('Files.get({})'.format(repr(path)))
         username = request.authorization['username']
         user_rootpath = join(FILE_ROOT, username)
@@ -317,6 +326,11 @@ class Files(Resource):
 
     @auth.login_required
     def post(self, path):
+        """
+        Upload a authenticated user file to the server, given the path relative to the user directory.
+        The file must not exist in the server, otherwise only return an http forbidden code.
+        :param path: str
+        """
         username = request.authorization['username']
         upload_file = request.files['file']
         dirname = os.path.dirname(path)
@@ -337,6 +351,11 @@ class Files(Resource):
 
     @auth.login_required
     def put(self, path):
+        """
+        Modify an authenticated user file in the server (uploading and overwriting it)
+        given the path relative to the user directory. The file must exist in the server.
+        :param path: str
+        """
         username = request.authorization['username']
         upload_file = request.files['file']
         dirname = os.path.dirname(path)
