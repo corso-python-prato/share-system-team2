@@ -261,9 +261,9 @@ def calculate_file_md5(fp, chunk_len=2**16):
 
 def get_dir_snapshot(root_path):
     """
-    Walk on root_path returning a snapshot in a dictionaries.
+    Walk on root_path returning a snapshot in a dict.
     :param root_path: str
-    :return: dictionary
+    :return: dict
     """
     result = {}
     for dirpath, dirs, files in os.walk(root_path):
