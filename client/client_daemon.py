@@ -56,47 +56,6 @@ class Daemon(FileSystemEventHandler):
             return config
         else:
             return DEFAULT_CONFIG
-    def on_any_event(self, event):
-        """
-        it catpures any filesytem event and redirects it to the connection_manager
-        """
-        def build_data(cmd,e):
-            data = {}
-            data['cmd'] = cmd
-            data['file'] = {
-                "filepath": self.relativize_path(e.src_path), 
-                "mtime": os.path.getmtime(e.src_path), 
-                "md5": hashlib.md5(e.src_path).hexdigest(),
-            } # TODO update struct with new implemantation data = {<md5> : <filepath>}
-            return data
-
-        if event.is_directory is False:
-            e = event
-
-            if e.event_type == 'modified':
-                print "evento modifica catturato!"
-                data = build_data('modify', e)
-                self.conn_mng.dispatch_request(data['cmd'], data['file'])
-
-            elif e.event_type == 'created':
-                data = build_data('upload', e)
-                if data['file']['filepath'] not in self.client_snapshot:
-                    self.conn_mng.dispatch_request(data['cmd'], data['file'])
-                else:
-                    print 'FILE ESISTENTE, TODO: VERIFICA md5 INVECE DEL path'
-
-            elif e.event_type == 'moved':
-                data = {'cmd':'move'}
-                data['file'] = {
-                    'src_path': self.relativize_path(e.src_path),
-                    'dest_path': self.relativize_path(e.dest_path)}
-                self.conn_mng.dispatch_request(data['cmd'], data['file'])
-
-            elif e.event_type == 'deleted':
-                data = {'cmd':'delete'}
-                data['file'] = {
-                    "filepath": self.relativize_path(e.src_path)}
-                self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def connect_to_server(self):
         # self.cfg['server_address']
@@ -152,6 +111,91 @@ class Daemon(FileSystemEventHandler):
         self.observer = Observer()
         self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
 
+    def build_data(self, cmd, e, new_md5 = None):
+        """
+        Prepares the data from event handler to be delivered to connection_manager.
+        """
+
+        data = {'cmd' : cmd}
+        if cmd == 'copy':
+            for path in self.client_snapshot:
+                if new_md5 in self.client_snapshot[path]: path_with_same_md5 = path
+            data['file'] = {
+            'src' : path_with_same_md5,
+            'dst' : self.relativize_path(e.src_path),
+            'md5' : self.client_snapshot[path_with_same_md5]
+            }
+        elif cmd == 'move':
+            data['file'] = {
+            'src' : self.relativize_path(e.src_path),
+            'dst' : self.relativize_path(e.dest_path),
+            'md5' : self.client_snapshot[self.relativize_path(e.src_path)]
+            }
+        elif cmd == 'delete':
+            data['file'] = {
+                'filepath': self.relativize_path(e.src_path),
+                }
+        else:
+            f = open(e.src_path, 'rb')
+            data['file'] = {
+                'filepath': self.relativize_path(e.src_path),
+                'md5' : hashlib.md5(f.read()).hexdigest()
+                }
+        return data
+
+    def on_any_event(self, event):
+        """
+        Catpure any filesytem event and redirects it to the connection_manager.
+        """
+
+        # TODO update struct with new more performance data structure
+
+        ####################################
+        #### In client_snapshot the structure are {'<filepath>' : '<md5>'} so you have to convert!!!!
+        ####################################
+
+        if event.is_directory is False:
+            e = event
+
+            if e.event_type == 'modified':
+                print 'start modified'
+                data = self.build_data('modify', e)
+                self.client_snapshot[data['file']['filepath']] = data['file']['md5']
+
+            elif e.event_type == 'created':
+                with open(e.src_path, 'rb') as f:
+                        new_md5 = hashlib.md5(f.read()).hexdigest()
+                # this check that the md5 doesn't exist, in that case is not a creation but a copy
+                relative_path = self.relativize_path(e.src_path)
+
+                if new_md5 in self.client_snapshot.values():
+                    print 'start copy'
+                    data = self.build_data('copy', e, new_md5)
+                    self.client_snapshot[data['file']['dst']] = data['file']['md5']
+                # this elif relative_path deny to overwrite file with the same path but md5 different
+                # TODO FIX this case that happen with gedit
+                elif relative_path in self.client_snapshot:
+                    print 'start corrected created'
+                    data = self.build_data('modify', e)
+                    self.client_snapshot[data['file']['filepath']] = data['file']['md5']
+                else:
+                    print 'start create'
+                    data = self.build_data('upload', e)
+                    self.client_snapshot[data['file']['filepath']] = data['file']['md5']
+
+            elif e.event_type == 'moved':
+                print 'start move'
+                data = self.build_data('move', e)
+                self.client_snapshot[data['file']['dst']] = data['file']['md5']
+                self.client_snapshot.pop(data['file']['src'])
+
+            elif e.event_type == 'deleted':
+                print 'start delete'
+                data = self.build_data('delete', e)
+                self.client_snapshot.pop(data['file']['filepath'])
+            # TODO verify what happen if the server return a error message
+
+            self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def start(self):
         """

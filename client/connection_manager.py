@@ -96,11 +96,11 @@ class ConnectionManager(object):
 
     #actions:
     def do_move(self, data):
-        
+
         url = ''.join([self.actions_url,'move'])
-        d = {'src':data['src_path'], 'dst':data['dest_path']}
+        d = {'src':data['src'], 'dst':data['dst']}
         print 'do_move', url
-        try:            
+        try:
             r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
@@ -120,7 +120,16 @@ class ConnectionManager(object):
         return r.status_code
 
     def do_copy(self, data):
-        print 'do_copy', data
+        url = ''.join([self.actions_url,'copy'])
+        d = {'src':data['src'], 'dst':data['dst']}
+        print 'do_copy', url
+        try:
+            r = requests.post(url, auth=self.auth, data=d)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            print "Errore COPY: ", url, "Codice Errore: ", e
+        return r.status_code
+
 
     def do_get_server_snapshot(self, data):
         url = ''.join([self.base_url, 'files'])
