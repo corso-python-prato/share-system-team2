@@ -270,11 +270,14 @@ def get_dir_snapshot(root_path):
         for filename in files:
             filepath = os.path.join(dirpath, filename)
 
-            # Open file and calculate md5. TODO: catch and handle os errors.
-            with open(filepath, 'rb') as fp:
-                md5 = calculate_file_md5(fp)
-
-            result[filepath[len(root_path) + 1:]] = md5
+            # Open file and calculate md5.
+            try:
+                with open(filepath, 'rb') as fp:
+                    md5 = calculate_file_md5(fp)
+            except OSError as err:
+                logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
+            else:
+                result[filepath[len(root_path) + 1:]] = md5
     return result
 
 
