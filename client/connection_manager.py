@@ -77,7 +77,12 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore DOWNLOAD: ", url, "Codice Errore: ", e
         else:
-            with open(os.path.join(self.cfg['sharing_path'],data['filepath']), 'wb') as f:
+            filepath = os.path.join(self.cfg['sharing_path'], data['filepath'])
+            dirpath, filename = os.path.split(filepath)
+            if not os.path.exists(dirpath):
+                # Create all missing directories
+                os.makedirs(dirpath)
+            with open(filepath, 'wb') as f:
                 f.write(r.content)
         return r.status_code
 
