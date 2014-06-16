@@ -39,14 +39,23 @@ class Daemon(FileSystemEventHandler):
         self.daemon_state = 'down' # TODO implement the daemon state( disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}
-        self.cfg = load_json(Daemon.PATH_CONFIG)
+        self.listener_socket = None
+        self.observer = None
+        self.cfg = self.load_json(Daemon.PATH_CONFIG)
         self.conn_mng = ConnectionManager(self.cfg)
+        # Operations necessary to start the daemon
         self.connect_to_server()
         self.build_client_snapshot()
         self.sync_with_server()
-        self.observer = Observer()
-        self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
+        self.create_observer()
 
+    def load_json(self, conf_path):
+        if os.path.isfile(conf_path):
+            with open(conf_path,"r") as fo:
+                config = json.load(fo)
+            return config
+        else:
+            return DEFAULT_CONFIG
     def on_any_event(self, event):
         """
         it catpures any filesytem event and redirects it to the connection_manager
@@ -89,6 +98,9 @@ class Daemon(FileSystemEventHandler):
                     "filepath": self.relativize_path(e.src_path)}
                 self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
+    def connect_to_server(self):
+        # self.cfg['server_address']
+        pass
 
     def build_client_snapshot(self):
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
@@ -100,7 +112,7 @@ class Daemon(FileSystemEventHandler):
 
     def sync_with_server(self):
         """
-        download from server the files state and find the difference from actual state
+        Download from server the files state and find the difference from actual state.
         """
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
@@ -128,17 +140,24 @@ class Daemon(FileSystemEventHandler):
         # cleaned from first slash character
         return cleaned_path[1:]
 
+    def create_observer(self):
+        """
+        Create an instance of the watchdog Observer thread class.
+        """
+        self.observer = Observer()
+        self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
+
 
     def start(self):
         """
-        starts the Daemon
+        Starts the communication with the command_manager.
         """
 
-        listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
-        listener_socket.listen(self.cfg['backlog_listener_sock'])
-        r_list = [listener_socket]
+        self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
+        self.listener_socket.listen(self.cfg['backlog_listener_sock'])
+        r_list = [self.listener_socket]
 
         self.observer.start()
 
@@ -149,9 +168,9 @@ class Daemon(FileSystemEventHandler):
 
                 for s in r_ready:
 
-                    if s == listener_socket:
+                    if s == self.listener_socket:
                         # handle the server socket
-                        client_socket, client_address = listener_socket.accept()
+                        client_socket, client_address = self.listener_socket.accept()
                         r_list.append(client_socket)
                     else:
                         # handle all other sockets
@@ -174,24 +193,10 @@ class Daemon(FileSystemEventHandler):
 
     def stop(self):
         """
-        stop the Daemon(observer and listener_socket)
+        Stop the Daemon components (observer and communication with command_manager).
         """
         self.observer.stop()
         self.running = 0
-
-    def connect_to_server(self):
-        # self.cfg['server_address']
-        pass
-
-
-def load_json(conf_path):
-    if os.path.isfile(conf_path):
-        with open(conf_path,"r") as fo:
-            config = json.load(fo)
-        return config
-    else:
-        return DEFAULT_CONFIG
-
 
 
 if __name__ == '__main__':
