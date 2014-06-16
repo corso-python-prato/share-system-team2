@@ -35,7 +35,8 @@ class Daemon(FileSystemEventHandler):
 
     def __init__(self):
         FileSystemEventHandler.__init__(self)
-        self.daemon_state = 'down'
+        # Initialize variable
+        self.daemon_state = 'down' # TODO implement the daemon state( disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}
         self.cfg = load_json(Daemon.PATH_CONFIG)
