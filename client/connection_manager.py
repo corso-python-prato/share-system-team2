@@ -55,8 +55,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore REGUSER: ", url, "Codice Errore: ", e
-        print r.content
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     # files
 
@@ -78,7 +79,8 @@ class ConnectionManager(object):
                 os.makedirs(dirpath)
             with open(filepath, 'wb') as f:
                 f.write(r.content)
-        return r.status_code
+            return r.status_code
+        return False
 
     def do_upload(self, data):
 
@@ -91,7 +93,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore upload: ", url, "Codice Errore: ", e
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     def do_modify(self, data):
 
@@ -104,7 +108,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore MODIFY: ", url, "Codice Errore: ", e
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     # actions:
 
@@ -118,7 +124,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore MOVE: ", url, "Codice Errore: ", e
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     def do_delete(self, data):
 
@@ -130,7 +138,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore DELETE: ", url, "Codice Errore: ", e
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     def do_copy(self, data):
         url = ''.join([self.actions_url,'copy'])
@@ -141,7 +151,9 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print "Errore COPY: ", url, "Codice Errore: ", e
-        return r.status_code
+        else:
+            return r.status_code
+        return False
 
     def do_get_server_snapshot(self, data):
         url = ''.join([self.base_url, 'files'])
