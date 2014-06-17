@@ -88,6 +88,18 @@ def _encrypt_password(password):
     return sha256_crypt.encrypt(password)
 
 
+def init_root_structure():
+    """
+    Create the file root directory if needed.
+    :return: int
+    """
+    if not os.path.isdir(FILE_ROOT):
+        os.mkdir(FILE_ROOT)
+        return 1
+    else:
+        return 0
+
+
 def load_userdata():
     data = {}
     try:
@@ -419,6 +431,7 @@ def main():
     logger.debug('File logging level: {}'.format(file_handler.level))
 
     userdata.update(load_userdata())
+    init_root_structure()
     app.run(host='0.0.0.0', debug=True)
 
 
