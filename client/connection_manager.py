@@ -2,9 +2,9 @@
 #-*- coding: utf-8 -*-
 
 # API:
-#  - GET /diffs, con parametro timestamp
 #
 # files:
+#  - GET /files/ - ottiene la lista dei file sul server con relativi metadati necessari e/o md5
 #  - GET /files/<path> - scarica un file
 #  - POST /files/<path> - crea un file
 #  - PUT /files/<path> - modifica un file
@@ -165,7 +165,6 @@ class ConnectionManager(object):
             print "Errore GET_SERVER_SNAPSHOT: ", url, "Codice Errore: ", e
         else:
             return json.loads(r.content)
-        return False
 
     def _default(self, method):
         print 'Received Unknown Command:', method

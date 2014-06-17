@@ -12,12 +12,15 @@ import logging
 
 import server
 
-# Very basic logging configuration for this test module:
-logging.basicConfig(level=logging.ERROR)
-
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
+
+# Set server logging verbosity
+server_verbosity = logging.INFO  # change it manually if you want change the server verbosity
+server.logger.setLevel(server_verbosity)
+# Very basic logging configuration for this test module:
+logging.basicConfig(level=logging.WARNING)
 
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
