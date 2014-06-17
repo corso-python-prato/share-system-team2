@@ -2,9 +2,9 @@
 #-*- coding: utf-8 -*-
 
 # API:
-#  - GET /diffs, con parametro timestamp
 #
 # files:
+#  - GET /files/ - ottiene la lista dei file sul server con relativi metadati necessari e/o md5
 #  - GET /files/<path> - scarica un file
 #  - POST /files/<path> - crea un file
 #  - PUT /files/<path> - modifica un file
