@@ -33,6 +33,7 @@ WORKDIR = os.path.dirname(__file__)
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
+DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 
 # Logging configuration
@@ -100,6 +101,27 @@ def init_root_structure():
         return 0
 
 
+def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
+    """
+    Create the default user directory.
+    :param username: str
+    :param default_dirs: tuple
+    """
+    dirpath = join(FILE_ROOT, username)
+    if os.path.isdir(dirpath):
+        shutil.rmtree(dirpath)
+        logger.info('"{}" directory removed'.format(dirpath))
+    os.makedirs(dirpath)
+
+    welcome_file = join(dirpath, 'WELCOME')
+    with open(welcome_file, 'w') as fp:
+        fp.write('Welcome to %s, %s!\n' % (__title__, username))
+
+    for dirname in default_dirs:
+        os.mkdir(join(dirpath, dirname))
+    logger.info('{} created'.format(dirpath))
+
+
 def load_userdata():
     data = {}
     try:
@@ -164,7 +186,7 @@ def create_user():
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
             save_userdata(userdata)
-            os.makedirs(join(FILE_ROOT, username))
+            init_user_directory(username)
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     logger.debug(response)
