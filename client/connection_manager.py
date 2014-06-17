@@ -153,7 +153,6 @@ class ConnectionManager(object):
             print "Errore GET_SERVER_SNAPSHOT: ", url, "Codice Errore: ", e
         else:
             return json.loads(r.content)
-        return False
 
     def _default(self, method):
         print 'Received Unknown Command:', method

@@ -75,12 +75,11 @@ class Daemon(FileSystemEventHandler):
         """
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
-        try:
+        if server_snapshot is None:
+            print('No snapshot. Server down?')
+            return
+        else:
             server_snapshot = server_snapshot['files']
-        except TypeError:
-            # TODO this exception catch the server down, fix this with proper option
-            print '\nServer Down!!\n'
-            exit()
 
         for file_path in server_snapshot:
             if file_path not in self.client_snapshot:
