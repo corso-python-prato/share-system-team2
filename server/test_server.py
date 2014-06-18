@@ -344,6 +344,17 @@ class TestUsers(unittest.TestCase):
                              data={'username': USR, 'password': PW})
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 
+    def test_signup_if_user_already_exists(self):
+        """
+        Test for registration of an already existing username.
+        """
+        # First create the user
+        _manually_create_user(USR, PW)
+        # Then try to create a new user with the same username
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
+                             data={'username': USR, 'password': 'boh'})
+        self.assertEqual(test.status_code, server.HTTP_CONFLICT)
+
 
 if __name__ == '__main__':
     unittest.main()

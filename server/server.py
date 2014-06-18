@@ -25,6 +25,7 @@ HTTP_BAD_REQUEST = 400
 HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
+HTTP_CONFLICT = 409
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
@@ -181,7 +182,7 @@ def create_user():
     if username and password:
         if username in userdata:
             # user already exists!
-            response = 'Error: username already exists!', HTTP_FORBIDDEN
+            response = 'Error: username already exists!', HTTP_CONFLICT
         else:
             userdata[username] = _encrypt_password(password)
             response = 'User "{}" created'.format(username), HTTP_CREATED
