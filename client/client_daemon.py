@@ -42,6 +42,11 @@ class Daemon(FileSystemEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_json(Daemon.PATH_CONFIG)
+
+        # We call os.path.abspath to unrelativize the sharing path(now is relative to developement purpose)
+        # TODO: Allow the setting of sharing path by user
+        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
+
         self.conn_mng = ConnectionManager(self.cfg)
         # Operations necessary to start the daemon
         self.connect_to_server()
@@ -93,14 +98,16 @@ class Daemon(FileSystemEventHandler):
             if file_path not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': file_path})
 
-    def relativize_path(self, path_to_clean):
+    def relativize_path(self, abs_path_to_relativize):
         """
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        folder_watched = self.cfg['sharing_path'].split(os.sep)[-1]
-        cleaned_path = path_to_clean.split(folder_watched)[-1]
-        # cleaned from first slash character
+        # print "abs to rel: ", abs_path_to_relativize
+        folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
+        # print "folder_watched_abs: ", folder_watched_abs
+        cleaned_path = abs_path_to_relativize.split(folder_watched_abs)[-1]
+        # print "path relativized: ", cleaned_path[1:]    
         return cleaned_path[1:]
 
     def create_observer(self):
