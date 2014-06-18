@@ -55,7 +55,7 @@ class Daemon(FileSystemEventHandler):
                 config = json.load(fo)
             return config
         else:
-            return DEFAULT_CONFIG
+            return self.DEFAULT_CONFIG
 
     def connect_to_server(self):
         # self.cfg['server_address']
