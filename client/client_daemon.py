@@ -7,15 +7,16 @@ import struct
 import select
 import os
 import hashlib
+import re
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import RegexMatchingEventHandler
 
 from connection_manager import ConnectionManager
 
-class Daemon(FileSystemEventHandler):
+class Daemon(RegexMatchingEventHandler):
 
     # TODO : se non c'è crearla
     DEFAULT_CONFIG = {
@@ -30,11 +31,17 @@ class Daemon(FileSystemEventHandler):
     "backlog_listener_sock" : 5
     }
 
+    IGNORE_REGEXES = [
+                        '.*\.[a-zA-z]+?#', # Libreoffice suite temporary file ignored
+                        '.*\.[a-zA-Z]+?~' ,# gedit issue solved ignoring this pattern: gedit first delete file, create, and move to dest_path *.txt~
+                        '.*\/(\..*)' # hidden files TODO: improve
+                    ]
+
     PATH_CONFIG = 'config.json'
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
-        FileSystemEventHandler.__init__(self)
+        RegexMatchingEventHandler.__init__(self,  ignore_regexes=Daemon.IGNORE_REGEXES, ignore_directories=True)
         # Initialize variable
         self.daemon_state = 'down' # TODO implement the daemon state( disconnected, connected, syncronizing, ready...)
         self.running = 0
@@ -66,13 +73,20 @@ class Daemon(FileSystemEventHandler):
         # self.cfg['server_address']
         pass
 
-    def build_client_snapshot(self):
+    def build_client_snapshot(self):        
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     file_path = os.path.join(dirpath, filename)
-                    relative_file_path = self.relativize_path(file_path)
-                    with open(file_path, 'rb') as f:
-                        self.client_snapshot[relative_file_path] = hashlib.md5(f.read()).hexdigest()
+                    matched_regex = False
+                    for r in Daemon.IGNORE_REGEXES:
+                        if re.match(r,file_path) != None:
+                            matched_regex = True
+                            print "Ignored Path:", file_path
+                            break
+                    if not matched_regex:
+                        relative_file_path = self.relativize_path(file_path)
+                        with open(file_path, 'rb') as f:
+                            self.client_snapshot[relative_file_path] = hashlib.md5(f.read()).hexdigest()
 
     def sync_with_server(self):
         """
@@ -91,9 +105,8 @@ class Daemon(FileSystemEventHandler):
                 # TODO : check if download succeed, if so update client_snapshot with the new file
                 self.conn_mng.dispatch_request('download', {'filepath' : file_path } )
                 self.client_snapshot[file_path] = server_snapshot[file_path]
-            else:
-                if server_snapshot[file_path] != self.client_snapshot[file_path]:
-                    self.conn_mng.dispatch_request('modify', {'filepath' : file_path } )
+            elif server_snapshot[file_path] != self.client_snapshot[file_path]:
+                self.conn_mng.dispatch_request('modify', {'filepath' : file_path } )
         for file_path in self.client_snapshot:
             if file_path not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': file_path})
@@ -132,11 +145,13 @@ class Daemon(FileSystemEventHandler):
             'md5' : self.client_snapshot[path_with_same_md5]
             }
         elif cmd == 'move':
-            data['file'] = {
-            'src' : self.relativize_path(e.src_path),
-            'dst' : self.relativize_path(e.dest_path),
-            'md5' : self.client_snapshot[self.relativize_path(e.src_path)]
-            }
+                with open(e.dest_path, 'rb') as f:
+                    dest_md5 = hashlib.md5(f.read()).hexdigest()
+                data['file'] = {
+                'src' : self.relativize_path(e.src_path),
+                'dst' : self.relativize_path(e.dest_path),
+                'md5' : dest_md5
+                }                
         elif cmd == 'delete':
             data['file'] = {
                 'filepath': self.relativize_path(e.src_path),
@@ -186,19 +201,19 @@ class Daemon(FileSystemEventHandler):
                     self.client_snapshot[data['file']['filepath']] = data['file']['md5']
                 else:
                     print 'start create'
-                    data = self.build_data('upload', e)
+                    data = self.build_data('upload', e)                   
                     self.client_snapshot[data['file']['filepath']] = data['file']['md5']
+
 
             elif e.event_type == 'moved':
                 print 'start move'
                 data = self.build_data('move', e)
                 self.client_snapshot[data['file']['dst']] = data['file']['md5']
-                self.client_snapshot.pop(data['file']['src'])
-
+                self.client_snapshot.pop(data['file']['src'],"NOTHING TO POP")
             elif e.event_type == 'deleted':
                 print 'start delete'
                 data = self.build_data('delete', e)
-                self.client_snapshot.pop(data['file']['filepath'])
+                self.client_snapshot.pop(data['file']['filepath'],"NOTHING TO POP")
             # TODO verify what happen if the server return a error message
 
             self.conn_mng.dispatch_request(data['cmd'], data['file'])
