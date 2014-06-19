@@ -94,7 +94,7 @@ class Daemon(RegexMatchingEventHandler):
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
         if server_snapshot is None:
-            self.stop("\nReceived bad snapshot. Server down?\n")
+            self.stop(1, "\nReceived bad snapshot. Server down?\n")
         else:
             server_snapshot = server_snapshot['files']
 
@@ -249,9 +249,9 @@ class Daemon(RegexMatchingEventHandler):
                             s.close()
                             r_list.remove(s)
         except KeyboardInterrupt:
-            self.stop()
+            self.stop(0)
 
-    def stop(self, exit_message = 0):
+    def stop(self, exit_status, exit_message = None):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
@@ -260,7 +260,9 @@ class Daemon(RegexMatchingEventHandler):
             self.observer.join()
             self.listener_socket.close()
         self.running = 0
-        exit(exit_message)
+        if exit_message:
+            print exit_message
+        exit(exit_status)
 
 if __name__ == '__main__':
 
