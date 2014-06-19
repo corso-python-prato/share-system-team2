@@ -209,7 +209,7 @@ class Actions(Resource):
 
     def _get_src_dst(self, username):
         """
-        Gets the source and destination paths to complete _move and _copy actions.
+        Get the source and destination paths to complete _move and _copy actions.
         Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and
         returns the absolute paths of them
         """
@@ -367,15 +367,14 @@ class Files(Resource):
         logging.debug(response)
         return response
 
+
     @auth.login_required
-    def post(self, path):
+    def _get_dirname_filename(self, path):
         """
-        Upload a authenticated user file to the server, given the path relative to the user directory.
-        The file must not exist in the server, otherwise only return an http forbidden code.
-        :param path: str
+        Return dirname(directory name) and filename(file name) for a given path to complete
+        post and put methods
         """
         username = request.authorization['username']
-        upload_file = request.files['file']
         dirname = os.path.dirname(path)
         dirname = (join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
@@ -384,6 +383,20 @@ class Files(Resource):
 
         if real_root not in real_dirname:
             abort(HTTP_FORBIDDEN)
+
+        return dirname, filename
+
+
+    @auth.login_required
+    def post(self, path):
+        """
+        Upload an authenticated user file to the server, given the path relative to the user directory.
+        The file must not exist in the server, otherwise only return an http forbidden code.
+        :param path: str
+        """
+        upload_file = request.files['file']
+        dirname, filename = self._get_dirname_filename(path)
+
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
@@ -399,16 +412,9 @@ class Files(Resource):
         given the path relative to the user directory. The file must exist in the server.
         :param path: str
         """
-        username = request.authorization['username']
         upload_file = request.files['file']
-        dirname = os.path.dirname(path)
-        dirname = (join(FILE_ROOT, username, dirname))
-        real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(join(FILE_ROOT, username))
-        filename = os.path.split(path)[-1]
+        dirname, filename = self._get_dirname_filename(path)
 
-        if real_root not in real_dirname:
-            abort(HTTP_FORBIDDEN)
         if os.path.isfile(join(dirname, filename)):
             upload_file.save(join(dirname, filename))
             return '', HTTP_CREATED
