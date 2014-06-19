@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 # API:
 #
@@ -22,31 +22,31 @@ import requests
 import json
 import os
 
-class ConnectionManager(object):
 
-    EXCEPTIONS_CATCHED = (requests.HTTPError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema)
+class ConnectionManager(object):
+    EXCEPTIONS_CATCHED = (requests.HTTPError,
+                          requests.exceptions.ConnectionError,
+                          requests.exceptions.MissingSchema,
+                          )
 
     def __init__(self, cfg):
         self.cfg = cfg
-        self.auth = (self.cfg['user'],self.cfg['pass'])
+        self.auth = (self.cfg['user'], self.cfg['pass'])
 
         # http://localhost:5000/API/V1/
-        self.base_url =  ''.join([ self.cfg['server_address'], self.cfg['api_suffix'] ])
+        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
 
     def dispatch_request(self, command, args=None):
-
         method_name = ''.join(['do_', command])
         try:
             return getattr(self, method_name)(args)
         except AttributeError:
             self._default(method_name)
 
-
     def do_reguser(self, data):
-
         data = {'username': data[0], 'password': data[1]}
         url = ''.join([self.base_url, 'signup'])
         print 'do_reguser', url, data
@@ -62,7 +62,6 @@ class ConnectionManager(object):
     # files
 
     def do_download(self, data):
-
         url = ''.join([self.files_url, data['filepath']])
         print 'do_download', url
 
@@ -83,10 +82,9 @@ class ConnectionManager(object):
         return False
 
     def do_upload(self, data):
-
-        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
+        file_path = os.path.join(self.cfg['sharing_path'], data['filepath'])
         url = ''.join([self.base_url, 'files/', data['filepath']])
-        _file = {'file': (open(file_path,'rb')) }
+        _file = {'file': (open(file_path, 'rb'))}
         print 'do_upload', url
         try:
             r = requests.post(url, auth=self.auth, files=_file)
@@ -98,10 +96,9 @@ class ConnectionManager(object):
         return False
 
     def do_modify(self, data):
-
-        file_path = os.path.join(self.cfg['sharing_path'],data['filepath'])
+        file_path = os.path.join(self.cfg['sharing_path'], data['filepath'])
         url = ''.join([self.files_url, data['filepath']])
-        _file = {'file': (open(file_path,'rb')),}
+        _file = {'file': (open(file_path, 'rb'))}
         print 'do_modify', url
         try:
             r = requests.put(url, auth=self.auth, files=_file)
@@ -115,9 +112,8 @@ class ConnectionManager(object):
     # actions:
 
     def do_move(self, data):
-
-        url = ''.join([self.actions_url,'move'])
-        d = {'src':data['src'], 'dst':data['dst']}
+        url = ''.join([self.actions_url, 'move'])
+        d = {'src': data['src'], 'dst': data['dst']}
         print 'do_move', url
         try:
             r = requests.post(url, auth=self.auth, data=d)
@@ -129,10 +125,9 @@ class ConnectionManager(object):
         return False
 
     def do_delete(self, data):
-
         url = ''.join([self.actions_url, 'delete'])
         print 'do_delete', url
-        d = {'filepath':data['filepath']}
+        d = {'filepath': data['filepath']}
         try:
             r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
@@ -143,8 +138,8 @@ class ConnectionManager(object):
         return False
 
     def do_copy(self, data):
-        url = ''.join([self.actions_url,'copy'])
-        d = {'src':data['src'], 'dst':data['dst']}
+        url = ''.join([self.actions_url, 'copy'])
+        d = {'src': data['src'], 'dst': data['dst']}
         print 'do_copy', url
         try:
             r = requests.post(url, auth=self.auth, data=d)
@@ -168,5 +163,3 @@ class ConnectionManager(object):
 
     def _default(self, method):
         print 'Received Unknown Command:', method
-
-    #shares:

@@ -198,33 +198,32 @@ class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
         username = request.authorization['username']
-        methods = {
-        'delete': self._delete,
-        'copy': self._copy,
-        'move': self._move
-        }
+        methods = {'delete': self._delete,
+                   'copy': self._copy,
+                   'move': self._move,
+                   }
         if methods:
             methods.get(cmd)(username)
         else:
             abort(HTTP_NOT_FOUND)
-    
+
     def _get_src_dst(self, username):
         """
         Gets the source and destination paths to complete _move and _copy actions.
-        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and 
+        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and
         returns the absolute paths of them
-        """ 
+        """
         src = request.form['src']
         dst = request.form['dst']
-        
+
         src_path = os.path.abspath(join(FILE_ROOT, username, src))
         dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
         real_root = os.path.realpath(join(FILE_ROOT, username))
-        
+
         if real_root not in src_path and real_root not in dst_path:
             abort(HTTP_FORBIDDEN)
 
-        return src_path, dst_path               
+        return src_path, dst_path
 
     def _delete(self, username):
         """
@@ -242,7 +241,7 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
 
         self._clear_dirs(os.path.dirname(filepath), username)
-            
+
     def _copy(self, username):
         """
         Copy a file from a given source path to a destination path
@@ -252,7 +251,7 @@ class Actions(Resource):
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
                 os.makedirs(os.path.dirname(dst_path))
-            shutil.copy(src_path, dst_path)        
+            shutil.copy(src_path, dst_path)
         else:
             abort(HTTP_NOT_FOUND)
 
@@ -261,16 +260,16 @@ class Actions(Resource):
         Move a file from a given source path to a destination path
         """
         src_path, dst_path = self._get_src_dst(username)
-        
+
         if os.path.isfile(src_path):
             if not os.path.exists(os.path.dirname(dst_path)):
                 os.makedirs(os.path.dirname(dst_path))
-            shutil.move(src_path, dst_path)        
+            shutil.move(src_path, dst_path)
         else:
             abort(HTTP_NOT_FOUND)
-        self._clear_dirs(os.path.dirname(src_path), username)    
+        self._clear_dirs(os.path.dirname(src_path), username)
 
-    def _clear_dirs(self, path, root): 
+    def _clear_dirs(self, path, root):
         """
         Recursively removes all the empty directories that exists after the remotion of a file
         """
@@ -279,14 +278,14 @@ class Actions(Resource):
         path_to_storage, storage = os.path.split(path_to_clear)
         if clean == root and storage == FILE_ROOT:
             return
-        try: 
+        try:
             os.rmdir(path)
         except OSError:
             return
         self._clear_dirs(path_to_clear, root)
 
 
-def calculate_file_md5(fp, chunk_len=2**16):
+def calculate_file_md5(fp, chunk_len=2 ** 16):
     """
     Return the md5 digest of the file content of file_path as a string
     with only hexadecimal digits.
@@ -411,8 +410,8 @@ class Files(Resource):
         if real_root not in real_dirname:
             abort(HTTP_FORBIDDEN)
         if os.path.isfile(join(dirname, filename)):
-           upload_file.save(join(dirname, filename))
-           return '', HTTP_CREATED
+            upload_file.save(join(dirname, filename))
+            return '', HTTP_CREATED
         else:
             abort(HTTP_NOT_FOUND)
 

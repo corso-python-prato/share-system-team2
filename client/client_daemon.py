@@ -17,33 +17,33 @@ from watchdog.events import RegexMatchingEventHandler
 
 from connection_manager import ConnectionManager
 
+
 class Daemon(RegexMatchingEventHandler):
     # TODO : if conf_path doesn't exist create it
-    DEFAULT_CONFIG = {
-        'sharing_path': './sharing_folder',
-        'cmd_address': 'localhost',
-        'cmd_port': 50001,
-        'api_suffix': '/API/V1/',
-        'server_address':'http://localhost:5000',
-        'user':'default_user',
-        'pass':'default_pass',
-        'timeout_listener_sock' : 0.5,
-        'backlog_listener_sock' : 5
-    }
+    DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
+                      'cmd_address': 'localhost',
+                      'cmd_port': 50001,
+                      'api_suffix': '/API/V1/',
+                      'server_address': 'http://localhost:5000',
+                      'user': 'default_user',
+                      'pass': 'default_pass',
+                      'timeout_listener_sock': 0.5,
+                      'backlog_listener_sock': 5,
+                      }
 
-    IGNORE_REGEXES = [
-                        '.*\.[a-zA-z]+?#', # Libreoffice suite temporary file ignored
-                        '.*\.[a-zA-Z]+?~' ,# gedit issue solved ignoring this pattern: gedit first delete file, create, and move to dest_path *.txt~
-                        '.*\/(\..*)' # hidden files TODO: improve
-                    ]
+    IGNORE_REGEXES = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
+                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
+                      # gedit first delete file, create, and move to dest_path *.txt~
+                      '.*\/(\..*)',  # hidden files TODO: improve
+                      ]
 
     PATH_CONFIG = 'config.json'
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
-        RegexMatchingEventHandler.__init__(self,  ignore_regexes=Daemon.IGNORE_REGEXES, ignore_directories=True)
+        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORE_REGEXES, ignore_directories=True)
         # Initialize variable
-        self.daemon_state = 'down' # TODO implement the daemon state( disconnected, connected, syncronizing, ready...)
+        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}
         self.listener_socket = None
@@ -62,7 +62,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def load_json(self, conf_path):
         if os.path.isfile(conf_path):
-            with open(conf_path,'r') as fo:
+            with open(conf_path, 'r') as fo:
                 config = json.load(fo)
             return config
         else:
@@ -78,7 +78,7 @@ class Daemon(RegexMatchingEventHandler):
                     file_path = os.path.join(dirpath, filename)
                     matched_regex = False
                     for r in Daemon.IGNORE_REGEXES:
-                        if re.match(r,file_path) != None:
+                        if re.match(r, file_path) is not None:
                             matched_regex = True
                             print 'Ignored Path:', file_path
                             break
@@ -91,7 +91,6 @@ class Daemon(RegexMatchingEventHandler):
         """
         Download from server the files state and find the difference from actual state.
         """
-
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
         if server_snapshot is None:
             self.stop(1, '\nReceived bad snapshot. Server down?\n')
@@ -100,11 +99,11 @@ class Daemon(RegexMatchingEventHandler):
 
         for file_path in server_snapshot:
             if file_path not in self.client_snapshot:
-                # TODO : check if download succeed, if so update client_snapshot with the new file
-                self.conn_mng.dispatch_request('download', {'filepath' : file_path } )
+                # TODO: check if download succeed, if so update client_snapshot with the new file
+                self.conn_mng.dispatch_request('download', {'filepath': file_path})
                 self.client_snapshot[file_path] = server_snapshot[file_path]
             elif server_snapshot[file_path] != self.client_snapshot[file_path]:
-                self.conn_mng.dispatch_request('modify', {'filepath' : file_path } )
+                self.conn_mng.dispatch_request('modify', {'filepath': file_path})
         for file_path in self.client_snapshot:
             if file_path not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': file_path})
@@ -129,30 +128,28 @@ class Daemon(RegexMatchingEventHandler):
     # TODO update struct with new more performance data structure
     # TODO verify what happen if the server return a error message
     ####################################
-    #### In client_snapshot the structure are {'<filepath>' : '<md5>'} so you have to convert!!!!
+    # In client_snapshot the structure are {'<filepath>' : '<md5>'} so you have to convert!!!!
     ####################################
 
     def on_created(self, e):
-        def build_data(cmd, e, new_md5 = None):
+        def build_data(cmd, e, new_md5=None):
             """
             Prepares the data from event handler to be delivered to connection_manager.
             """
-
-            data = {'cmd' : cmd}
+            data = {'cmd': cmd}
             if cmd == 'copy':
                 for path in self.client_snapshot:
-                    if new_md5 in self.client_snapshot[path]: path_with_searched_md5 = path
+                    if new_md5 in self.client_snapshot[path]:
+                        path_with_searched_md5 = path
                 # TODO check what happen when i find more than 1 path with the new_md5
-                data['file'] = {
-                                'src' : path_with_searched_md5,
-                                'dst' : self.relativize_path(e.src_path),
-                                'md5' : self.client_snapshot[path_with_searched_md5]
+                data['file'] = {'src': path_with_searched_md5,
+                                'dst': self.relativize_path(e.src_path),
+                                'md5': self.client_snapshot[path_with_searched_md5],
                                 }
             else:
                 f = open(e.src_path, 'rb')
-                data['file'] = {
-                                'filepath': self.relativize_path(e.src_path),
-                                'md5' : hashlib.md5(f.read()).hexdigest()
+                data['file'] = {'filepath': self.relativize_path(e.src_path),
+                                'md5': hashlib.md5(f.read()).hexdigest(),
                                 }
             return data
 
@@ -180,35 +177,35 @@ class Daemon(RegexMatchingEventHandler):
         print 'start move'
         with open(e.dest_path, 'rb') as f:
             dest_md5 = hashlib.md5(f.read()).hexdigest()
-        data = {'cmd' : 'move',
-                'file' : {
-                    'src' : self.relativize_path(e.src_path),
-                    'dst' : self.relativize_path(e.dest_path),
-                    'md5' : dest_md5
-                }}
+        data = {'cmd': 'move',
+                'file': {'src': self.relativize_path(e.src_path),
+                         'dst': self.relativize_path(e.dest_path),
+                         'md5': dest_md5,
+                         }
+                }
         self.client_snapshot[data['file']['dst']] = data['file']['md5']
-        self.client_snapshot.pop(data['file']['src'],'NOTHING TO POP')
+        self.client_snapshot.pop(data['file']['src'], 'NOTHING TO POP')
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def on_deleted(self, e):
 
         print 'start delete'
-        data = {'cmd' : 'delete',
-                'file' : {
-                    'filepath': self.relativize_path(e.src_path),
-                }}
-        self.client_snapshot.pop(data['file']['filepath'],'NOTHING TO POP')
+        data = {'cmd': 'delete',
+                'file': {'filepath': self.relativize_path(e.src_path),
+                         }
+                }
+        self.client_snapshot.pop(data['file']['filepath'], 'NOTHING TO POP')
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def on_modified(self, e):
 
         print 'start modified'
         with open(e.src_path, 'rb') as f:
-            data = {'cmd' : 'modify',
-                    'file' : {
-                        'filepath': self.relativize_path(e.src_path),
-                        'md5' : hashlib.md5(f.read()).hexdigest()
-                    }}
+            data = {'cmd': 'modify',
+                    'file': {'filepath': self.relativize_path(e.src_path),
+                             'md5': hashlib.md5(f.read()).hexdigest(),
+                             }
+                    }
         self.client_snapshot[data['file']['filepath']] = data['file']['md5']
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
@@ -242,7 +239,8 @@ class Daemon(RegexMatchingEventHandler):
                             length = int(struct.unpack('!i', length)[0])
                             message = json.loads(s.recv(length))
                             for cmd, data in message.items():
-                                if cmd == 'shutdown' : raise KeyboardInterrupt
+                                if cmd == 'shutdown':
+                                    raise KeyboardInterrupt
                                 self.conn_mng.dispatch_request(cmd, data)
                         else:
                             s.close()
@@ -250,7 +248,7 @@ class Daemon(RegexMatchingEventHandler):
         except KeyboardInterrupt:
             self.stop(0)
 
-    def stop(self, exit_status, exit_message = None):
+    def stop(self, exit_status, exit_message=None):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
@@ -263,7 +261,7 @@ class Daemon(RegexMatchingEventHandler):
             print exit_message
         exit(exit_status)
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     daemon = Daemon()
     daemon.start()
