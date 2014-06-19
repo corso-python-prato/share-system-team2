@@ -4,9 +4,7 @@
 import unittest
 import connection_manager
 
-import requests
 import httpretty
-import json
 # API:
 #  - GET /diffs, con parametro timestamp
 #

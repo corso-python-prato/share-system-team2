@@ -275,12 +275,11 @@ class TestRequests(unittest.TestCase):
         to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
 
         _create_file(USR, DELETE_TEST_FILE_PATH, 'this is the file to be deleted')
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
+
         test = self.app.post(DELETE_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'filepath': to_delete_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
 
@@ -296,12 +295,10 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, SRC_COPY_TEST_FILE_PATH, 'this is the file to be copied')
         _create_file(USR, DST_COPY_TEST_FILE_PATH, 'different other content')
 
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
         test = self.app.post(COPY_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'src': src_copy_filepath, 'dst': dst_copy_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
 
@@ -317,12 +314,10 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, SRC_MOVE_TEST_FILE_PATH, 'this is the file to be moved')
         _create_file(USR, DST_MOVE_TEST_FILE_PATH, 'different other content')
 
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
         test = self.app.post(MOVE_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'src': src_move_filepath, 'dst': dst_move_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
 
