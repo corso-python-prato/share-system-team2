@@ -8,6 +8,7 @@ import select
 import os
 import hashlib
 import re
+from sys import exit as exit
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -49,8 +50,7 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_json(Daemon.PATH_CONFIG)
-
-        # We call os.path.abspath to unrelativize the sharing path(now is relative to developement purpose)
+        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
         # TODO: Allow the setting of sharing path by user
         self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
 
@@ -73,7 +73,7 @@ class Daemon(RegexMatchingEventHandler):
         # self.cfg['server_address']
         pass
 
-    def build_client_snapshot(self):        
+    def build_client_snapshot(self):
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     file_path = os.path.join(dirpath, filename)
@@ -84,9 +84,9 @@ class Daemon(RegexMatchingEventHandler):
                             print "Ignored Path:", file_path
                             break
                     if not matched_regex:
-                        relative_file_path = self.relativize_path(file_path)
+                        relative_path = self.relativize_path(file_path)
                         with open(file_path, 'rb') as f:
-                            self.client_snapshot[relative_file_path] = hashlib.md5(f.read()).hexdigest()
+                            self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
 
     def sync_with_server(self):
         """
@@ -95,8 +95,7 @@ class Daemon(RegexMatchingEventHandler):
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
         if server_snapshot is None:
-            print('No snapshot. Server down?')
-            return
+            self.stop("\nReceived bad snapshot. Server down?\n")
         else:
             server_snapshot = server_snapshot['files']
 
@@ -111,17 +110,14 @@ class Daemon(RegexMatchingEventHandler):
             if file_path not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': file_path})
 
-    def relativize_path(self, abs_path_to_relativize):
+    def relativize_path(self, abs_path):
         """
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        # print "abs to rel: ", abs_path_to_relativize
         folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
-        # print "folder_watched_abs: ", folder_watched_abs
-        cleaned_path = abs_path_to_relativize.split(folder_watched_abs)[-1]
-        # print "path relativized: ", cleaned_path[1:]    
-        return cleaned_path[1:]
+        relative_path = abs_path.split(folder_watched_abs)[-1]
+        return relative_path[1:]
 
     def create_observer(self):
         """
@@ -228,9 +224,8 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
         self.listener_socket.listen(self.cfg['backlog_listener_sock'])
         r_list = [self.listener_socket]
-
         self.observer.start()
-
+        self.daemon_state = 'started'
         self.running = 1
         try:
             while self.running:
@@ -257,15 +252,16 @@ class Daemon(RegexMatchingEventHandler):
         except KeyboardInterrupt:
             self.stop()
 
-    def stop(self):
+    def stop(self, exit_message = 0):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
-        self.observer.stop()
-        self.observer.join()
-        self.listener_socket.close()
+        if self.daemon_state == 'started':
+            self.observer.stop()
+            self.observer.join()
+            self.listener_socket.close()
         self.running = 0
-
+        exit(exit_message)
 
 if __name__ == '__main__':
 
