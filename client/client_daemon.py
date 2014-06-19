@@ -18,18 +18,17 @@ from watchdog.events import RegexMatchingEventHandler
 from connection_manager import ConnectionManager
 
 class Daemon(RegexMatchingEventHandler):
-
-    # TODO : se non c'è crearla
+    # TODO : if conf_path doesn't exist create it
     DEFAULT_CONFIG = {
-    "sharing_path": "./sharing_folder", 
-    "cmd_address": "localhost",
-    "cmd_port": 50001,
-    "api_suffix": "/API/V1/",
-    "server_address":"http://localhost:5000",
-    "user":"default_user",
-    "pass":"default_pass",
-    "timeout_listener_sock" : 0.5,
-    "backlog_listener_sock" : 5
+        "sharing_path": "./sharing_folder",
+        "cmd_address": "localhost",
+        "cmd_port": 50001,
+        "api_suffix": "/API/V1/",
+        "server_address":"http://localhost:5000",
+        "user":"default_user",
+        "pass":"default_pass",
+        "timeout_listener_sock" : 0.5,
+        "backlog_listener_sock" : 5
     }
 
     IGNORE_REGEXES = [
