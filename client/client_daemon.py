@@ -20,15 +20,15 @@ from connection_manager import ConnectionManager
 class Daemon(RegexMatchingEventHandler):
     # TODO : if conf_path doesn't exist create it
     DEFAULT_CONFIG = {
-        "sharing_path": "./sharing_folder",
-        "cmd_address": "localhost",
-        "cmd_port": 50001,
-        "api_suffix": "/API/V1/",
-        "server_address":"http://localhost:5000",
-        "user":"default_user",
-        "pass":"default_pass",
-        "timeout_listener_sock" : 0.5,
-        "backlog_listener_sock" : 5
+        'sharing_path': './sharing_folder',
+        'cmd_address': 'localhost',
+        'cmd_port': 50001,
+        'api_suffix': '/API/V1/',
+        'server_address':'http://localhost:5000',
+        'user':'default_user',
+        'pass':'default_pass',
+        'timeout_listener_sock' : 0.5,
+        'backlog_listener_sock' : 5
     }
 
     IGNORE_REGEXES = [
@@ -62,7 +62,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def load_json(self, conf_path):
         if os.path.isfile(conf_path):
-            with open(conf_path,"r") as fo:
+            with open(conf_path,'r') as fo:
                 config = json.load(fo)
             return config
         else:
@@ -80,7 +80,7 @@ class Daemon(RegexMatchingEventHandler):
                     for r in Daemon.IGNORE_REGEXES:
                         if re.match(r,file_path) != None:
                             matched_regex = True
-                            print "Ignored Path:", file_path
+                            print 'Ignored Path:', file_path
                             break
                     if not matched_regex:
                         relative_path = self.relativize_path(file_path)
@@ -94,7 +94,7 @@ class Daemon(RegexMatchingEventHandler):
 
         server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
         if server_snapshot is None:
-            self.stop(1, "\nReceived bad snapshot. Server down?\n")
+            self.stop(1, '\nReceived bad snapshot. Server down?\n')
         else:
             server_snapshot = server_snapshot['files']
 
@@ -187,7 +187,7 @@ class Daemon(RegexMatchingEventHandler):
                     'md5' : dest_md5
                 }}
         self.client_snapshot[data['file']['dst']] = data['file']['md5']
-        self.client_snapshot.pop(data['file']['src'],"NOTHING TO POP")
+        self.client_snapshot.pop(data['file']['src'],'NOTHING TO POP')
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def on_deleted(self, e):
@@ -197,7 +197,7 @@ class Daemon(RegexMatchingEventHandler):
                 'file' : {
                     'filepath': self.relativize_path(e.src_path),
                 }}
-        self.client_snapshot.pop(data['file']['filepath'],"NOTHING TO POP")
+        self.client_snapshot.pop(data['file']['filepath'],'NOTHING TO POP')
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
 
     def on_modified(self, e):
