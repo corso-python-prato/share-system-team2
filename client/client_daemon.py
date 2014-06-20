@@ -74,6 +74,7 @@ class Daemon(RegexMatchingEventHandler):
         pass
 
     def build_client_snapshot(self):
+        self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     file_path = os.path.join(dirpath, filename)
