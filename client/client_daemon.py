@@ -59,7 +59,8 @@ class Daemon(RegexMatchingEventHandler):
         # Operations necessary to start the daemon
         self.connect_to_server()
         self.build_client_snapshot()
-        self.sync_with_server()
+        # TODO implement NEW sync_with_server
+        self._sync_with_server()
         self.create_observer()
 
     def load_cfg(self, config_path):
@@ -125,7 +126,7 @@ class Daemon(RegexMatchingEventHandler):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
         pass
 
-    def sync_with_server(self):
+    def sync_with_server_to_future(self):
         """
         Download from server the files state and find the difference from actual state.
         """
@@ -157,17 +158,17 @@ class Daemon(RegexMatchingEventHandler):
                     retval = md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            # copy file
+                            pass    # copy file
                         else:
-                            # rename file
+                            pass    # rename file
                     else:
-                        # download file
+                        pass    # download file
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
-                    # download all files
+                    pass    # download all files
 
                 for filepath, timestamp, md5 in tree_diff['deleted']:
-                    # deleted files
+                    pass    # deleted files
 
         else:
             if local_timestamp == server_timestamp:
@@ -178,43 +179,46 @@ class Daemon(RegexMatchingEventHandler):
                     retval = md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            # copy file
+                            pass    # copy file
                         else:
-                            # rename file
+                            pass    # rename file
                     else:
                         if timestamp > local_timestamp:
-                            # dowload file
+                            pass    # dowload file
                         else:
-                            # delete file in server
+                            pass    # delete file in server
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
                     if timestamp < local_timestamp:
-                        # upload file to server (update)
+                        pass    # upload file to server (update)
                     else:
-                        # duplicate file (.conflicted)
+                        pass    # duplicate file (.conflicted)
                         # upload .conflicted file to server
 
                 for filepath, timestamp, md5 in tree_diff['deleted']: # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
-                    # upload file to server
+                    pass    # upload file to server
 
+    def _sync_with_server(self):
+        """
+        Download from server the files state and find the difference from actual state.
+        """
 
+        server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
+        if server_snapshot is None:
+            self.stop(1, '\nReceived bad snapshot. Server down?\n')
+        else:
+            server_snapshot = server_snapshot['files']
 
-        # server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
-        # if server_snapshot is None:
-        #     self.stop(1, '\nReceived bad snapshot. Server down?\n')
-        # else:
-        #     server_snapshot = server_snapshot['files']
-        #
-        # for file_path in server_snapshot:
-        #     if file_path not in self.client_snapshot:
-        #         # TODO: check if download succeed, if so update client_snapshot with the new file
-        #         self.conn_mng.dispatch_request('download', {'filepath': file_path})
-        #         self.client_snapshot[file_path] = server_snapshot[file_path]
-        #     elif server_snapshot[file_path] != self.client_snapshot[file_path]:
-        #         self.conn_mng.dispatch_request('modify', {'filepath': file_path})
-        # for file_path in self.client_snapshot:
-        #     if file_path not in server_snapshot:
-        #         self.conn_mng.dispatch_request('upload', {'filepath': file_path})
+        for file_path in server_snapshot:
+            if file_path not in self.client_snapshot:
+                # TODO: check if download succeed, if so update client_snapshot with the new file
+                self.conn_mng.dispatch_request('download', {'filepath': file_path})
+                self.client_snapshot[file_path] = server_snapshot[file_path]
+            elif server_snapshot[file_path] != self.client_snapshot[file_path]:
+                self.conn_mng.dispatch_request('modify', {'filepath': file_path})
+        for file_path in self.client_snapshot:
+            if file_path not in server_snapshot:
+                self.conn_mng.dispatch_request('upload', {'filepath': file_path})
 
     def relativize_path(self, abs_path):
         """
