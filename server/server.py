@@ -26,6 +26,7 @@ HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
+
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
@@ -34,6 +35,8 @@ WORKDIR = os.path.dirname(__file__)
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
+LAST_SERVER_TIMESTAMP = 'server_timestamp'
+PASSWORD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 
@@ -117,6 +120,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     welcome_file = join(dirpath, 'WELCOME')
     with open(welcome_file, 'w') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
+    last_timestamp = int(os.path.getmtime(welcome_file))
 
     for dirname in default_dirs:
         subdirpath = join(dirpath, dirname)
@@ -126,7 +130,9 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         # beacuse wee need files to see the directories.
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
+        last_timestamp = int(os.path.getmtime(filepath))
     logger.info('{} created'.format(dirpath))
+    return last_timestamp, calculate_dir_snapshot(dirpath)
 
 
 def load_userdata():
@@ -190,10 +196,14 @@ def create_user():
             # user already exists!
             response = 'Error: username already exists!', HTTP_CONFLICT
         else:
-            userdata[username] = _encrypt_password(password)
-            response = 'User "{}" created'.format(username), HTTP_CREATED
+            enc_pass = _encrypt_password(password)
+            last_server_timestamp, dir_snapshot = init_user_directory(username)
+            single_user_data = {PASSWORD: enc_pass,
+                                LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                                SNAPSHOT: dir_snapshot}
+            userdata[username] = single_user_data
             save_userdata(userdata)
-            init_user_directory(username)
+            response = 'User "{}" created'.format(username), HTTP_CREATED
     else:
         response = 'Error: username or password is missing', HTTP_BAD_REQUEST
     logger.debug(response)
@@ -309,13 +319,14 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def get_dir_snapshot(root_path):
+def calculate_dir_snapshot(root_path):
     """
     Walk on root_path returning a snapshot in a dict.
     :param root_path: str
-    :return: dict
+    :return: tuple
     """
     result = {}
+    last_timestamp = 0
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -327,8 +338,15 @@ def get_dir_snapshot(root_path):
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                result[filepath[len(root_path) + 1:]] = md5
-    return result
+                timestamp = int(os.path.getmtime(filepath))
+                if timestamp > last_timestamp:
+                    last_timestamp = timestamp
+                result[filepath[len(root_path) + 1:]] = [timestamp, md5]
+    return last_timestamp, result
+
+
+def _dirsnapshot2lastimestamp(dir_snapshot):
+    return sorted(dir_snapshot.values())[-1].timestamp
 
 
 class Files(Resource):
@@ -367,9 +385,10 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            snapshot = get_dir_snapshot(user_rootpath)
+            last_server_timestamp, snapshot = calculate_dir_snapshot(user_rootpath)
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
-            response = jsonify({SNAPSHOT: snapshot})
+            response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                                SNAPSHOT: snapshot})
         logging.debug(response)
         return response
 

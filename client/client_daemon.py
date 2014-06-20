@@ -12,6 +12,7 @@ import time
 import traceback
 
 from sys import exit as exit
+from collections import OrderedDict
 
 
 # we import PollingObserver instead of Observer because the deleted event
@@ -22,19 +23,19 @@ from connection_manager import ConnectionManager
 
 
 class Daemon(RegexMatchingEventHandler):
-    # TODO : if conf_path doesn't exist create it
-    DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
-                      'cmd_address': 'localhost',
-                      'cmd_port': 50001,
-                      'api_suffix': '/API/V1/',
-                      'server_address': 'http://localhost:5000',
-                      'user': 'default_user',
-                      'pass': 'default_pass',
-                      'timeout_listener_sock': 0.5,
-                      'backlog_listener_sock': 5,
-                      }
+    # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
+    DEFAULT_CONFIG = OrderedDict()
+    DEFAULT_CONFIG['sharing_path'] = './sharing_folder'
+    DEFAULT_CONFIG['cmd_address'] = 'localhost'
+    DEFAULT_CONFIG['cmd_port'] = 50001
+    DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
+    DEFAULT_CONFIG['server_address'] = 'http://localhost:5000'
+    DEFAULT_CONFIG['user'] = 'pasquale'
+    DEFAULT_CONFIG['pass'] = 'secretpass'
+    DEFAULT_CONFIG['timeout_listener_sock'] = 0.5
+    DEFAULT_CONFIG['backlog_listener_sock'] = 1
 
-    IGNORE_REGEXES = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
+    IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                       '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
                       # gedit first delete file, create, and move to dest_path *.txt~
                       '.*\/(\..*)',  # hidden files TODO: improve
@@ -44,7 +45,7 @@ class Daemon(RegexMatchingEventHandler):
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
-        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORE_REGEXES, ignore_directories=True)
+        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
         # Initialize variable
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.dir_state = {}  # {'timestamp': <timestamp>, 'md5': <md5>}
@@ -52,7 +53,7 @@ class Daemon(RegexMatchingEventHandler):
         self.client_snapshot = {}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_json(Daemon.PATH_CONFIG)
+        self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
         # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
         # TODO: Allow the setting of sharing path by user
         self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
@@ -61,16 +62,44 @@ class Daemon(RegexMatchingEventHandler):
         # Operations necessary to start the daemon
         self.connect_to_server()
         self.build_client_snapshot()
-        self.sync_with_server()
+        # TODO implement NEW sync_with_server
+        self._sync_with_server()
         self.create_observer()
 
-    def load_json(self, conf_path):
-        if os.path.isfile(conf_path):
-            with open(conf_path, 'r') as fo:
-                config = json.load(fo)
-            return config
+    def load_cfg(self, config_path):
+        """
+        Load config, if impossible to find it or config file is corrupted restore it and load default configuration
+        :param config_path: Path of config
+        :return: dictionary containing configuration
+        """
+        def build_default_cfg():
+            """
+            Restore default config file by writing on file
+            :return: default configuration contained in the dictionary DEFAULT_CONFIG
+            """
+            with open(Daemon.PATH_CONFIG, 'wb') as fo:
+                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii= True, indent=4)
+            return Daemon.DEFAULT_CONFIG
+
+        if os.path.isfile(config_path):
+            try:
+                with open(config_path, 'r') as fo:
+                    loaded_config = json.load(fo)
+            except ValueError:
+                print 'Impossible to read "{0}"! "{0}" overwrited and loaded default config!'.format(config_path)
+                return build_default_cfg()
+            corrupted_config = False
+            for k in Daemon.DEFAULT_CONFIG:
+                if k not in loaded_config:
+                    corrupted_config = True
+            if not corrupted_config:
+                return loaded_config
+            else:
+                print '"{0}" corrupted! "{0}" overwrited and loaded default config!'.format(config_path)
+                return build_default_cfg()
         else:
-            return self.DEFAULT_CONFIG
+            print '{0} doesn\'t exist, "{0}" overwrited and loaded default config!'.format(config_path)
+            return build_default_cfg()
 
     def connect_to_server(self):
         # self.cfg['server_address']
@@ -82,7 +111,7 @@ class Daemon(RegexMatchingEventHandler):
                 for filename in files:
                     file_path = os.path.join(dirpath, filename)
                     matched_regex = False
-                    for r in Daemon.IGNORE_REGEXES:
+                    for r in Daemon.IGNORED_REGEX:
                         if re.match(r, file_path) is not None:
                             matched_regex = True
                             print 'Ignored Path:', file_path
@@ -100,7 +129,7 @@ class Daemon(RegexMatchingEventHandler):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
         pass
 
-    def sync_with_server(self):
+    def sync_with_server_to_future(self):
         """
         Download from server the files state and find the difference from actual state.
         """
@@ -132,17 +161,17 @@ class Daemon(RegexMatchingEventHandler):
                     retval = md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            # copy file
+                            pass    # copy file
                         else:
-                            # rename file
+                            pass    # rename file
                     else:
-                        # download file
+                        pass    # download file
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
-                    # download all files
+                    pass    # download all files
 
                 for filepath, timestamp, md5 in tree_diff['deleted']:
-                    # deleted files
+                    pass    # deleted files
 
         else:
             if local_timestamp == server_timestamp:
@@ -153,43 +182,46 @@ class Daemon(RegexMatchingEventHandler):
                     retval = md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            # copy file
+                            pass    # copy file
                         else:
-                            # rename file
+                            pass    # rename file
                     else:
                         if timestamp > local_timestamp:
-                            # dowload file
+                            pass    # dowload file
                         else:
-                            # delete file in server
+                            pass    # delete file in server
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
                     if timestamp < local_timestamp:
-                        # upload file to server (update)
+                        pass    # upload file to server (update)
                     else:
-                        # duplicate file (.conflicted)
+                        pass    # duplicate file (.conflicted)
                         # upload .conflicted file to server
 
                 for filepath, timestamp, md5 in tree_diff['deleted']: # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
-                    # upload file to server
+                    pass    # upload file to server
 
+    def _sync_with_server(self):
+        """
+        Download from server the files state and find the difference from actual state.
+        """
 
+        server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
+        if server_snapshot is None:
+            self.stop(1, '\nReceived bad snapshot. Server down?\n')
+        else:
+            server_snapshot = server_snapshot['files']
 
-        # server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
-        # if server_snapshot is None:
-        #     self.stop(1, '\nReceived bad snapshot. Server down?\n')
-        # else:
-        #     server_snapshot = server_snapshot['files']
-        #
-        # for file_path in server_snapshot:
-        #     if file_path not in self.client_snapshot:
-        #         # TODO: check if download succeed, if so update client_snapshot with the new file
-        #         self.conn_mng.dispatch_request('download', {'filepath': file_path})
-        #         self.client_snapshot[file_path] = server_snapshot[file_path]
-        #     elif server_snapshot[file_path] != self.client_snapshot[file_path]:
-        #         self.conn_mng.dispatch_request('modify', {'filepath': file_path})
-        # for file_path in self.client_snapshot:
-        #     if file_path not in server_snapshot:
-        #         self.conn_mng.dispatch_request('upload', {'filepath': file_path})
+        for file_path in server_snapshot:
+            if file_path not in self.client_snapshot:
+                # TODO: check if download succeed, if so update client_snapshot with the new file
+                self.conn_mng.dispatch_request('download', {'filepath': file_path})
+                self.client_snapshot[file_path] = server_snapshot[file_path]
+            elif server_snapshot[file_path] != self.client_snapshot[file_path]:
+                self.conn_mng.dispatch_request('modify', {'filepath': file_path})
+        for file_path in self.client_snapshot:
+            if file_path not in server_snapshot:
+                self.conn_mng.dispatch_request('upload', {'filepath': file_path})
 
     def relativize_path(self, abs_path):
         """
