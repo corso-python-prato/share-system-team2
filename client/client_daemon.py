@@ -9,6 +9,7 @@ import os
 import hashlib
 import re
 from sys import exit as exit
+from collections import OrderedDict
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -19,17 +20,17 @@ from connection_manager import ConnectionManager
 
 
 class Daemon(RegexMatchingEventHandler):
-    # TODO : if conf_path doesn't exist create it
-    DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
-                      'cmd_address': 'localhost',
-                      'cmd_port': 50001,
-                      'api_suffix': '/API/V1/',
-                      'server_address': 'http://localhost:5000',
-                      'user': 'default_user',
-                      'pass': 'default_pass',
-                      'timeout_listener_sock': 0.5,
-                      'backlog_listener_sock': 5,
-                      }
+    # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
+    DEFAULT_CONFIG = OrderedDict()
+    DEFAULT_CONFIG['sharing_path'] = './sharing_folder'
+    DEFAULT_CONFIG['cmd_address'] = 'localhost'
+    DEFAULT_CONFIG['cmd_port'] = 50001
+    DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
+    DEFAULT_CONFIG['server_address'] = 'http://localhost:5000'
+    DEFAULT_CONFIG['user'] = 'pasquale'
+    DEFAULT_CONFIG['pass'] = 'secretpass'
+    DEFAULT_CONFIG['timeout_listener_sock'] = 0.5
+    DEFAULT_CONFIG['backlog_listener_sock'] = 1
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                       '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
