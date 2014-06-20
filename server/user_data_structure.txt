@@ -1,0 +1,36 @@
+{<user>: {
+		 'password': <password>,
+		 'server_timestamp': <timestamp>,
+		 'files': {<path>: (<timestamp>, <md5>),
+		 		 <path>: (<timestamp>, <md5>),
+		 		 ...
+		 		 }
+		 },
+
+ <user>: {
+			...	 		 
+		},
+
+
+}
+
+User Signup: when a new user subscribes the service, the user_data_structure is added at the users_list in memory and appended to the users/userdata.json file. Its server_timestamp is initialized at the user creation time, and its files dictionary is empty.
+
+Server Start: the file users/userdata.json is loaded in memory as user_list.
+
+Server Shutdown: for each user in the user_list the server_timestamp and files are "dumped" to the userdata.json file.
+
+Actions:
+
+	-upload a file (post files/): adds a new record {<path>: (<timestamp>, <md5>)} in memory to user_list.files, updates user_list.server_timestamp and updates userdata.json with new server_timestamp.
+
+	-delete a file (put actions/): deletes the record from user_list.files, updates user_list.server_timestamp and updates userdata.json with new server_timestamp.
+
+	-move a file (put actions/): deletes the moved record from user_list.files, adds a new record {<path>: (<timestamp>, <md5>)} in memory to user_list.files, updates user_list.server_timestamp and updates userdata.json with new server_timestamp.
+	
+	-copy a file (put actions/): adds a new record {<path>: (<timestamp>, <md5>)} in memory to user_list.files, updates user_list.server_timestamp and updates userdata.json with new server_timestamp.
+
+
+
+
+
