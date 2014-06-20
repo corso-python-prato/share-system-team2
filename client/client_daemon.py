@@ -31,7 +31,7 @@ class Daemon(RegexMatchingEventHandler):
                       'backlog_listener_sock': 5,
                       }
 
-    IGNORE_REGEXES = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
+    IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                       '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
                       # gedit first delete file, create, and move to dest_path *.txt~
                       '.*\/(\..*)',  # hidden files TODO: improve
@@ -41,7 +41,7 @@ class Daemon(RegexMatchingEventHandler):
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
-        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORE_REGEXES, ignore_directories=True)
+        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
         # Initialize variable
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
@@ -78,7 +78,7 @@ class Daemon(RegexMatchingEventHandler):
                 for filename in files:
                     file_path = os.path.join(dirpath, filename)
                     matched_regex = False
-                    for r in Daemon.IGNORE_REGEXES:
+                    for r in Daemon.IGNORED_REGEX:
                         if re.match(r, file_path) is not None:
                             matched_regex = True
                             print 'Ignored Path:', file_path
