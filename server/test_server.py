@@ -17,7 +17,7 @@ SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
 
 # Set server logging verbosity
-server_verbosity = logging.INFO  # change it manually if you want change the server verbosity
+server_verbosity = logging.WARNING  # change it manually if you want change the server verbosity
 server.logger.setLevel(server_verbosity)
 # Very basic logging configuration for this test module:
 logging.basicConfig(level=logging.WARNING)
@@ -26,13 +26,13 @@ logging.basicConfig(level=logging.WARNING)
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
 # WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
-#create test folders and files for 'files/' api
+# create test folders and files for 'files/' api
 USER_RELATIVE_DOWNLOAD_FILEPATH = 'testdownload/testfile.txt'
 DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
 USER_RELATIVE_UPLOAD_FILEPATH = 'testupload/testfile.txt'
 UPLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_UPLOAD_FILEPATH
 UNEXISTING_TEST_URL = SERVER_FILES_API + 'testdownload/unexisting.txt'
-#create test folders and files for 'actions/' api
+# create test folders and files for 'actions/' api
 DELETE_TEST_URL = SERVER_ACTIONS_API + 'delete'
 DELETE_TEST_FILE_PATH = 'testdelete/testdeletefile.txt'
 COPY_TEST_URL = SERVER_ACTIONS_API + 'copy'
@@ -84,7 +84,7 @@ def create_user_dir(username):
     os.makedirs(userpath2serverpath(username, ''))
 
 
-def build_testuser_dir(username):
+def build_tstuser_dir(username):
     """
     Create a directory with files and return its structure
     in a list.
@@ -176,7 +176,8 @@ class TestRequests(unittest.TestCase):
         """
         wrong_password = PW + 'a'
         test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, wrong_password))})
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR,
+                                                                                                 wrong_password))})
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_empty_password(self):
@@ -203,7 +204,7 @@ class TestRequests(unittest.TestCase):
         the given user does not exist.
         """
         user = 'UnExIsTiNgUsEr'
-        assert not user in server.userdata
+        assert user not in server.userdata
         test = self.app.get(DOWNLOAD_TEST_URL,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
@@ -230,7 +231,7 @@ class TestRequests(unittest.TestCase):
         Test lato-server user files snapshot.
         """
         # The test user is created in setUp
-        target = {server.SNAPSHOT: build_testuser_dir(USR)}
+        target = {server.SNAPSHOT: build_tstuser_dir(USR)}
         test = self.app.get(SERVER_FILES_API,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             )
@@ -270,16 +271,15 @@ class TestRequests(unittest.TestCase):
         """
         Test if a created file is deleted and assures it doesn't exists anymore with assertFalse
         """
-        #create file to be deleted
+        # create file to be deleted
         to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
 
         _create_file(USR, DELETE_TEST_FILE_PATH, 'this is the file to be deleted')
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
+
         test = self.app.post(DELETE_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'filepath':to_delete_filepath}, follow_redirects=True)
+                             data={'filepath': to_delete_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
 
@@ -288,19 +288,17 @@ class TestRequests(unittest.TestCase):
         Test if a created source file is copied in a new created destination and assures the source file
         still exists
         """
-        #create source file to be copied and its destination
+        # Create source file to be copied and its destination.
         src_copy_filepath = userpath2serverpath(USR, SRC_COPY_TEST_FILE_PATH)
         dst_copy_filepath = userpath2serverpath(USR, DST_COPY_TEST_FILE_PATH)
 
         _create_file(USR, SRC_COPY_TEST_FILE_PATH, 'this is the file to be copied')
         _create_file(USR, DST_COPY_TEST_FILE_PATH, 'different other content')
 
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
         test = self.app.post(COPY_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src':src_copy_filepath, 'dst':dst_copy_filepath}, follow_redirects=True)
+                             data={'src': src_copy_filepath, 'dst': dst_copy_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
 
@@ -316,12 +314,10 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, SRC_MOVE_TEST_FILE_PATH, 'this is the file to be moved')
         _create_file(USR, DST_MOVE_TEST_FILE_PATH, 'different other content')
 
-        #user_filepath = '../../../test/myfile2.dat'  # path forbidden
         test = self.app.post(MOVE_TEST_URL,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src':src_move_filepath, 'dst':dst_move_filepath}, follow_redirects=True)
+                             data={'src': src_move_filepath, 'dst': dst_move_filepath}, follow_redirects=True)
 
-        #os.remove(uploaded_filepath)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
 
