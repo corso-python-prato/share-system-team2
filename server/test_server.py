@@ -89,7 +89,7 @@ def build_tstuser_dir(username):
     Create a directory with files and return its structure
     in a list.
     :param username: str
-    :return: list
+    :return: tuple
     """
     # md5("foo") = "acbd18db4cc2f85cedef654fccc4a4d8"
     # md5("bar") = "37b51d194a7513e45b56f6524f2d51f2"
@@ -104,14 +104,13 @@ def build_tstuser_dir(username):
     # If directory already exists, destroy it
     if os.path.isdir(user_root):
         shutil.rmtree(user_root)
-
     os.mkdir(user_root)
-
-    target = {}
+    expected_timestamp = None
+    expected_snapshot = {}
     for user_filepath, content, md5 in file_contents:
-        _create_file(username, user_filepath, content)
-        target[user_filepath] = md5
-    return target
+        expected_timestamp = int(_create_file(username, user_filepath, content))
+        expected_snapshot[user_filepath] = [expected_timestamp, unicode(md5)]
+    return expected_timestamp, expected_snapshot
 
 
 def _manually_create_user(username, pw):
@@ -231,7 +230,9 @@ class TestRequests(unittest.TestCase):
         Test lato-server user files snapshot.
         """
         # The test user is created in setUp
-        target = {server.SNAPSHOT: build_tstuser_dir(USR)}
+        expected_timestamp, expected_snapshot = build_tstuser_dir(USR)
+        target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
+                  server.SNAPSHOT: expected_snapshot}
         test = self.app.get(SERVER_FILES_API,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             )
