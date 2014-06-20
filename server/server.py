@@ -119,7 +119,13 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
 
     for dirname in default_dirs:
-        os.mkdir(join(dirpath, dirname))
+        subdirpath = join(dirpath, dirname)
+        filepath = join(subdirpath, '{}.txt'.format(dirname))
+        os.mkdir(subdirpath)
+        # Create a default file for each default directory
+        # beacuse wee need files to see the directories.
+        with open(filepath, 'w') as fp:
+            fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
 
 
