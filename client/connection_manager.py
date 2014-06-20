@@ -33,7 +33,7 @@ class ConnectionManager(object):
         self.cfg = cfg
         self.auth = (self.cfg['user'], self.cfg['pass'])
 
-        # http://localhost:5000/API/V1/
+        # example of self.base_url = 'http://localhost:5000/API/V1/'
         self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
@@ -83,7 +83,7 @@ class ConnectionManager(object):
 
     def do_upload(self, data):
         file_path = os.path.join(self.cfg['sharing_path'], data['filepath'])
-        url = ''.join([self.base_url, 'files/', data['filepath']])
+        url = ''.join([self.files_url, data['filepath']])
         _file = {'file': (open(file_path, 'rb'))}
         print 'do_upload', url
         try:
@@ -151,7 +151,7 @@ class ConnectionManager(object):
         return False
 
     def do_get_server_snapshot(self, data):
-        url = ''.join([self.base_url, 'files'])
+        url = self.files_url
         print 'get_server_snapshot', url
         try:
             r = requests.get(url, auth=self.auth)

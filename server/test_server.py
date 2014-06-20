@@ -17,7 +17,7 @@ SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
 
 # Set server logging verbosity
-server_verbosity = logging.INFO  # change it manually if you want change the server verbosity
+server_verbosity = logging.WARNING  # change it manually if you want change the server verbosity
 server.logger.setLevel(server_verbosity)
 # Very basic logging configuration for this test module:
 logging.basicConfig(level=logging.WARNING)
@@ -84,7 +84,7 @@ def create_user_dir(username):
     os.makedirs(userpath2serverpath(username, ''))
 
 
-def build_testuser_dir(username):
+def build_tstuser_dir(username):
     """
     Create a directory with files and return its structure
     in a list.
@@ -231,7 +231,7 @@ class TestRequests(unittest.TestCase):
         Test lato-server user files snapshot.
         """
         # The test user is created in setUp
-        target = {server.SNAPSHOT: build_testuser_dir(USR)}
+        target = {server.SNAPSHOT: build_tstuser_dir(USR)}
         test = self.app.get(SERVER_FILES_API,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             )
