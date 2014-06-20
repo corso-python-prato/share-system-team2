@@ -17,7 +17,7 @@ SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
 
 # Set server logging verbosity
-server_verbosity = logging.INFO  # change it manually if you want change the server verbosity
+server_verbosity = logging.WARNING  # change it manually if you want change the server verbosity
 server.logger.setLevel(server_verbosity)
 # Very basic logging configuration for this test module:
 logging.basicConfig(level=logging.WARNING)
