@@ -48,7 +48,7 @@ class Daemon(RegexMatchingEventHandler):
         self.client_snapshot = {}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_json(Daemon.PATH_CONFIG)
+        self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
         # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
         # TODO: Allow the setting of sharing path by user
         self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
@@ -60,13 +60,40 @@ class Daemon(RegexMatchingEventHandler):
         self.sync_with_server()
         self.create_observer()
 
-    def load_json(self, conf_path):
-        if os.path.isfile(conf_path):
-            with open(conf_path, 'r') as fo:
-                config = json.load(fo)
-            return config
+    def load_cfg(self, config_path):
+        """
+        Load config, if impossible to find it or config file is corrupted restore it and load default configuration
+        :param config_path: Path of config
+        :return: dictionary containing configuration
+        """
+        def build_default_cfg():
+            """
+            Restore default config file by writing on file
+            :return: default configuration contained in the dictionary DEFAULT_CONFIG
+            """
+            with open(Daemon.PATH_CONFIG, 'wb') as fo:
+                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii= True, indent=4)
+            return Daemon.DEFAULT_CONFIG
+
+        if os.path.isfile(config_path):
+            try:
+                with open(config_path, 'r') as fo:
+                    loaded_config = json.load(fo)
+            except ValueError:
+                print 'Impossible to read "{0}"! "{0}" overwrited and loaded default config!'.format(config_path)
+                return build_default_cfg()
+            corrupted_config = False
+            for k in Daemon.DEFAULT_CONFIG:
+                if k not in loaded_config:
+                    corrupted_config = True
+            if not corrupted_config:
+                return loaded_config
+            else:
+                print '"{0}" corrupted! "{0}" overwrited and loaded default config!'.format(config_path)
+                return build_default_cfg()
         else:
-            return self.DEFAULT_CONFIG
+            print '{0} doesn\'t exist, "{0}" overwrited and loaded default config!'.format(config_path)
+            return build_default_cfg()
 
     def connect_to_server(self):
         # self.cfg['server_address']
