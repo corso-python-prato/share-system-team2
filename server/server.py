@@ -345,10 +345,6 @@ def calculate_dir_snapshot(root_path):
     return last_timestamp, result
 
 
-def _dirsnapshot2lastimestamp(dir_snapshot):
-    return sorted(dir_snapshot.values())[-1].timestamp
-
-
 class Files(Resource):
     """
     Class that handle files as web resources.
@@ -392,7 +388,6 @@ class Files(Resource):
         logging.debug(response)
         return response
 
-
     @auth.login_required
     def _get_dirname_filename(self, path):
         """
@@ -410,7 +405,6 @@ class Files(Resource):
             abort(HTTP_FORBIDDEN)
 
         return dirname, filename
-
 
     @auth.login_required
     def post(self, path):

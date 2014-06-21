@@ -82,9 +82,10 @@ class ConnectionManager(object):
         return False
 
     def do_upload(self, data):
-        file_path = os.path.join(self.cfg['sharing_path'], data['filepath'])
-        url = ''.join([self.files_url, data['filepath']])
-        _file = {'file': (open(file_path, 'rb'))}
+        filepath = os.path.join(self.cfg['sharing_path'], data['filepath'])
+        url = ''.join([
+            self.files_url, data['filepath']])
+        _file = {'file': (open(filepath, 'rb'))}
         print 'do_upload', url
         try:
             r = requests.post(url, auth=self.auth, files=_file)
@@ -96,9 +97,9 @@ class ConnectionManager(object):
         return False
 
     def do_modify(self, data):
-        file_path = os.path.join(self.cfg['sharing_path'], data['filepath'])
+        filepath = os.path.join(self.cfg['sharing_path'], data['filepath'])
         url = ''.join([self.files_url, data['filepath']])
-        _file = {'file': (open(file_path, 'rb'))}
+        _file = {'file': (open(filepath, 'rb'))}
         print 'do_modify', url
         try:
             r = requests.put(url, auth=self.auth, files=_file)

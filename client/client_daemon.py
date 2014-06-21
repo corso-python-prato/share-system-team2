@@ -9,10 +9,10 @@ import os
 import hashlib
 import re
 import time
-import traceback
 
 from sys import exit as exit
 from collections import OrderedDict
+from shutil import copy2
 
 
 # we import PollingObserver instead of Observer because the deleted event
@@ -45,10 +45,10 @@ class Daemon(RegexMatchingEventHandler):
     DEFAULT_CONFIG['backlog_listener_sock'] = 1
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
-                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                      # gedit first delete file, create, and move to dest_path *.txt~
-                      '.*\/(\..*)',  # hidden files TODO: improve
-                      ]
+                     '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
+                     # gedit first delete file, create, and move to dest_path *.txt~
+                     '.*\/(\..*)',  # hidden files TODO: improve
+                     ]
 
     PATH_CONFIG = 'config.json'
     INT_SIZE = struct.calcsize('!i')
@@ -87,7 +87,7 @@ class Daemon(RegexMatchingEventHandler):
             :return: default configuration contained in the dictionary DEFAULT_CONFIG
             """
             with open(Daemon.PATH_CONFIG, 'wb') as fo:
-                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii= True, indent=4)
+                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
             return Daemon.DEFAULT_CONFIG
 
         if os.path.isfile(config_path):
@@ -114,20 +114,44 @@ class Daemon(RegexMatchingEventHandler):
         # self.cfg['server_address']
         pass    
 
-    def _is_directory_modified(self):
+    def build_client_snapshot(self):
+        self.client_snapshot = {}
+        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+                for filename in files:
+                    filepath = os.path.join(dirpath, filename)
+                    matched_regex = False
+                    for r in Daemon.IGNORED_REGEX:
+                        if re.match(r, filepath) is not None:
+                            matched_regex = True
+                            print 'Ignored Path:', filepath
+                            break
+                    if not matched_regex:
+                        relative_path = self.relativize_path(filepath)
+                        with open(filepath, 'rb') as f:
+                            self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
-        # TODO process directory and get global md5. if it match with saved md5 then return 'True', else return 'False'
-        return False
+    def _is_directory_modified(self):
+        # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
+        return True
 
     def get_server_files(self):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
         pass
 
+    def md5_exists(self, searched_md5):
+        # TODO check if md5 match with almost one of md5 of file in the directory
+        # return a path if match, 'None' otherwise
+        for path in self.client_snapshot:
+                if searched_md5 in self.client_snapshot[path][1]:
+                    return path
+        else:
+            self.stop(1, 'Copy Error!!')
+
     def sync_with_server_to_future(self):
         """
         Download from server the files state and find the difference from actual state.
         """
-        def filter_tree_difference(server_dir_tree):
+        def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
             # and make a diffs classification
             # return a dict representing that classification
@@ -135,37 +159,50 @@ class Daemon(RegexMatchingEventHandler):
             #   'modified': <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server and client, but different
             #   'deleted' : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files not in server, but in client
             # }
-            pass
+            return {'created': [], 'modified': [], 'deleted': []}
 
-        def md5_exists(md5):
-            # TODO check if md5 match with almost one of md5 of file in the directory
-            # return a tuple (<filepath>, <md5>) if match, 'None' otherwise
-            pass
+        def _make_copy(src, dst):
+            try:
+                copy2(src, dst)
+            except IOError:
+                return False
+            rel_src = self.relativize_path(src)
+            rel_dst = self.relativize_path(dst)
+            self.client_snapshot[rel_dst] = self.client_snapshot[rel_src]
+            return True
 
         local_timestamp = self.dir_state['timestamp']
         server_timestamp, server_dir_tree = self._get_server_files()
 
-        tree_diff = filter_tree_difference(server_dir_tree)
+        tree_diff = _filter_tree_difference(server_dir_tree)
 
-        if not self._is_directory_modified():
-            if local_timestamp == server_timestamp:
+        if self._is_directory_modified():
+            if local_timestamp >= server_timestamp:
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = md5_exists(md5)
-                    if retval:
-                        if retval[0] in self.client_snapshot:
-                            pass    # copy file
+                    if timestamp > local_timestamp:
+                        founded_path = self.md5_exists(md5)
+                        rel_filepath = self.relativize_path(filepath)
+                        if founded_path:
+                            _make_copy(src=self.absolutize_path(founded_path), dst=filepath)
                         else:
-                            pass    # rename file
-                    else:
-                        pass    # download file
+                            # TODO check if download succeed
+                            self.conn_mng.dispatch_request('download', {'filepath': filepath})
+
+                            with open(filepath, 'rb') as fo:
+                                self.client_snapshot[rel_filepath][1] = hashlib.md5(fo.read()).hexdigest()
+                    else:  # file older then local_timestamp, this mean is time to delete it!
+                        # TODO check if delete succeed
+                        self.conn_mng.dispatch_request('delete', {'filepath': filepath})
+                        if rel_filepath in self.client_snapshot:
+                            del self.client_snapshot[rel_filepath]
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
-                    pass    # download all files
+                    pass  # download all files
 
                 for filepath, timestamp, md5 in tree_diff['deleted']:
-                    pass    # deleted files
+                    pass  # deleted files
 
         else:
             if local_timestamp == server_timestamp:
@@ -173,27 +210,27 @@ class Daemon(RegexMatchingEventHandler):
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = md5_exists(md5)
+                    retval = self.md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            pass    # copy file
+                            pass  # copy file
                         else:
-                            pass    # rename file
+                            pass  # rename file
                     else:
                         if timestamp > local_timestamp:
-                            pass    # dowload file
+                            pass  # dowload file
                         else:
-                            pass    # delete file in server
+                            pass  # delete file in server
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
                     if timestamp < local_timestamp:
-                        pass    # upload file to server (update)
+                        pass  # upload file to server (update)
                     else:
-                        pass    # duplicate file (.conflicted)
+                        pass  # duplicate file (.conflicted)
                         # upload .conflicted file to server
 
-                for filepath, timestamp, md5 in tree_diff['deleted']: # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
-                    pass    # upload file to server
+                for filepath, timestamp, md5 in tree_diff['deleted']:  # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
+                    pass  # upload file to server
 
     def _sync_with_server(self):
         """
@@ -204,18 +241,25 @@ class Daemon(RegexMatchingEventHandler):
         if server_snapshot is None:
             self.stop(1, '\nReceived bad snapshot. Server down?\n')
         else:
+            server_timestamp = server_snapshot['server_timestamp']
             server_snapshot = server_snapshot['files']
 
-        for file_path in server_snapshot:
-            if file_path not in self.client_snapshot:
+        total_md5 = self.calculate_md5_of_dir(self.cfg['sharing_path'])
+        print "TOTAL MD5: ", total_md5
+
+        for filepath in server_snapshot: 
+            if filepath not in self.client_snapshot:
                 # TODO: check if download succeed, if so update client_snapshot with the new file
-                self.conn_mng.dispatch_request('download', {'filepath': file_path})
-                self.client_snapshot[file_path] = server_snapshot[file_path]
-            elif server_snapshot[file_path] != self.client_snapshot[file_path]:
-                self.conn_mng.dispatch_request('modify', {'filepath': file_path})
-        for file_path in self.client_snapshot:
-            if file_path not in server_snapshot:
-                self.conn_mng.dispatch_request('upload', {'filepath': file_path})
+                self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                self.client_snapshot[filepath] = server_snapshot[filepath]            
+            elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
+                self.conn_mng.dispatch_request('modify', {'filepath': filepath})
+                hashed_file = hash_file(self.absolutize_path(filepath))
+                self.client_snapshot[filepath] = ['', hashed_file]
+        for filepath in self.client_snapshot:
+            if filepath not in server_snapshot:
+                self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+
 
     def relativize_path(self, abs_path):
         """
@@ -223,8 +267,25 @@ class Daemon(RegexMatchingEventHandler):
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
         folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
-        relative_path = abs_path.split(folder_watched_abs)[-1]
-        return relative_path[1:]
+        tokens = abs_path.split(folder_watched_abs)
+        # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
+        # in this case is impossible to use relative path and have valid path!
+        if len(tokens) is 2:
+            relative_path = tokens[-1]
+            return relative_path[1:]
+        else:
+            self.stop(1, 'Impossible to use "{}" path, please change dir name'.format(abs_path))
+
+    def absolutize_path(self, rel_path):
+        """
+        This function absolutize a path that i have relativize before:
+        for example: subfolder/ will be /home/user/watched/subfolder/
+        """
+        abs_path = os.path.join(self.cfg['sharing_path'], rel_path)
+        if os.path.isfile(abs_path):
+            return abs_path
+        else:
+            return None
 
     def create_observer(self):
         """
@@ -233,7 +294,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer = Observer()
         self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
 
-    # TODO GESTIRE ERRORI DEL DICTIONARY NEL CASO client_dispatcher NON ABBIA I DATI RICHIESTI!!
+    # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
     # TODO update struct with new more performance data structure
     # TODO verify what happen if the server return a error message
     ####################################
@@ -247,9 +308,7 @@ class Daemon(RegexMatchingEventHandler):
             """
             data = {'cmd': cmd}
             if cmd == 'copy':
-                for path in self.client_snapshot:
-                    if new_md5 in self.client_snapshot[path]:
-                        path_with_searched_md5 = path
+                path_with_searched_md5 = self.md5_exists(new_md5)
                 # TODO check what happen when i find more than 1 path with the new_md5
                 data['file'] = {'src': path_with_searched_md5,
                                 'dst': self.relativize_path(e.src_path),
@@ -272,7 +331,7 @@ class Daemon(RegexMatchingEventHandler):
             self.client_snapshot[data['file']['dst']] = data['file']['md5']
         # this elif check that this created aren't modified event
         elif relative_path in self.client_snapshot:
-            print 'start modified DA UN CREATE!!!!!'
+            print 'start modified FROM CREATE!!!!!'
             data = build_data('modify', e)
             self.client_snapshot[data['file']['filepath']] = data['file']['md5']
         else:
@@ -309,11 +368,14 @@ class Daemon(RegexMatchingEventHandler):
         with open(e.src_path, 'rb') as f:
             data = {'cmd': 'modify',
                     'file': {'filepath': self.relativize_path(e.src_path),
-                             'md5': hashlib.md5(f.read()).hexdigest(),
+                             'md5': hashlib.md5(f.read()).hexdigest()
                              }
                     }
-        self.client_snapshot[data['file']['filepath']] = data['file']['md5']
+        filepath = self.relativize_path(e.src_path)
+        hashed_file = self.hash_file(e.src_path)
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        self.client_snapshot[filepath] = ['', hashed_file]
+
 
     def start(self):
         """
@@ -401,12 +463,16 @@ class Daemon(RegexMatchingEventHandler):
         return md5Hash.hexdigest()
 
     def read_file(self, file_path):
+        """
+        Read file in chunks 
+        :return the readed file as binary or None in case of error
+        """
         readed = ''
         try:
             f1 = open(file_path, 'rb')
             while 1:
                 # Read file in as little chunks
-                    buf = f1.read(4)
+                    buf = f1.read(1024)
                     if not buf:
                         break                
                     readed += buf
@@ -437,22 +503,6 @@ class Daemon(RegexMatchingEventHandler):
             print e
             return None
             # You can't open the file for some reason
-
-    def build_client_snapshot(self):
-        self.client_snapshot = {}
-        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-                for filename in files:
-                    file_path = os.path.join(dirpath, filename)
-                    matched_regex = False
-                    for r in Daemon.IGNORED_REGEX:
-                        if re.match(r, file_path) is not None:
-                            matched_regex = True
-                            print 'Ignored Path:', file_path
-                            break
-                    if not matched_regex:
-                        relative_path = self.relativize_path(file_path)
-                        with open(file_path, 'rb') as f:
-                            self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
 
 if __name__ == '__main__':
     daemon = Daemon()    
