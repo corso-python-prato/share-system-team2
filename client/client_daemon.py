@@ -235,8 +235,14 @@ class Daemon(RegexMatchingEventHandler):
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
         folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
-        relative_path = abs_path.split(folder_watched_abs)[-1]
-        return relative_path[1:]
+        tokens = abs_path.split(folder_watched_abs)
+        # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
+        # in this case is impossible to use relative path and have valid path!
+        if len(tokens) is 2:
+            relative_path = tokens[-1]
+            return relative_path[1:]
+        else:
+            self.stop(1, 'Impossible to use "{}" path, please change dir name'.format(abs_path))
 
     def create_observer(self):
         """
