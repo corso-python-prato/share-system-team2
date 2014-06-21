@@ -299,12 +299,9 @@ class Daemon(RegexMatchingEventHandler):
     def on_deleted(self, e):
 
         print 'start delete'
-        data = {'cmd': 'delete',
-                'file': {'filepath': self.relativize_path(e.src_path),
-                         }
-                }
-        self.client_snapshot.pop(data['file']['filepath'], 'NOTHING TO POP')
-        self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        rel_deleted_path = self.relativize_path(e.src_path)
+        self.client_snapshot.pop(rel_deleted_path, 'NOTHING TO POP')
+        self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
 
     def on_modified(self, e):
 
