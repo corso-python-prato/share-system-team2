@@ -21,6 +21,15 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import RegexMatchingEventHandler
 from connection_manager import ConnectionManager
 
+    # SNAPSHOT STRUCTURE
+    # {
+    #     "last_timestamp":"",
+    #     "files":{
+    #             "<file_path>":('<md5>','<timestamp>')
+
+    #             }
+
+    # }
 
 class Daemon(RegexMatchingEventHandler):
     # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
@@ -48,7 +57,7 @@ class Daemon(RegexMatchingEventHandler):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
         # Initialize variable
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
-        self.dir_state = {}  # {'timestamp': <timestamp>, 'md5': <md5>}
+        self.dir_state =  {}  # {'timestamp': <timestamp>, 'md5': <md5>}
         self.running = 0
         self.client_snapshot = {}
         self.listener_socket = None
@@ -103,25 +112,10 @@ class Daemon(RegexMatchingEventHandler):
 
     def connect_to_server(self):
         # self.cfg['server_address']
-        pass
-
-    def build_client_snapshot(self):
-        self.client_snapshot = {}
-        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-                for filename in files:
-                    file_path = os.path.join(dirpath, filename)
-                    matched_regex = False
-                    for r in Daemon.IGNORED_REGEX:
-                        if re.match(r, file_path) is not None:
-                            matched_regex = True
-                            print 'Ignored Path:', file_path
-                            break
-                    if not matched_regex:
-                        relative_path = self.relativize_path(file_path)
-                        with open(file_path, 'rb') as f:
-                            self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
+        pass    
 
     def _is_directory_modified(self):
+
         # TODO process directory and get global md5. if it match with saved md5 then return 'True', else return 'False'
         return False
 
@@ -411,7 +405,40 @@ class Daemon(RegexMatchingEventHandler):
             print stop - start
         return md5Hash.hexdigest()
 
+    def read_file(self, file_path):
+        readed = ''
+        try:
+            f1 = open(file_path, 'rb')
+            while 1:
+                # Read file in as little chunks
+                    buf = f1.read(4)
+                    if not buf:
+                        break                
+                    readed += buf
+            f1.close()
+            return readed 
+        except (OSError, IOError) as e:
+            print e
+            return None
+            # You can't open the file for some reason
+
+
+    def build_client_snapshot(self):
+        self.client_snapshot = {}
+        for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
+                for filename in files:
+                    file_path = os.path.join(dirpath, filename)
+                    matched_regex = False
+                    for r in Daemon.IGNORED_REGEX:
+                        if re.match(r, file_path) is not None:
+                            matched_regex = True
+                            print 'Ignored Path:', file_path
+                            break
+                    if not matched_regex:
+                        relative_path = self.relativize_path(file_path)
+                        with open(file_path, 'rb') as f:
+                            self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
 
 if __name__ == '__main__':
-    daemon = Daemon()
+    daemon = Daemon()    
     daemon.start()
