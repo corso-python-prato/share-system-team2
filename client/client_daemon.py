@@ -126,6 +126,15 @@ class Daemon(RegexMatchingEventHandler):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
         pass
 
+    def md5_exists(self, searched_md5):
+        # TODO check if md5 match with almost one of md5 of file in the directory
+        # return a path if match, 'None' otherwise
+        for path in self.client_snapshot:
+                if searched_md5 in self.client_snapshot[path]:
+                    return path
+        else:
+            return None
+
     def sync_with_server_to_future(self):
         """
         Download from server the files state and find the difference from actual state.
@@ -176,7 +185,7 @@ class Daemon(RegexMatchingEventHandler):
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = md5_exists(md5)
+                    retval = self.md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
                             pass    # copy file
@@ -250,9 +259,7 @@ class Daemon(RegexMatchingEventHandler):
             """
             data = {'cmd': cmd}
             if cmd == 'copy':
-                for path in self.client_snapshot:
-                    if new_md5 in self.client_snapshot[path]:
-                        path_with_searched_md5 = path
+                path_with_searched_md5 = self.md5_exists(new_md5)
                 # TODO check what happen when i find more than 1 path with the new_md5
                 data['file'] = {'src': path_with_searched_md5,
                                 'dst': self.relativize_path(e.src_path),
