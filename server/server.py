@@ -392,7 +392,6 @@ class Files(Resource):
         logging.debug(response)
         return response
 
-
     @auth.login_required
     def _get_dirname_filename(self, path):
         """
@@ -410,7 +409,6 @@ class Files(Resource):
             abort(HTTP_FORBIDDEN)
 
         return dirname, filename
-
 
     @auth.login_required
     def post(self, path):

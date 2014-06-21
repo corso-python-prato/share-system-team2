@@ -34,10 +34,10 @@ class Daemon(RegexMatchingEventHandler):
     DEFAULT_CONFIG['backlog_listener_sock'] = 1
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
-                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                      # gedit first delete file, create, and move to dest_path *.txt~
-                      '.*\/(\..*)',  # hidden files TODO: improve
-                      ]
+                     '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
+                     # gedit first delete file, create, and move to dest_path *.txt~
+                     '.*\/(\..*)',  # hidden files TODO: improve
+                     ]
 
     PATH_CONFIG = 'config.json'
     INT_SIZE = struct.calcsize('!i')
@@ -148,7 +148,7 @@ class Daemon(RegexMatchingEventHandler):
             #   'modified': <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server and client, but different
             #   'deleted' : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files not in server, but in client
             # }
-            return {'created' : [], 'modified' : [], 'deleted' : []}
+            return {'created': [], 'modified': [], 'deleted': []}
 
         def _make_copy(src, dst):
             try:
@@ -181,18 +181,17 @@ class Daemon(RegexMatchingEventHandler):
 
                             with open(filepath, 'rb') as fo:
                                 self.client_snapshot[rel_filepath] = hashlib.md5(fo.read()).hexdigest()
-                    else: # file older then local_timestamp, this mean is time to delete it!
-                        #TODO check if delete succeed
+                    else:  # file older then local_timestamp, this mean is time to delete it!
+                        # TODO check if delete succeed
                         self.conn_mng.dispatch_request('delete', {'filepath': filepath})
                         if rel_filepath in self.client_snapshot:
                             del self.client_snapshot[rel_filepath]
 
-
                 for filepath, timestamp, md5 in tree_diff['modified']:
-                    pass    # download all files
+                    pass  # download all files
 
                 for filepath, timestamp, md5 in tree_diff['deleted']:
-                    pass    # deleted files
+                    pass  # deleted files
 
         else:
             if local_timestamp == server_timestamp:
@@ -203,24 +202,24 @@ class Daemon(RegexMatchingEventHandler):
                     retval = self.md5_exists(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
-                            pass    # copy file
+                            pass  # copy file
                         else:
-                            pass    # rename file
+                            pass  # rename file
                     else:
                         if timestamp > local_timestamp:
-                            pass    # dowload file
+                            pass  # dowload file
                         else:
-                            pass    # delete file in server
+                            pass  # delete file in server
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
                     if timestamp < local_timestamp:
-                        pass    # upload file to server (update)
+                        pass  # upload file to server (update)
                     else:
-                        pass    # duplicate file (.conflicted)
+                        pass  # duplicate file (.conflicted)
                         # upload .conflicted file to server
 
-                for filepath, timestamp, md5 in tree_diff['deleted']: # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
-                    pass    # upload file to server
+                for filepath, timestamp, md5 in tree_diff['deleted']:  # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
+                    pass  # upload file to server
 
     def _sync_with_server(self):
         """
