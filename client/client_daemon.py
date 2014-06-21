@@ -276,7 +276,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer = Observer()
         self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
 
-    # TODO GESTIRE ERRORI DEL DICTIONARY NEL CASO client_dispatcher NON ABBIA I DATI RICHIESTI!!
+    # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
     # TODO update struct with new more performance data structure
     # TODO verify what happen if the server return a error message
     ####################################
