@@ -75,7 +75,7 @@ class Daemon(RegexMatchingEventHandler):
             :return: default configuration contained in the dictionary DEFAULT_CONFIG
             """
             with open(Daemon.PATH_CONFIG, 'wb') as fo:
-                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii= True, indent=4)
+                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
             return Daemon.DEFAULT_CONFIG
 
         if os.path.isfile(config_path):
@@ -106,16 +106,16 @@ class Daemon(RegexMatchingEventHandler):
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
-                    file_path = os.path.join(dirpath, filename)
+                    filepath = os.path.join(dirpath, filename)
                     matched_regex = False
                     for r in Daemon.IGNORED_REGEX:
-                        if re.match(r, file_path) is not None:
+                        if re.match(r, filepath) is not None:
                             matched_regex = True
-                            print 'Ignored Path:', file_path
+                            print 'Ignored Path:', filepath
                             break
                     if not matched_regex:
-                        relative_path = self.relativize_path(file_path)
-                        with open(file_path, 'rb') as f:
+                        relative_path = self.relativize_path(filepath)
+                        with open(filepath, 'rb') as f:
                             self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
 
     def _is_directory_modified(self):
@@ -209,16 +209,16 @@ class Daemon(RegexMatchingEventHandler):
         else:
             server_snapshot = server_snapshot['files']
 
-        for file_path in server_snapshot:
-            if file_path not in self.client_snapshot:
+        for filepath in server_snapshot:
+            if filepath not in self.client_snapshot:
                 # TODO: check if download succeed, if so update client_snapshot with the new file
-                self.conn_mng.dispatch_request('download', {'filepath': file_path})
-                self.client_snapshot[file_path] = server_snapshot[file_path]
-            elif server_snapshot[file_path] != self.client_snapshot[file_path]:
-                self.conn_mng.dispatch_request('modify', {'filepath': file_path})
-        for file_path in self.client_snapshot:
-            if file_path not in server_snapshot:
-                self.conn_mng.dispatch_request('upload', {'filepath': file_path})
+                self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                self.client_snapshot[filepath] = server_snapshot[filepath]
+            elif server_snapshot[filepath] != self.client_snapshot[filepath]:
+                self.conn_mng.dispatch_request('modify', {'filepath': filepath})
+        for filepath in self.client_snapshot:
+            if filepath not in server_snapshot:
+                self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
     def relativize_path(self, abs_path):
         """
@@ -275,7 +275,7 @@ class Daemon(RegexMatchingEventHandler):
             self.client_snapshot[data['file']['dst']] = data['file']['md5']
         # this elif check that this created aren't modified event
         elif relative_path in self.client_snapshot:
-            print 'start modified DA UN CREATE!!!!!'
+            print 'start modified FROM CREATE!!!!!'
             data = build_data('modify', e)
             self.client_snapshot[data['file']['filepath']] = data['file']['md5']
         else:
@@ -302,12 +302,9 @@ class Daemon(RegexMatchingEventHandler):
     def on_deleted(self, e):
 
         print 'start delete'
-        data = {'cmd': 'delete',
-                'file': {'filepath': self.relativize_path(e.src_path),
-                         }
-                }
-        self.client_snapshot.pop(data['file']['filepath'], 'NOTHING TO POP')
-        self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        rel_deleted_path = self.relativize_path(e.src_path)
+        self.client_snapshot.pop(rel_deleted_path, 'NOTHING TO POP')
+        self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
 
     def on_modified(self, e):
 
@@ -315,7 +312,7 @@ class Daemon(RegexMatchingEventHandler):
         with open(e.src_path, 'rb') as f:
             data = {'cmd': 'modify',
                     'file': {'filepath': self.relativize_path(e.src_path),
-                             'md5': hashlib.md5(f.read()).hexdigest(),
+                             'md5': hashlib.md5(f.read()).hexdigest()
                              }
                     }
         self.client_snapshot[data['file']['filepath']] = data['file']['md5']
