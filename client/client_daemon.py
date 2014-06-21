@@ -10,6 +10,7 @@ import hashlib
 import re
 from sys import exit as exit
 from collections import OrderedDict
+from shutil import copy2
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -119,8 +120,8 @@ class Daemon(RegexMatchingEventHandler):
                             self.client_snapshot[relative_path] = hashlib.md5(f.read()).hexdigest()
 
     def _is_directory_modified(self):
-        # TODO process directory and get global md5. if it match with saved md5 then return 'True', else return 'False'
-        return False
+        # TODO process directory and get global md5. if it match with saved md5 then return 'False', else return 'Truee'
+        return True
 
     def get_server_files(self):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
@@ -139,7 +140,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Download from server the files state and find the difference from actual state.
         """
-        def filter_tree_difference(server_dir_tree):
+        def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
             # and make a diffs classification
             # return a dict representing that classification
@@ -147,31 +148,43 @@ class Daemon(RegexMatchingEventHandler):
             #   'modified': <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server and client, but different
             #   'deleted' : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files not in server, but in client
             # }
-            pass
+            return {'created' : [], 'modified' : [], 'deleted' : []}
 
-        def md5_exists(md5):
-            # TODO check if md5 match with almost one of md5 of file in the directory
-            # return a tuple (<filepath>, <md5>) if match, 'None' otherwise
-            pass
+        def _make_copy(src, dst):
+            try:
+                copy2(src, dst)
+            except IOError:
+                return False
+            rel_src = self.relativize_path(src)
+            rel_dst = self.relativize_path(dst)
+            self.client_snapshot[rel_dst] = self.client_snapshot[rel_src]
+            return True
 
         local_timestamp = self.dir_state['timestamp']
         server_timestamp, server_dir_tree = self._get_server_files()
 
-        tree_diff = filter_tree_difference(server_dir_tree)
+        tree_diff = _filter_tree_difference(server_dir_tree)
 
-        if not self._is_directory_modified():
-            if local_timestamp == server_timestamp:
+        if self._is_directory_modified():
+            if local_timestamp >= server_timestamp:
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = md5_exists(md5)
-                    if retval:
-                        if retval[0] in self.client_snapshot:
-                            pass    # copy file
-                        else:
-                            pass    # rename file
-                    else:
-                        pass    # download file
+                    founded_path = self.md5_exists(md5)
+                    if founded_path:
+                        if not _make_copy(src=self.absolutize_path(founded_path), dst=filepath):
+                            self.stop(1, 'Copy Error!!')
+                    elif timestamp > local_timestamp:
+                        # TODO check if download succeed
+                        self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                        rel_filepath = self.relativize_path(filepath)
+                        with open(filepath, 'rb') as fo:
+                            self.client_snapshot[rel_filepath] = hashlib.md5(fo.read()).hexdigest()
+                    else: # file not stored and older then local_timestamp, this mean is time to delete it!
+                        #TODO check if delete succeed
+                        self.conn_mng.dispatch_request('delete', {'filepath': filepath})
+
+
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
                     pass    # download all files
