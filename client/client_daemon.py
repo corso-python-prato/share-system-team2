@@ -134,7 +134,7 @@ class Daemon(RegexMatchingEventHandler):
                 if searched_md5 in self.client_snapshot[path]:
                     return path
         else:
-            return None
+            self.stop(1, 'Copy Error!!')
 
     def sync_with_server_to_future(self):
         """
@@ -170,20 +170,22 @@ class Daemon(RegexMatchingEventHandler):
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    founded_path = self.md5_exists(md5)
-                    if founded_path:
-                        if not _make_copy(src=self.absolutize_path(founded_path), dst=filepath):
-                            self.stop(1, 'Copy Error!!')
-                    elif timestamp > local_timestamp:
-                        # TODO check if download succeed
-                        self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                    if timestamp > local_timestamp:
+                        founded_path = self.md5_exists(md5)
                         rel_filepath = self.relativize_path(filepath)
-                        with open(filepath, 'rb') as fo:
-                            self.client_snapshot[rel_filepath] = hashlib.md5(fo.read()).hexdigest()
-                    else: # file not stored and older then local_timestamp, this mean is time to delete it!
+                        if founded_path:
+                            _make_copy(src=self.absolutize_path(founded_path), dst=filepath)
+                        else:
+                            # TODO check if download succeed
+                            self.conn_mng.dispatch_request('download', {'filepath': filepath})
+
+                            with open(filepath, 'rb') as fo:
+                                self.client_snapshot[rel_filepath] = hashlib.md5(fo.read()).hexdigest()
+                    else: # file older then local_timestamp, this mean is time to delete it!
                         #TODO check if delete succeed
                         self.conn_mng.dispatch_request('delete', {'filepath': filepath})
-
+                        if rel_filepath in self.client_snapshot:
+                            del self.client_snapshot[rel_filepath]
 
 
                 for filepath, timestamp, md5 in tree_diff['modified']:
