@@ -422,6 +422,26 @@ class Daemon(RegexMatchingEventHandler):
             return None
             # You can't open the file for some reason
 
+    def hash_file(self, file_path):
+        """
+        :accept an absolute file path
+        :return the md5 hash of received file
+        """
+        md5Hash = hashlib.md5()
+        try:
+            f1 = open(file_path, 'rb')
+            while 1:
+                # Read file in as little chunks
+                    buf = f1.read(1024)
+                    if not buf:
+                        break                
+                    md5Hash.update(hashlib.md5(buf).hexdigest())
+            f1.close()
+            return md5Hash.hexdigest()
+        except (OSError, IOError) as e:
+            print e
+            return None
+            # You can't open the file for some reason
 
     def build_client_snapshot(self):
         self.client_snapshot = {}
