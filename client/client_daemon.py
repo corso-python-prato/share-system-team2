@@ -244,6 +244,17 @@ class Daemon(RegexMatchingEventHandler):
         else:
             self.stop(1, 'Impossible to use "{}" path, please change dir name'.format(abs_path))
 
+    def absolutize_path(self, rel_path):
+        """
+        This function absolutize a path that i have relativize before:
+        for example: subfolder/ will be /home/user/watched/subfolder/
+        """
+        abs_path = os.path.join(self.cfg['sharing_path'], rel_path)
+        if os.path.isfile(abs_path):
+            return abs_path
+        else:
+            return None
+
     def create_observer(self):
         """
         Create an instance of the watchdog Observer thread class.
