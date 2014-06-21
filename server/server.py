@@ -8,6 +8,7 @@ import datetime
 import argparse
 import hashlib
 join = os.path.join
+import time
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -85,6 +86,24 @@ def _read_file(filename):
     return content
 
 
+def now_timestamp():
+    """
+    Return the current server timestamp as an int.
+    :return: int
+    """
+    return int(time.time())
+
+
+def file_timestamp(filepath):
+    """
+    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+
+    :param filepath: str
+    :return: int
+    """
+    return int(os.path.getmtime(filepath))
+
+
 def _encrypt_password(password):
     """
     Return the password encrypted as a string.
@@ -120,7 +139,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     welcome_file = join(dirpath, 'WELCOME')
     with open(welcome_file, 'w') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
-    last_timestamp = int(os.path.getmtime(welcome_file))
+    last_timestamp = file_timestamp(welcome_file)
 
     for dirname in default_dirs:
         subdirpath = join(dirpath, dirname)
@@ -130,7 +149,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         # beacuse wee need files to see the directories.
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
-        last_timestamp = int(os.path.getmtime(filepath))
+        last_timestamp = file_timestamp(filepath)
     logger.info('{} created'.format(dirpath))
     return last_timestamp, calculate_dir_snapshot(dirpath)
 
@@ -243,7 +262,8 @@ class Actions(Resource):
 
     def _delete(self, username):
         """
-        Delete a file for a given <filepath>
+        Delete a file for a given <filepath>, and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
         rootpath = join(FILE_ROOT, username, filepath)
@@ -255,12 +275,14 @@ class Actions(Resource):
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
-
         self._clear_dirs(os.path.dirname(filepath), username)
+        # I deleted a file, so the last server timestamp is the current timestamp
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path
+        Copy a file from a given source path to a destination path and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         src_path, dst_path = self._get_src_dst(username)
 
@@ -270,10 +292,13 @@ class Actions(Resource):
             shutil.copy(src_path, dst_path)
         else:
             abort(HTTP_NOT_FOUND)
+        # TODO: return dst file timestamp instead of current timestamp?
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _move(self, username):
         """
-        Move a file from a given source path to a destination path
+        Move a file from a given source path to a destination path, and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         src_path, dst_path = self._get_src_dst(username)
 
@@ -284,6 +309,8 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(src_path), username)
+        # TODO: return dst file timestamp instead of current timestamp?
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _clear_dirs(self, path, root):
         """
@@ -338,7 +365,7 @@ def calculate_dir_snapshot(root_path):
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = int(os.path.getmtime(filepath))
+                timestamp = file_timestamp(filepath)
                 if timestamp > last_timestamp:
                     last_timestamp = timestamp
                 result[filepath[len(root_path) + 1:]] = [timestamp, md5]
@@ -410,6 +437,7 @@ class Files(Resource):
     def post(self, path):
         """
         Upload an authenticated user file to the server, given the path relative to the user directory.
+        Return the file timestamp of the file created in the server.
         The file must not exist in the server, otherwise only return an http forbidden code.
         :param path: str
         """
@@ -421,24 +449,31 @@ class Files(Resource):
         else:
             if os.path.isfile(join(dirname, filename)):
                 abort(HTTP_FORBIDDEN)
-        upload_file.save(join(dirname, filename))
-        return '', HTTP_CREATED
+        filepath = join(dirname, filename)
+        upload_file.save(filepath)
+        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
+        resp.status_code = HTTP_CREATED
+        return resp
 
     @auth.login_required
     def put(self, path):
         """
         Modify an authenticated user file in the server (uploading and overwriting it)
         given the path relative to the user directory. The file must exist in the server.
+        Return the file timestamp of the file updated in the server.
         :param path: str
         """
         upload_file = request.files['file']
         dirname, filename = self._get_dirname_filename(path)
+        server_path = join(dirname, filename)
 
-        if os.path.isfile(join(dirname, filename)):
-            upload_file.save(join(dirname, filename))
-            return '', HTTP_CREATED
+        if os.path.isfile(server_path):
+            upload_file.save(server_path)
         else:
             abort(HTTP_NOT_FOUND)
+        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(server_path)})
+        resp.status_code = HTTP_CREATED
+        return resp
 
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
