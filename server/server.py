@@ -345,10 +345,6 @@ def calculate_dir_snapshot(root_path):
     return last_timestamp, result
 
 
-def _dirsnapshot2lastimestamp(dir_snapshot):
-    return sorted(dir_snapshot.values())[-1].timestamp
-
-
 class Files(Resource):
     """
     Class that handle files as web resources.
