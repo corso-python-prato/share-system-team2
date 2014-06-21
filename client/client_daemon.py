@@ -372,34 +372,32 @@ class Daemon(RegexMatchingEventHandler):
 
     def calculate_md5_of_dir(self, directory, verbose=0):
         """
-        Calculate the md5 of the entire directory
+        Calculate the md5 of the entire directory, 
+        with the md5 in client_snapshot and the md5 of full filepath string.
+        When the filepath isn't in client_snapshot the md5 is calculated on fly
+        :return is the md5 hash of the directory
         """
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
-        if not os.path.exists (directory):
+        if not os.path.exists(directory):
             return -1
-
+        
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
                 filepath = os.path.join(root,names)
-                if verbose == 1:
-                    print 'Calculate MD5 of: ', filepath                
-                try:
-                    f1 = open(filepath, 'rb')
-                    while 1:
-                        # Read file in as little chunks
-                            buf = f1.read(4096)
-                            if not buf:
-                                break
-                            md5Hash.update(hashlib.md5(buf).hexdigest())
-                            md5Hash.update(hashlib.md5(filepath).hexdigest())
-                    f1.close()
-                except OSError, IOError:
-                    # You can't open the file for some reason
-                    f1.close()
-                    continue
-        
+                rel_path = self.relativize_path(filepath)
+                if rel_path in self.client_snapshot:
+                    md5Hash.update(self.client_snapshot[rel_path][1])
+                    md5Hash.update(hashlib.md5(filepath).hexdigest())
+                else:
+                    hashed_file = self.hash_file(filepath)
+                    if hashed_file:
+                        md5Hash.update(hashed_file)
+                        md5Hash.update(hashlib.md5(filepath).hexdigest())              
+                    else:
+                        print "can't hash file: ", filepath
+
         if verbose:
             stop = time.time()
             print stop - start
