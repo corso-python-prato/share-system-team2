@@ -159,6 +159,10 @@ class TestRequests(unittest.TestCase):
             os.remove(server_filepath)
         _manually_remove_user(USR)
 
+    def test_welcome(self):
+        test = self.app.get('/')
+        self.assertEqual(test.status_code, server.HTTP_OK)
+
     def test_files_get_with_auth(self):
         """
         Test that server return an OK HTTP code if an authenticated user request
@@ -267,6 +271,19 @@ class TestRequests(unittest.TestCase):
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
+
+    def test_files_put_with_auth(self):
+        path = 'test_put/file_to_change.txt'
+        _create_file(USR, path, 'I will change')
+        to_modify_filepath = userpath2serverpath(USR, path)
+
+        url = SERVER_FILES_API + path
+        print(url)
+        test = self.app.put(url,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                            data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
+        # TODO: check that content has changed
+        self.assertEqual(test.status_code, server.HTTP_CREATED)  # 200 or 201 (OK or created)?
 
     def test_delete_file_path(self):
         """
