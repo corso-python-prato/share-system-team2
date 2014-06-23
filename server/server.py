@@ -484,7 +484,7 @@ def main():
     parser.add_argument('--verbose', default=False, action='store_true',
                         help='set console verbosity level to INFO (3) [default: %(default)s]. \
                         Ignored if --debug option is set.')
-    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, nargs='?',
+    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
     parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
