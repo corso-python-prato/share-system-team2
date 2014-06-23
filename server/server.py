@@ -182,8 +182,10 @@ def verify_password(username, password):
     if not username:
         # Warning/info?
         return False
-    stored_pw = userdata.get(username)
-    if stored_pw:
+    single_user_data = userdata.get(username)
+    if single_user_data:
+        stored_pw = single_user_data.get(PASSWORD)
+        assert stored_pw is not None, 'Server error: user data must contain a password!'
         res = sha256_crypt.verify(password, stored_pw)
     else:
         logger.info('User "{}" does not exist'.format(username))
