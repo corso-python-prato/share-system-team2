@@ -14,9 +14,9 @@
 
 }
 
-User Signup: when a new user subscribes the service, the user_data_structure is added at the users_list in memory and appended to the users/userdata.json file. Its server_timestamp is initialized at the user creation time, and its files dictionary is empty.
+User Signup: when a new user subscribes the service, the user_data_structure is added at the user_list in memory and appended to the users/userdata.json file. Its server_timestamp is initialized at the user creation time, and its files dictionary is empty.
 
-Server Start: the file users/userdata.json is loaded in memory as user_list.
+Server Start: if exists, the file users/userdata.json is loaded in memory as user_list, otherwise it is created and initialized (empty).
 
 Server Shutdown: for each user in the user_list the server_timestamp and files are "dumped" to the userdata.json file.
 
