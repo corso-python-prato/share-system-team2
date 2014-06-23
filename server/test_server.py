@@ -114,7 +114,11 @@ def build_tstuser_dir(username):
 
 
 def _manually_create_user(username, pw):
-    server.userdata[username] = server._encrypt_password(pw)
+    enc_pass = server._encrypt_password(pw)
+    single_user_data = {server.PASSWORD: enc_pass,
+                        server.LAST_SERVER_TIMESTAMP: server.now_timestamp(),
+                        server.SNAPSHOT: {}}  # set empty directory as snapshot
+    server.userdata[username] = single_user_data
     create_user_dir(username)
 
 
