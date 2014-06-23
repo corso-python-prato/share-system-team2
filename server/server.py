@@ -8,6 +8,7 @@ import datetime
 import argparse
 import hashlib
 join = os.path.join
+import time
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -26,6 +27,7 @@ HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
+
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
@@ -34,6 +36,8 @@ WORKDIR = os.path.dirname(__file__)
 USERDATA_FILENAME = 'userdata.json'
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
+LAST_SERVER_TIMESTAMP = 'server_timestamp'
+PASSWORD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 
@@ -82,6 +86,24 @@ def _read_file(filename):
     return content
 
 
+def now_timestamp():
+    """
+    Return the current server timestamp as an int.
+    :return: int
+    """
+    return int(time.time())
+
+
+def file_timestamp(filepath):
+    """
+    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+
+    :param filepath: str
+    :return: int
+    """
+    return int(os.path.getmtime(filepath))
+
+
 def _encrypt_password(password):
     """
     Return the password encrypted as a string.
@@ -117,10 +139,19 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     welcome_file = join(dirpath, 'WELCOME')
     with open(welcome_file, 'w') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
+    last_timestamp = file_timestamp(welcome_file)
 
     for dirname in default_dirs:
-        os.mkdir(join(dirpath, dirname))
+        subdirpath = join(dirpath, dirname)
+        filepath = join(subdirpath, '{}.txt'.format(dirname))
+        os.mkdir(subdirpath)
+        # Create a default file for each default directory
+        # beacuse wee need files to see the directories.
+        with open(filepath, 'w') as fp:
+            fp.write('{} {}\n'.format(username, dirname))
+        last_timestamp = file_timestamp(filepath)
     logger.info('{} created'.format(dirpath))
+    return last_timestamp, calculate_dir_snapshot(dirpath)
 
 
 def load_userdata():
@@ -151,8 +182,10 @@ def verify_password(username, password):
     if not username:
         # Warning/info?
         return False
-    stored_pw = userdata.get(username)
-    if stored_pw:
+    single_user_data = userdata.get(username)
+    if single_user_data:
+        stored_pw = single_user_data.get(PASSWORD)
+        assert stored_pw is not None, 'Server error: user data must contain a password!'
         res = sha256_crypt.verify(password, stored_pw)
     else:
         logger.info('User "{}" does not exist'.format(username))
@@ -182,14 +215,18 @@ def create_user():
     if username and password:
         if username in userdata:
             # user already exists!
-            response = 'Error: username already exists!', HTTP_CONFLICT
+            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
-            userdata[username] = _encrypt_password(password)
-            response = 'User "{}" created'.format(username), HTTP_CREATED
+            enc_pass = _encrypt_password(password)
+            last_server_timestamp, dir_snapshot = init_user_directory(username)
+            single_user_data = {PASSWORD: enc_pass,
+                                LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                                SNAPSHOT: dir_snapshot}
+            userdata[username] = single_user_data
             save_userdata(userdata)
-            init_user_directory(username)
+            response = 'User "{}" created.\n'.format(username), HTTP_CREATED
     else:
-        response = 'Error: username or password is missing', HTTP_BAD_REQUEST
+        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
 
@@ -227,7 +264,8 @@ class Actions(Resource):
 
     def _delete(self, username):
         """
-        Delete a file for a given <filepath>
+        Delete a file for a given <filepath>, and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
         rootpath = join(FILE_ROOT, username, filepath)
@@ -239,12 +277,14 @@ class Actions(Resource):
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
-
         self._clear_dirs(os.path.dirname(filepath), username)
+        # I deleted a file, so the last server timestamp is the current timestamp
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path
+        Copy a file from a given source path to a destination path and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         src_path, dst_path = self._get_src_dst(username)
 
@@ -254,10 +294,13 @@ class Actions(Resource):
             shutil.copy(src_path, dst_path)
         else:
             abort(HTTP_NOT_FOUND)
+        # TODO: return dst file timestamp instead of current timestamp?
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _move(self, username):
         """
-        Move a file from a given source path to a destination path
+        Move a file from a given source path to a destination path, and return the current server timestamp in a json.
+        json format: {LAST_SERVER_TIMESTAMP: int}
         """
         src_path, dst_path = self._get_src_dst(username)
 
@@ -268,6 +311,8 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(src_path), username)
+        # TODO: return dst file timestamp instead of current timestamp?
+        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _clear_dirs(self, path, root):
         """
@@ -303,13 +348,14 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def get_dir_snapshot(root_path):
+def calculate_dir_snapshot(root_path):
     """
     Walk on root_path returning a snapshot in a dict.
     :param root_path: str
-    :return: dict
+    :return: tuple
     """
     result = {}
+    last_timestamp = 0
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -321,8 +367,11 @@ def get_dir_snapshot(root_path):
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                result[filepath[len(root_path) + 1:]] = md5
-    return result
+                timestamp = file_timestamp(filepath)
+                if timestamp > last_timestamp:
+                    last_timestamp = timestamp
+                result[filepath[len(root_path) + 1:]] = [timestamp, md5]
+    return last_timestamp, result
 
 
 class Files(Resource):
@@ -355,18 +404,18 @@ class Files(Resource):
             try:
                 response = make_response(_read_file(join(FILE_ROOT, username, path)))
             except IOError:
-                response = 'File not found', HTTP_NOT_FOUND
+                response = 'Error: file {} not found.\n'.format(path), HTTP_NOT_FOUND
             else:
                 response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            snapshot = get_dir_snapshot(user_rootpath)
+            last_server_timestamp, snapshot = calculate_dir_snapshot(user_rootpath)
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
-            response = jsonify({SNAPSHOT: snapshot})
+            response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                                SNAPSHOT: snapshot})
         logging.debug(response)
         return response
-
 
     @auth.login_required
     def _get_dirname_filename(self, path):
@@ -386,11 +435,11 @@ class Files(Resource):
 
         return dirname, filename
 
-
     @auth.login_required
     def post(self, path):
         """
         Upload an authenticated user file to the server, given the path relative to the user directory.
+        Return the file timestamp of the file created in the server.
         The file must not exist in the server, otherwise only return an http forbidden code.
         :param path: str
         """
@@ -402,24 +451,31 @@ class Files(Resource):
         else:
             if os.path.isfile(join(dirname, filename)):
                 abort(HTTP_FORBIDDEN)
-        upload_file.save(join(dirname, filename))
-        return '', HTTP_CREATED
+        filepath = join(dirname, filename)
+        upload_file.save(filepath)
+        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
+        resp.status_code = HTTP_CREATED
+        return resp
 
     @auth.login_required
     def put(self, path):
         """
         Modify an authenticated user file in the server (uploading and overwriting it)
         given the path relative to the user directory. The file must exist in the server.
+        Return the file timestamp of the file updated in the server.
         :param path: str
         """
         upload_file = request.files['file']
         dirname, filename = self._get_dirname_filename(path)
+        server_path = join(dirname, filename)
 
-        if os.path.isfile(join(dirname, filename)):
-            upload_file.save(join(dirname, filename))
-            return '', HTTP_CREATED
+        if os.path.isfile(server_path):
+            upload_file.save(server_path)
         else:
             abort(HTTP_NOT_FOUND)
+        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(server_path)})
+        resp.status_code = HTTP_CREATED
+        return resp
 
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))

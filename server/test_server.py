@@ -89,7 +89,7 @@ def build_tstuser_dir(username):
     Create a directory with files and return its structure
     in a list.
     :param username: str
-    :return: list
+    :return: tuple
     """
     # md5("foo") = "acbd18db4cc2f85cedef654fccc4a4d8"
     # md5("bar") = "37b51d194a7513e45b56f6524f2d51f2"
@@ -104,18 +104,21 @@ def build_tstuser_dir(username):
     # If directory already exists, destroy it
     if os.path.isdir(user_root):
         shutil.rmtree(user_root)
-
     os.mkdir(user_root)
-
-    target = {}
+    expected_timestamp = None
+    expected_snapshot = {}
     for user_filepath, content, md5 in file_contents:
-        _create_file(username, user_filepath, content)
-        target[user_filepath] = md5
-    return target
+        expected_timestamp = int(_create_file(username, user_filepath, content))
+        expected_snapshot[user_filepath] = [expected_timestamp, unicode(md5)]
+    return expected_timestamp, expected_snapshot
 
 
 def _manually_create_user(username, pw):
-    server.userdata[username] = server._encrypt_password(pw)
+    enc_pass = server._encrypt_password(pw)
+    single_user_data = {server.PASSWORD: enc_pass,
+                        server.LAST_SERVER_TIMESTAMP: server.now_timestamp(),
+                        server.SNAPSHOT: {}}  # set empty directory as snapshot
+    server.userdata[username] = single_user_data
     create_user_dir(username)
 
 
@@ -159,6 +162,10 @@ class TestRequests(unittest.TestCase):
         if os.path.exists(server_filepath):
             os.remove(server_filepath)
         _manually_remove_user(USR)
+
+    def test_welcome(self):
+        test = self.app.get('/')
+        self.assertEqual(test.status_code, server.HTTP_OK)
 
     def test_files_get_with_auth(self):
         """
@@ -231,7 +238,9 @@ class TestRequests(unittest.TestCase):
         Test lato-server user files snapshot.
         """
         # The test user is created in setUp
-        target = {server.SNAPSHOT: build_tstuser_dir(USR)}
+        expected_timestamp, expected_snapshot = build_tstuser_dir(USR)
+        target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
+                  server.SNAPSHOT: expected_snapshot}
         test = self.app.get(SERVER_FILES_API,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             )
@@ -266,6 +275,18 @@ class TestRequests(unittest.TestCase):
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
+
+    def test_files_put_with_auth(self):
+        path = 'test_put/file_to_change.txt'
+        _create_file(USR, path, 'I will change')
+        to_modify_filepath = userpath2serverpath(USR, path)
+
+        url = SERVER_FILES_API + path
+        test = self.app.put(url,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                            data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
+        # TODO: check that content has changed
+        self.assertEqual(test.status_code, server.HTTP_CREATED)  # 200 or 201 (OK or created)?
 
     def test_delete_file_path(self):
         """
