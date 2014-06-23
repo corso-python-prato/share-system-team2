@@ -21,15 +21,6 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import RegexMatchingEventHandler
 from connection_manager import ConnectionManager
 
-    # SNAPSHOT STRUCTURE
-    # {
-    #     "last_timestamp":"",
-    #     "files":{
-    #             "<file_path>":('<md5>','<timestamp>')
-
-    #             }
-
-    # }
 
 class Daemon(RegexMatchingEventHandler):
     # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
@@ -115,6 +106,17 @@ class Daemon(RegexMatchingEventHandler):
         pass    
 
     def build_client_snapshot(self):
+        """
+        Build a snapshot of the sharing folder with the following structure
+
+        self.client_snapshot
+        {
+            "last_timestamp":"",
+            "files":{
+            "<file_path>":('<timestamp>', '<md5>')
+        }
+        """
+
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
