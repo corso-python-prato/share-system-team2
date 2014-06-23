@@ -139,10 +139,6 @@ class TestRequests(unittest.TestCase):
     def tearDown(self):
         _manually_remove_user(USR)
 
-    def test_welcome(self):
-        test = self.app.get('/')
-        self.assertEqual(test.status_code, server.HTTP_OK)
-
     def test_files_post_with_auth(self):
         """
         Test for authenticated upload.
