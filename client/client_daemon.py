@@ -42,6 +42,7 @@ class Daemon(RegexMatchingEventHandler):
                      ]
 
     PATH_CONFIG = 'config.json'
+    # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
@@ -86,7 +87,7 @@ class Daemon(RegexMatchingEventHandler):
                 with open(config_path, 'r') as fo:
                     loaded_config = json.load(fo)
             except ValueError:
-                print 'Impossible to read "{0}"! "{0}" overwrited and loaded default config!'.format(config_path)
+                print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
             corrupted_config = False
             for k in Daemon.DEFAULT_CONFIG:
@@ -95,10 +96,10 @@ class Daemon(RegexMatchingEventHandler):
             if not corrupted_config:
                 return loaded_config
             else:
-                print '"{0}" corrupted! "{0}" overwrited and loaded default config!'.format(config_path)
+                print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
         else:
-            print '{0} doesn\'t exist, "{0}" overwrited and loaded default config!'.format(config_path)
+            print '\nWarning "{0}" doesn\'t exist, Config file overwrited and loaded default config!\n'.format(config_path)
             return build_default_cfg()
 
     def connect_to_server(self):
@@ -249,11 +250,11 @@ class Daemon(RegexMatchingEventHandler):
         total_md5 = self.calculate_md5_of_dir(self.cfg['sharing_path'])
         print "TOTAL MD5: ", total_md5
 
-        for filepath in server_snapshot: 
+        for filepath in server_snapshot:
             if filepath not in self.client_snapshot:
                 # TODO: check if download succeed, if so update client_snapshot with the new file
                 self.conn_mng.dispatch_request('download', {'filepath': filepath})
-                self.client_snapshot[filepath] = server_snapshot[filepath]            
+                self.client_snapshot[filepath] = server_snapshot[filepath]
             elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                 hashed_file = hash_file(self.absolutize_path(filepath))
@@ -406,6 +407,7 @@ class Daemon(RegexMatchingEventHandler):
                         # handle all other sockets
                         length = s.recv(Daemon.INT_SIZE)
                         if length:
+                            # i need to do [0] and cast int becouse the struct.unpuck return a tupla like (23234234,) with the lenght as a string
                             length = int(struct.unpack('!i', length)[0])
                             message = json.loads(s.recv(length))
                             for cmd, data in message.items():
@@ -433,7 +435,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def calculate_md5_of_dir(self, directory, verbose=0):
         """
-        Calculate the md5 of the entire directory, 
+        Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
@@ -455,7 +457,7 @@ class Daemon(RegexMatchingEventHandler):
                     hashed_file = self.hash_file(filepath)
                     if hashed_file:
                         md5Hash.update(hashed_file)
-                        md5Hash.update(hashlib.md5(filepath).hexdigest())              
+                        md5Hash.update(hashlib.md5(filepath).hexdigest())
                     else:
                         print "can't hash file: ", filepath
 
@@ -497,7 +499,7 @@ class Daemon(RegexMatchingEventHandler):
                 # Read file in as little chunks
                     buf = f1.read(1024)
                     if not buf:
-                        break                
+                        break
                     md5Hash.update(hashlib.md5(buf).hexdigest())
             f1.close()
             return md5Hash.hexdigest()
@@ -507,5 +509,5 @@ class Daemon(RegexMatchingEventHandler):
             # You can't open the file for some reason
 
 if __name__ == '__main__':
-    daemon = Daemon()    
+    daemon = Daemon()
     daemon.start()
