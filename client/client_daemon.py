@@ -60,9 +60,7 @@ class Daemon(RegexMatchingEventHandler):
         self.conn_mng = ConnectionManager(self.cfg)
 
         # Operations necessary to start the daemon
-        self.connect_to_server()
         self.build_client_snapshot()
-        # TODO implement NEW sync_with_server
         self._sync_with_server()
         self.create_observer()
 
@@ -115,9 +113,6 @@ class Daemon(RegexMatchingEventHandler):
             except OSError:
                 self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
                           .format(self.cfg['sharing_path'], self.PATH_CONFIG))
-    def connect_to_server(self):
-        # self.cfg['server_address']
-        pass    
 
     def build_client_snapshot(self):
         """
@@ -458,7 +453,7 @@ class Daemon(RegexMatchingEventHandler):
         md5Hash = hashlib.md5()
         if not os.path.exists(directory):
             return -1
-        
+
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
                 filepath = os.path.join(root,names)
@@ -478,27 +473,6 @@ class Daemon(RegexMatchingEventHandler):
             stop = time.time()
             print stop - start
         return md5Hash.hexdigest()
-
-    def read_file(self, file_path):
-        """
-        Read file in chunks 
-        :return the readed file as binary or None in case of error
-        """
-        readed = ''
-        try:
-            f1 = open(file_path, 'rb')
-            while 1:
-                # Read file in as little chunks
-                    buf = f1.read(1024)
-                    if not buf:
-                        break                
-                    readed += buf
-            f1.close()
-            return readed 
-        except (OSError, IOError) as e:
-            print e
-            return None
-            # You can't open the file for some reason
 
     def hash_file(self, file_path):
         """
