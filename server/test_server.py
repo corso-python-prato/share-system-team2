@@ -27,8 +27,6 @@ REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
 # WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
 # create test folders and files for 'files/' api
-USER_RELATIVE_DOWNLOAD_FILEPATH = 'testdownload/testfile.txt'
-DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
 
 
 def userpath2serverpath(username, path):
@@ -138,103 +136,12 @@ class TestRequests(unittest.TestCase):
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
 
-        # Create temporary file
-        server_filepath = userpath2serverpath(USR, USER_RELATIVE_DOWNLOAD_FILEPATH)
-        if not os.path.exists(os.path.dirname(server_filepath)):
-            os.makedirs(os.path.dirname(server_filepath))
-        with open(server_filepath, 'w') as fp:
-            fp.write('some text')
-
     def tearDown(self):
-        server_filepath = userpath2serverpath(USR, USER_RELATIVE_DOWNLOAD_FILEPATH)
-        if os.path.exists(server_filepath):
-            os.remove(server_filepath)
         _manually_remove_user(USR)
 
     def test_welcome(self):
         test = self.app.get('/')
         self.assertEqual(test.status_code, server.HTTP_OK)
-
-    def test_files_get_with_auth(self):
-        """
-        Test that server return an OK HTTP code if an authenticated user request
-        to download an existing file.
-        """
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
-        self.assertEqual(test.status_code, server.HTTP_OK)
-
-    def test_files_get_existing_file_with_wrong_password(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the user exists but the given password is wrong.
-        """
-        wrong_password = PW + 'a'
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR,
-                                                                                                 wrong_password))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_empty_password(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the user exists but the password is an empty string.
-        """
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_empty_username(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the given user is an empty string and the password is not empty.
-        """
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_existing_file_with_unexisting_user(self):
-        """
-        Test that server return a HTTP_UNAUTHORIZED error if
-        the given user does not exist.
-        """
-        user = 'UnExIsTiNgUsEr'
-        assert user not in server.userdata
-        test = self.app.get(DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_without_auth(self):
-        """
-        Test unauthorized download of an existsing file.
-        """
-        # TODO: ensure that the file exists
-        test = self.app.get(DOWNLOAD_TEST_URL)
-        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
-
-    def test_files_get_with_not_existing_file(self):
-        """
-        Test that error 404 is correctly returned if an authenticated user try to download
-        a file that does not exist.
-        """
-        test = self.app.get(SERVER_FILES_API + 'testdownload/unexisting.txt',
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
-        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
-
-    def test_files_get_snapshot(self):
-        """
-        Test lato-server user files snapshot.
-        """
-        # The test user is created in setUp
-        expected_timestamp, expected_snapshot = build_tstuser_dir(USR)
-        target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
-                  server.SNAPSHOT: expected_snapshot}
-        test = self.app.get(SERVER_FILES_API,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                            )
-        self.assertEqual(test.status_code, server.HTTP_OK)
-        obj = json.loads(test.data)
-        self.assertEqual(obj, target)
 
     def test_files_post_with_auth(self):
         """
@@ -339,6 +246,122 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
+
+
+class TestGetRequests(unittest.TestCase):
+    """
+    Test get requests.
+    """
+    USER_RELATIVE_DOWNLOAD_FILEPATH = 'testdownload/testfile.txt'
+    DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
+
+    def setUp(self):
+        """
+        Create an user with a POST method and create the test file to test the download from server.
+        """
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+        # To see the tracebacks in case of 500 server error!
+        server.app.config.update(TESTING=True)
+
+        _manually_remove_user(USR)
+        _manually_create_user(USR, PW)
+
+        # Create temporary file
+        server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
+        if not os.path.exists(os.path.dirname(server_filepath)):
+            os.makedirs(os.path.dirname(server_filepath))
+        with open(server_filepath, 'w') as fp:
+            fp.write('some text')
+
+    def tearDown(self):
+        server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
+        if os.path.exists(server_filepath):
+            os.remove(server_filepath)
+        _manually_remove_user(USR)
+
+    def test_files_get_with_auth(self):
+        """
+        Test that server return an OK HTTP code if an authenticated user request
+        to download an existing file.
+        """
+        test = self.app.get(self.DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+        self.assertEqual(test.status_code, server.HTTP_OK)
+
+    def test_files_get_existing_file_with_wrong_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the given password is wrong.
+        """
+        wrong_password = PW + 'a'
+        test = self.app.get(self.DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR,
+                                                                                                 wrong_password))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_password(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the user exists but the password is an empty string.
+        """
+        test = self.app.get(self.DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_empty_username(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user is an empty string and the password is not empty.
+        """
+        test = self.app.get(self.DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_existing_file_with_unexisting_user(self):
+        """
+        Test that server return a HTTP_UNAUTHORIZED error if
+        the given user does not exist.
+        """
+        user = 'UnExIsTiNgUsEr'
+        assert user not in server.userdata
+        test = self.app.get(self.DOWNLOAD_TEST_URL,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_without_auth(self):
+        """
+        Test unauthorized download of an existsing file.
+        """
+        # TODO: ensure that the file exists
+        test = self.app.get(self.DOWNLOAD_TEST_URL)
+        self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
+
+    def test_files_get_with_not_existing_file(self):
+        """
+        Test that error 404 is correctly returned if an authenticated user try to download
+        a file that does not exist.
+        """
+        test = self.app.get(SERVER_FILES_API + 'testdownload/unexisting.txt',
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_files_get_snapshot(self):
+        """
+        Test lato-server user files snapshot.
+        """
+        # The test user is created in setUp
+        expected_timestamp, expected_snapshot = build_tstuser_dir(USR)
+        target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
+                  server.SNAPSHOT: expected_snapshot}
+        test = self.app.get(SERVER_FILES_API,
+                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                            )
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        obj = json.loads(test.data)
+        self.assertEqual(obj, target)
+
 
 
 class TestUsers(unittest.TestCase):
