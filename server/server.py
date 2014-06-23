@@ -492,6 +492,7 @@ def main():
     parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
+    parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
     args = parser.parse_args()
 
     if args.debug:
@@ -516,8 +517,7 @@ def main():
 
     userdata.update(load_userdata())
     init_root_structure()
-    app.run(host='0.0.0.0', debug=True)
-
+    app.run(host=args.host, debug=args.debug)
 
 if __name__ == '__main__':
     main()
