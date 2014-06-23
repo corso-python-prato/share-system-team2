@@ -278,7 +278,6 @@ class TestRequests(unittest.TestCase):
         to_modify_filepath = userpath2serverpath(USR, path)
 
         url = SERVER_FILES_API + path
-        print(url)
         test = self.app.put(url,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
