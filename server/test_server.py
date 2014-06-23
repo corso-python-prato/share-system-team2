@@ -372,6 +372,14 @@ class TestUsers(unittest.TestCase):
                              data={'username': USR, 'password': 'boh'})
         self.assertEqual(test.status_code, server.HTTP_CONFLICT)
 
+    def test_signup_with_empty_username(self):
+        """
+        Test that a signup with empty user return a bad request error.
+        """
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
+                             data={'username': '', 'password': 'pass'})
+        self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
+
 
 if __name__ == '__main__':
     unittest.main()
