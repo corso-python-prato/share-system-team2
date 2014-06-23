@@ -1,6 +1,11 @@
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+server test module
 
+Every TestCase class should use the <TEST_DIR> directory. To do it, just call 'setup_test_dir()' in the setUp method and
+'tear_down_test_dir()' in the tearDown one.
+"""
 import unittest
 import io
 import os
@@ -11,6 +16,10 @@ import json
 import logging
 
 import server
+
+start_dir = os.getcwd()
+
+TEST_DIR = 'server_test'
 
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
@@ -122,11 +131,33 @@ def _manually_remove_user(username):  # TODO: make this from server module
         logging.info('"%s" user directory does not exist...' % user_dirpath)
 
 
+def setup_test_dir():
+    """
+    Create (if needed) <TEST_DIR> directory starting from current directory and change current directory to the new one.
+    """
+    try:
+        os.mkdir(TEST_DIR)
+    except OSError:
+        pass
+
+    os.chdir(TEST_DIR)
+
+
+def tear_down_test_dir():
+    """
+    Return to initial directory and remove the <TEST_DIR> one.
+    """
+    os.chdir(start_dir)
+    shutil.rmtree(TEST_DIR)
+
+
 class TestRequests(unittest.TestCase):
     def setUp(self):
         """
         Create an user and create the test file to test the download from server.
         """
+        setup_test_dir()
+
         self.app = server.app.test_client()
         self.app.testing = True
         # To see the tracebacks in case of 500 server error!
@@ -137,6 +168,7 @@ class TestRequests(unittest.TestCase):
 
     def tearDown(self):
         _manually_remove_user(USR)
+        tear_down_test_dir()
 
     def test_files_post_with_auth(self):
         """
@@ -254,6 +286,8 @@ class TestGetRequests(unittest.TestCase):
         """
         Create an user with a POST method and create the test file to test the download from server.
         """
+        setup_test_dir()
+
         self.app = server.app.test_client()
         self.app.testing = True
         # To see the tracebacks in case of 500 server error!
@@ -274,6 +308,7 @@ class TestGetRequests(unittest.TestCase):
         if os.path.exists(server_filepath):
             os.remove(server_filepath)
         _manually_remove_user(USR)
+        tear_down_test_dir()
 
     def test_files_get_with_auth(self):
         """
@@ -359,12 +394,16 @@ class TestGetRequests(unittest.TestCase):
 
 class TestUsers(unittest.TestCase):
     def setUp(self):
+        setup_test_dir()
         self.app = server.app.test_client()
         self.app.testing = True
         # To see the tracebacks in case of 500 server error!
         server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
+
+    def tearDown(self):
+        tear_down_test_dir()
 
     def test_signup(self):
         """
