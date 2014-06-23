@@ -497,16 +497,8 @@ def main():
         # If set to True, win against verbosity parameter
         console_handler.setLevel(logging.INFO)
     else:
-        if args.verbosity == 0:  # Only show critical error message (very quiet)
-            console_handler.setLevel(logging.CRITICAL)
-        if args.verbosity == 1:  # Only show error message (quite quiet)
-            console_handler.setLevel(logging.ERROR)
-        elif args.verbosity == 2:  # Show only warning and error messages
-            console_handler.setLevel(logging.WARNING)
-        elif args.verbosity == 3:  # Verbose: show all messages except the debug ones
-            console_handler.setLevel(logging.INFO)
-        elif args.verbosity == 4:  # Show *all* messages
-            console_handler.setLevel(logging.DEBUG)
+        levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
+        console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
 
