@@ -192,14 +192,6 @@ def verify_password(username, password):
     return res
 
 
-@app.route('/')
-def welcome():
-    """
-    Simple welcome public url.
-    """
-    return 'Welcome from {} server!\n'.format(__title__), HTTP_OK
-
-
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def create_user():
     """
