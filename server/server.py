@@ -234,7 +234,7 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        username = request.authorization['username']
+        username = auth.username
         methods = {'delete': self._delete,
                    'copy': self._copy,
                    'move': self._move,
@@ -387,7 +387,7 @@ class Files(Resource):
         :param path: str
         """
         logger.debug('Files.get({})'.format(repr(path)))
-        username = request.authorization['username']
+        username = auth.username
         user_rootpath = join(FILE_ROOT, username)
         if path:
             # Download the file specified by <path>.
@@ -423,7 +423,7 @@ class Files(Resource):
         Return dirname(directory name) and filename(file name) for a given path to complete
         post and put methods
         """
-        username = request.authorization['username']
+        username = auth.username
         dirname = os.path.dirname(path)
         dirname = (join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
