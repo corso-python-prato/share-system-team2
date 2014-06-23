@@ -129,7 +129,6 @@ class TestRequests(unittest.TestCase):
         """
         self.app = server.app.test_client()
         self.app.testing = True
-
         # To see the tracebacks in case of 500 server error!
         server.app.config.update(TESTING=True)
 
@@ -257,7 +256,6 @@ class TestGetRequests(unittest.TestCase):
         """
         self.app = server.app.test_client()
         self.app.testing = True
-
         # To see the tracebacks in case of 500 server error!
         server.app.config.update(TESTING=True)
 
@@ -359,12 +357,10 @@ class TestGetRequests(unittest.TestCase):
         self.assertEqual(obj, target)
 
 
-
 class TestUsers(unittest.TestCase):
     def setUp(self):
         self.app = server.app.test_client()
         self.app.testing = True
-
         # To see the tracebacks in case of 500 server error!
         server.app.config.update(TESTING=True)
 
