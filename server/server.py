@@ -67,7 +67,6 @@ launched_or_imported = {True: 'launched', False: 'imported'}[__name__ == '__main
 logger.info('-' * 79)
 logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
 
-
 # Server initialization
 # =====================
 userdata = {}
@@ -193,14 +192,6 @@ def verify_password(username, password):
     return res
 
 
-@app.route('/')
-def welcome():
-    """
-    Simple welcome public url.
-    """
-    return 'Welcome from {} server!\n'.format(__title__), HTTP_OK
-
-
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def create_user():
     """
@@ -234,7 +225,7 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        username = request.authorization['username']
+        username = auth.username()
         methods = {'delete': self._delete,
                    'copy': self._copy,
                    'move': self._move,
@@ -252,7 +243,6 @@ class Actions(Resource):
         """
         src = request.form['src']
         dst = request.form['dst']
-
         src_path = os.path.abspath(join(FILE_ROOT, username, src))
         dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
         real_root = os.path.realpath(join(FILE_ROOT, username))
@@ -270,9 +260,14 @@ class Actions(Resource):
         filepath = request.form['filepath']
         rootpath = join(FILE_ROOT, username, filepath)
         filepath = os.path.abspath(rootpath)
+        real_root = os.path.realpath(join(FILE_ROOT, username))
 
         if not os.path.isfile(filepath):
             abort(HTTP_NOT_FOUND)
+
+        if real_root not in filepath:
+            abort(HTTP_FORBIDDEN)
+
         try:
             os.remove(filepath)
         except OSError:
@@ -387,7 +382,7 @@ class Files(Resource):
         :param path: str
         """
         logger.debug('Files.get({})'.format(repr(path)))
-        username = request.authorization['username']
+        username = auth.username()
         user_rootpath = join(FILE_ROOT, username)
         if path:
             # Download the file specified by <path>.
@@ -423,7 +418,7 @@ class Files(Resource):
         Return dirname(directory name) and filename(file name) for a given path to complete
         post and put methods
         """
-        username = request.authorization['username']
+        username = auth.username()
         dirname = os.path.dirname(path)
         dirname = (join(FILE_ROOT, username, dirname))
         real_dirname = os.path.realpath(dirname)
@@ -489,9 +484,10 @@ def main():
     parser.add_argument('--verbose', default=False, action='store_true',
                         help='set console verbosity level to INFO (3) [default: %(default)s]. \
                         Ignored if --debug option is set.')
-    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, nargs='?',
+    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
+    parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
     args = parser.parse_args()
 
     if args.debug:
@@ -501,23 +497,14 @@ def main():
         # If set to True, win against verbosity parameter
         console_handler.setLevel(logging.INFO)
     else:
-        if args.verbosity == 0:  # Only show critical error message (very quiet)
-            console_handler.setLevel(logging.CRITICAL)
-        if args.verbosity == 1:  # Only show error message (quite quiet)
-            console_handler.setLevel(logging.ERROR)
-        elif args.verbosity == 2:  # Show only warning and error messages
-            console_handler.setLevel(logging.WARNING)
-        elif args.verbosity == 3:  # Verbose: show all messages except the debug ones
-            console_handler.setLevel(logging.INFO)
-        elif args.verbosity == 4:  # Show *all* messages
-            console_handler.setLevel(logging.DEBUG)
+        levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
+        console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
 
     userdata.update(load_userdata())
     init_root_structure()
-    app.run(host='0.0.0.0', debug=True)
-
+    app.run(host=args.host, debug=args.debug)
 
 if __name__ == '__main__':
     main()
