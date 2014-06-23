@@ -213,7 +213,7 @@ def create_user():
     if username and password:
         if username in userdata:
             # user already exists!
-            response = 'Error: username already exists!', HTTP_CONFLICT
+            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
             enc_pass = _encrypt_password(password)
             last_server_timestamp, dir_snapshot = init_user_directory(username)
@@ -222,9 +222,9 @@ def create_user():
                                 SNAPSHOT: dir_snapshot}
             userdata[username] = single_user_data
             save_userdata(userdata)
-            response = 'User "{}" created'.format(username), HTTP_CREATED
+            response = 'User "{}" created.\n'.format(username), HTTP_CREATED
     else:
-        response = 'Error: username or password is missing', HTTP_BAD_REQUEST
+        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
 
@@ -402,7 +402,7 @@ class Files(Resource):
             try:
                 response = make_response(_read_file(join(FILE_ROOT, username, path)))
             except IOError:
-                response = 'File not found', HTTP_NOT_FOUND
+                response = 'Error: file {} not found.\n'.format(path), HTTP_NOT_FOUND
             else:
                 response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
         else:
