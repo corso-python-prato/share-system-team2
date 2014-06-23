@@ -41,7 +41,8 @@ class Daemon(RegexMatchingEventHandler):
                      '.*\/(\..*)',  # hidden files TODO: improve
                      ]
 
-    PATH_CONFIG = 'config.json'
+    # Default path for config file
+    PATH_CONFIG = os.path.abspath('./config')
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
@@ -55,11 +56,9 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
-        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
-        # TODO: Allow the setting of sharing path by user
-        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
-
+        self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
+
         # Operations necessary to start the daemon
         self.connect_to_server()
         self.build_client_snapshot()
@@ -102,6 +101,20 @@ class Daemon(RegexMatchingEventHandler):
             print '\nWarning "{0}" doesn\'t exist, Config file overwrited and loaded default config!\n'.format(config_path)
             return build_default_cfg()
 
+    def init_sharing_path(self):
+        """
+        Check that the sharing folder exists otherwise create it.
+        If is impossible to create exit with msg error.
+        """
+
+        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
+        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
+        if not os.path.isdir(self.cfg['sharing_path']):
+            try:
+                os.makedirs(self.cfg['sharing_path'])
+            except OSError:
+                self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
+                          .format(self.cfg['sharing_path'], self.PATH_CONFIG))
     def connect_to_server(self):
         # self.cfg['server_address']
         pass    
