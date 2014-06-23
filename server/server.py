@@ -67,7 +67,6 @@ launched_or_imported = {True: 'launched', False: 'imported'}[__name__ == '__main
 logger.info('-' * 79)
 logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
 
-
 # Server initialization
 # =====================
 userdata = {}
@@ -270,9 +269,14 @@ class Actions(Resource):
         filepath = request.form['filepath']
         rootpath = join(FILE_ROOT, username, filepath)
         filepath = os.path.abspath(rootpath)
+        real_root = os.path.realpath(join(FILE_ROOT, username))
 
         if not os.path.isfile(filepath):
             abort(HTTP_NOT_FOUND)
+
+        if real_root not in filepath:
+            abort(HTTP_FORBIDDEN)
+
         try:
             os.remove(filepath)
         except OSError:
