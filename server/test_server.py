@@ -29,18 +29,6 @@ USR, PW = REGISTERED_TEST_USER
 # create test folders and files for 'files/' api
 USER_RELATIVE_DOWNLOAD_FILEPATH = 'testdownload/testfile.txt'
 DOWNLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_DOWNLOAD_FILEPATH
-USER_RELATIVE_UPLOAD_FILEPATH = 'testupload/testfile.txt'
-UPLOAD_TEST_URL = SERVER_FILES_API + USER_RELATIVE_UPLOAD_FILEPATH
-UNEXISTING_TEST_URL = SERVER_FILES_API + 'testdownload/unexisting.txt'
-# create test folders and files for 'actions/' api
-DELETE_TEST_URL = SERVER_ACTIONS_API + 'delete'
-DELETE_TEST_FILE_PATH = 'testdelete/testdeletefile.txt'
-COPY_TEST_URL = SERVER_ACTIONS_API + 'copy'
-SRC_COPY_TEST_FILE_PATH = 'test_copy_src/testcopysrc.txt'
-DST_COPY_TEST_FILE_PATH = 'test_copy_dst/testcopydst.txt'
-MOVE_TEST_URL = SERVER_ACTIONS_API + 'move'
-SRC_MOVE_TEST_FILE_PATH = 'test_move_src/testmovesrc.txt'
-DST_MOVE_TEST_FILE_PATH = 'test_move_dst/testmovedst.txt'
 
 
 def userpath2serverpath(username, path):
@@ -229,7 +217,7 @@ class TestRequests(unittest.TestCase):
         Test that error 404 is correctly returned if an authenticated user try to download
         a file that does not exist.
         """
-        test = self.app.get(UNEXISTING_TEST_URL,
+        test = self.app.get(SERVER_FILES_API + 'testdownload/unexisting.txt',
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
@@ -252,10 +240,12 @@ class TestRequests(unittest.TestCase):
         """
         Test for authenticated upload.
         """
-        uploaded_filepath = userpath2serverpath(USR, USER_RELATIVE_UPLOAD_FILEPATH)
+        user_relative_upload_filepath = 'testupload/testfile.txt'
+        upload_test_url = SERVER_FILES_API + user_relative_upload_filepath
+        uploaded_filepath = userpath2serverpath(USR, user_relative_upload_filepath)
         assert not os.path.exists(uploaded_filepath), '"{}" file is existing'.format(uploaded_filepath)
 
-        test = self.app.post(UPLOAD_TEST_URL,
+        test = self.app.post(upload_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),),
                              follow_redirects=True)
@@ -293,11 +283,13 @@ class TestRequests(unittest.TestCase):
         Test if a created file is deleted and assures it doesn't exists anymore with assertFalse
         """
         # create file to be deleted
-        to_delete_filepath = userpath2serverpath(USR, DELETE_TEST_FILE_PATH)
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        delete_test_file_path = 'testdelete/testdeletefile.txt'
+        to_delete_filepath = userpath2serverpath(USR, delete_test_file_path)
 
-        _create_file(USR, DELETE_TEST_FILE_PATH, 'this is the file to be deleted')
+        _create_file(USR, delete_test_file_path, 'this is the file to be deleted')
 
-        test = self.app.post(DELETE_TEST_URL,
+        test = self.app.post(delete_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'filepath': to_delete_filepath}, follow_redirects=True)
 
@@ -309,14 +301,17 @@ class TestRequests(unittest.TestCase):
         Test if a created source file is copied in a new created destination and assures the source file
         still exists
         """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        src_copy_test_file_path = 'test_copy_src/testcopysrc.txt'
+        dst_copy_test_file_path = 'test_copy_dst/testcopydst.txt'
         # Create source file to be copied and its destination.
-        src_copy_filepath = userpath2serverpath(USR, SRC_COPY_TEST_FILE_PATH)
-        dst_copy_filepath = userpath2serverpath(USR, DST_COPY_TEST_FILE_PATH)
+        src_copy_filepath = userpath2serverpath(USR, src_copy_test_file_path)
+        dst_copy_filepath = userpath2serverpath(USR, dst_copy_test_file_path)
 
-        _create_file(USR, SRC_COPY_TEST_FILE_PATH, 'this is the file to be copied')
-        _create_file(USR, DST_COPY_TEST_FILE_PATH, 'different other content')
+        _create_file(USR, src_copy_test_file_path, 'this is the file to be copied')
+        _create_file(USR, dst_copy_test_file_path, 'different other content')
 
-        test = self.app.post(COPY_TEST_URL,
+        test = self.app.post(copy_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'src': src_copy_filepath, 'dst': dst_copy_filepath}, follow_redirects=True)
 
@@ -328,14 +323,17 @@ class TestRequests(unittest.TestCase):
         TTest if a created source file is moved in a new created destination and assures the source file
         doesn't exists after
         """
+        move_test_url = SERVER_ACTIONS_API + 'move'
+        src_move_test_file_path = 'test_move_src/testmovesrc.txt'
+        dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
         #create source file to be moved and its destination
-        src_move_filepath = userpath2serverpath(USR, SRC_MOVE_TEST_FILE_PATH)
-        dst_move_filepath = userpath2serverpath(USR, DST_MOVE_TEST_FILE_PATH)
+        src_move_filepath = userpath2serverpath(USR, src_move_test_file_path)
+        dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
 
-        _create_file(USR, SRC_MOVE_TEST_FILE_PATH, 'this is the file to be moved')
-        _create_file(USR, DST_MOVE_TEST_FILE_PATH, 'different other content')
+        _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
+        _create_file(USR, dst_move_test_file_path, 'different other content')
 
-        test = self.app.post(MOVE_TEST_URL,
+        test = self.app.post(move_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'src': src_move_filepath, 'dst': dst_move_filepath}, follow_redirects=True)
 
