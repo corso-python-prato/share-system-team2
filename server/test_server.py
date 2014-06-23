@@ -125,7 +125,7 @@ def _manually_remove_user(username):  # TODO: make this from server module
 class TestRequests(unittest.TestCase):
     def setUp(self):
         """
-        Create an user with a POST method and create the test file to test the download from server.
+        Create an user and create the test file to test the download from server.
         """
         self.app = server.app.test_client()
         self.app.testing = True
