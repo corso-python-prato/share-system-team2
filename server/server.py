@@ -84,6 +84,12 @@ def _read_file(filename):
         content = f.read()
     return content
 
+def check_path(path, username):
+    path = os.path.abspath(join(FILE_ROOT, username, path))
+    root = os.path.abspath(join(FILE_ROOT, username))
+    if root in path:
+        return True
+    return False
 
 def now_timestamp():
     """
@@ -233,7 +239,7 @@ def create_user():
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
-        username = auth.username
+        username = auth.username()
         methods = {'delete': self._delete,
                    'copy': self._copy,
                    'move': self._move,
@@ -267,38 +273,40 @@ class Actions(Resource):
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
-        rootpath = join(FILE_ROOT, username, filepath)
-        filepath = os.path.abspath(rootpath)
-        real_root = os.path.realpath(join(FILE_ROOT, username))
+     
+        if not check_path(filepath, username):
+            abort(HTTP_FORBIDDEN)
 
         if not os.path.isfile(filepath):
             abort(HTTP_NOT_FOUND)
-
-        if real_root not in filepath:
-            abort(HTTP_FORBIDDEN)
 
         try:
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(filepath), username)
-        # I deleted a file, so the last server timestamp is the current timestamp
+        # file deleted, last_server_timestamp is set to current timestamp
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path and return the current server timestamp in a json.
+        Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
-        src_path, dst_path = self._get_src_dst(username)
+        
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        if not (check_path(src, username) or check_path(dst, username)):
+            abort(HTTP_FORBIDDEN)
 
-        if os.path.isfile(src_path):
-            if not os.path.exists(os.path.dirname(dst_path)):
-                os.makedirs(os.path.dirname(dst_path))
-            shutil.copy(src_path, dst_path)
+        if os.path.isfile(src):
+            if not os.path.exists(os.path.dirname(dst)):
+                os.makedirs(os.path.dirname(dst))
+            shutil.copy(src, dst)
         else:
             abort(HTTP_NOT_FOUND)
-        # TODO: return dst file timestamp instead of current timestamp?
+        # TODO: return dst file timestamp inste of current timestamp?
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _move(self, username):
@@ -306,15 +314,20 @@ class Actions(Resource):
         Move a file from a given source path to a destination path, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
-        src_path, dst_path = self._get_src_dst(username)
 
-        if os.path.isfile(src_path):
-            if not os.path.exists(os.path.dirname(dst_path)):
-                os.makedirs(os.path.dirname(dst_path))
-            shutil.move(src_path, dst_path)
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        if not (check_path(src, username) or check_path(dst, username)):
+            abort(HTTP_FORBIDDEN)
+
+        if os.path.isfile(src):
+            if not os.path.exists(os.path.dirname(dst)):
+                os.makedirs(os.path.dirname(dst))
+            shutil.move(src, dst)
         else:
             abort(HTTP_NOT_FOUND)
-        self._clear_dirs(os.path.dirname(src_path), username)
+        self._clear_dirs(os.path.dirname(src), username)
         # TODO: return dst file timestamp instead of current timestamp?
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
@@ -391,16 +404,15 @@ class Files(Resource):
         :param path: str
         """
         logger.debug('Files.get({})'.format(repr(path)))
-        username = auth.username
+        username = auth.username()
         user_rootpath = join(FILE_ROOT, username)
         if path:
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
-            real_dirname = os.path.realpath(dirname)
-            real_root = os.path.realpath(join(FILE_ROOT, username))
-
-            if real_root not in real_dirname:
+           
+            if not check_path(dirname, username):
                 abort(HTTP_FORBIDDEN)
+
             if not os.path.exists(dirname):
                 abort(HTTP_NOT_FOUND)
             s_filename = secure_filename(os.path.split(path)[-1])
@@ -427,14 +439,12 @@ class Files(Resource):
         Return dirname(directory name) and filename(file name) for a given path to complete
         post and put methods
         """
-        username = auth.username
+        username = auth.username()
         dirname = os.path.dirname(path)
         dirname = (join(FILE_ROOT, username, dirname))
-        real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(join(FILE_ROOT, username))
         filename = os.path.split(path)[-1]
 
-        if real_root not in real_dirname:
+        if not check_path(dirname, username):
             abort(HTTP_FORBIDDEN)
 
         return dirname, filename
