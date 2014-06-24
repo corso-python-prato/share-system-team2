@@ -9,11 +9,11 @@ import os
 import hashlib
 import re
 import time
+import pickle
 
 from sys import exit as exit
 from collections import OrderedDict
 from shutil import copy2
-
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -23,9 +23,15 @@ from connection_manager import ConnectionManager
 
 
 class Daemon(RegexMatchingEventHandler):
-    # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
+
+    # The path for configuration directory and daemon configuration file
+    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state.p')        
+
+    # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
     DEFAULT_CONFIG = OrderedDict()
-    DEFAULT_CONFIG['sharing_path'] = './sharing_folder'
+    DEFAULT_CONFIG['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
     DEFAULT_CONFIG['cmd_address'] = 'localhost'
     DEFAULT_CONFIG['cmd_port'] = 50001
     DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
@@ -41,28 +47,22 @@ class Daemon(RegexMatchingEventHandler):
                      '.*\/(\..*)',  # hidden files TODO: improve
                      ]
 
-    # Default path for config file
-    PATH_CONFIG = os.path.abspath('./config')
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
-        # Initialize variable
-        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
-        self.dir_state =  {}  # {'timestamp': <timestamp>, 'md5': <md5>}
+        # Just Initialize variable the Daemon.start() do the other things
+        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)        
         self.running = 0
         self.client_snapshot = {}
+        self.local_dir_state = {}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
+        self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
-
-        # Operations necessary to start the daemon
-        self.build_client_snapshot()
-        self._sync_with_server()
-        self.create_observer()
+        
 
     def load_cfg(self, config_path):
         """
@@ -75,9 +75,16 @@ class Daemon(RegexMatchingEventHandler):
             Restore default config file by writing on file
             :return: default configuration contained in the dictionary DEFAULT_CONFIG
             """
-            with open(Daemon.PATH_CONFIG, 'wb') as fo:
+            with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
                 json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
             return Daemon.DEFAULT_CONFIG
+
+        # Search if config directory exists otherwise create it
+        if not os.path.isdir(Daemon.CONFIG_DIR):
+            try:
+                os.makedirs(Daemon.CONFIG_DIR)
+            except (OSError, IOError):
+                self.stop(1, '\nImpossible to create "{}" directory! Permission denied!\n'.format(Daemon.CONFIG_DIR))
 
         if os.path.isfile(config_path):
             try:
@@ -90,6 +97,7 @@ class Daemon(RegexMatchingEventHandler):
             for k in Daemon.DEFAULT_CONFIG:
                 if k not in loaded_config:
                     corrupted_config = True
+            # In the case is all gone right run config in loaded_config
             if not corrupted_config:
                 return loaded_config
             else:
@@ -105,14 +113,12 @@ class Daemon(RegexMatchingEventHandler):
         If is impossible to create exit with msg error.
         """
 
-        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
-        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
         if not os.path.isdir(self.cfg['sharing_path']):
             try:
                 os.makedirs(self.cfg['sharing_path'])
             except OSError:
                 self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
-                          .format(self.cfg['sharing_path'], self.PATH_CONFIG))
+                          .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
 
     def build_client_snapshot(self):
         """
@@ -120,23 +126,20 @@ class Daemon(RegexMatchingEventHandler):
 
         self.client_snapshot
         {
-            "last_timestamp":"",
-            "files":{
             "<file_path>":('<timestamp>', '<md5>')
         }
         """
 
-        self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     filepath = os.path.join(dirpath, filename)
-                    matched_regex = False
+                    unwanted_file = False
                     for r in Daemon.IGNORED_REGEX:
                         if re.match(r, filepath) is not None:
-                            matched_regex = True
+                            unwanted_file = True
                             print 'Ignored Path:', filepath
                             break
-                    if not matched_regex:
+                    if not unwanted_file:
                         relative_path = self.relativize_path(filepath)
                         with open(filepath, 'rb') as f:
                             self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
@@ -265,9 +268,9 @@ class Daemon(RegexMatchingEventHandler):
                 self.client_snapshot[filepath] = server_snapshot[filepath]
             elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
-                hashed_file = hash_file(self.absolutize_path(filepath))
+                hashed_file = self.hash_file(self.absolutize_path(filepath))
                 self.client_snapshot[filepath] = ['', hashed_file]
-        for filepath in self.client_snapshot:
+        for filepath in self.client_snapshot:            
             if filepath not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
@@ -277,7 +280,7 @@ class Daemon(RegexMatchingEventHandler):
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
+        folder_watched_abs = self.cfg['sharing_path']
         tokens = abs_path.split(folder_watched_abs)
         # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
         # in this case is impossible to use relative path and have valid path!
@@ -285,7 +288,7 @@ class Daemon(RegexMatchingEventHandler):
             relative_path = tokens[-1]
             return relative_path[1:]
         else:
-            self.stop(1, 'Impossible to use "{}" path, please change dir name'.format(abs_path))
+            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
 
     def absolutize_path(self, rel_path):
         """
@@ -296,7 +299,7 @@ class Daemon(RegexMatchingEventHandler):
         if os.path.isfile(abs_path):
             return abs_path
         else:
-            return None
+            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
 
     def create_observer(self):
         """
@@ -392,6 +395,12 @@ class Daemon(RegexMatchingEventHandler):
         """
         Starts the communication with the command_manager.
         """
+        self.build_client_snapshot()
+        self.local_dir_state = self.load_local_dir_state()
+
+        # Operations necessary to start the daemon
+        self._sync_with_server()
+        self.create_observer()
 
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -432,22 +441,59 @@ class Daemon(RegexMatchingEventHandler):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
+
         if self.daemon_state == 'started':
             self.observer.stop()
             self.observer.join()
             self.listener_socket.close()
+            # Save timestamp and global_md5
+            self.save_local_dir_state()           
         self.running = 0
         if exit_message:
             print exit_message
         exit(exit_status)
 
-    def calculate_md5_of_dir(self, directory, verbose=0):
+    def update_local_dir_state(self, last_timestamp):
+        """
+        Update the local_dir_state with last_timestamp operation and save it on disk
+        """
+        self.local_dir_state['last_timestamp'] = last_timestamp
+        self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+        self.save_local_dir_state()
+
+    def save_local_dir_state(self):
+        """
+        Save local_dir_state on disk
+        """
+
+        pickle.dump( self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb" ) )
+        print "local_dir_state saved"
+
+    def load_local_dir_state(self):
+        """
+        Load local dir state on self.local_dir_state variable
+        if file doesn't exists it will be created without timestamp
+        """
+
+        if os.path.isfile(Daemon.LOCAL_DIR_STATE_PATH):
+            self.local_dir_state = pickle.load(open(Daemon.LOCAL_DIR_STATE_PATH, "rb" ) )
+            print "Loaded dir_state"
+            return True            
+        else:
+            self.local_dir_state = {'last_timestamp': '', 'global_md5': self.calculate_md5_of_dir()}
+            print "dir_state not found, Initialize new dir_state"
+            return False
+
+
+    def calculate_md5_of_dir(self, verbose=0):
         """
         Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
         """
+
+        directory = self.cfg['sharing_path']
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
@@ -474,7 +520,7 @@ class Daemon(RegexMatchingEventHandler):
             print stop - start
         return md5Hash.hexdigest()
 
-    def hash_file(self, file_path):
+    def hash_file(self, file_path, chunk_size=1024):
         """
         :accept an absolute file path
         :return the md5 hash of received file
@@ -484,7 +530,7 @@ class Daemon(RegexMatchingEventHandler):
             f1 = open(file_path, 'rb')
             while 1:
                 # Read file in as little chunks
-                    buf = f1.read(1024)
+                    buf = f1.read(chunk_size)
                     if not buf:
                         break
                     md5Hash.update(hashlib.md5(buf).hexdigest())
