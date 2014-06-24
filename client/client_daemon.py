@@ -23,9 +23,14 @@ from connection_manager import ConnectionManager
 
 
 class Daemon(RegexMatchingEventHandler):
-    # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
+
+    # The path for configuration directory and daemon configuration file
+    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+
+    # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
     DEFAULT_CONFIG = OrderedDict()
-    DEFAULT_CONFIG['sharing_path'] = './sharing_folder'
+    DEFAULT_CONFIG['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
     DEFAULT_CONFIG['cmd_address'] = 'localhost'
     DEFAULT_CONFIG['cmd_port'] = 50001
     DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
@@ -41,8 +46,6 @@ class Daemon(RegexMatchingEventHandler):
                      '.*\/(\..*)',  # hidden files TODO: improve
                      ]
 
-    # Default path for config file
-    PATH_CONFIG = os.path.abspath('./config')
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
@@ -55,7 +58,7 @@ class Daemon(RegexMatchingEventHandler):
         self.client_snapshot = {}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
+        self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
@@ -75,7 +78,7 @@ class Daemon(RegexMatchingEventHandler):
             Restore default config file by writing on file
             :return: default configuration contained in the dictionary DEFAULT_CONFIG
             """
-            with open(Daemon.PATH_CONFIG, 'wb') as fo:
+            with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
                 json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
             return Daemon.DEFAULT_CONFIG
 
@@ -105,14 +108,12 @@ class Daemon(RegexMatchingEventHandler):
         If is impossible to create exit with msg error.
         """
 
-        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
-        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
         if not os.path.isdir(self.cfg['sharing_path']):
             try:
                 os.makedirs(self.cfg['sharing_path'])
             except OSError:
                 self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
-                          .format(self.cfg['sharing_path'], self.PATH_CONFIG))
+                          .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
 
     def build_client_snapshot(self):
         """
@@ -277,7 +278,7 @@ class Daemon(RegexMatchingEventHandler):
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        folder_watched_abs = os.path.abspath(self.cfg['sharing_path'])
+        folder_watched_abs = self.cfg['sharing_path']
         tokens = abs_path.split(folder_watched_abs)
         # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
         # in this case is impossible to use relative path and have valid path!
