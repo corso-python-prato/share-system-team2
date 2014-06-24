@@ -493,7 +493,7 @@ class Daemon(RegexMatchingEventHandler):
             print stop - start
         return md5Hash.hexdigest()
 
-    def hash_file(self, file_path):
+    def hash_file(self, file_path, chunk_size=1024):
         """
         :accept an absolute file path
         :return the md5 hash of received file
@@ -503,7 +503,7 @@ class Daemon(RegexMatchingEventHandler):
             f1 = open(file_path, 'rb')
             while 1:
                 # Read file in as little chunks
-                    buf = f1.read(1024)
+                    buf = f1.read(chunk_size)
                     if not buf:
                         break
                     md5Hash.update(hashlib.md5(buf).hexdigest())
