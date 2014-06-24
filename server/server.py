@@ -230,6 +230,15 @@ def create_user():
     return response
 
 
+class User(object):
+    def __init__(self, username):
+        self.username = username
+
+    def add_path(self, path):
+        pass
+
+
+
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
