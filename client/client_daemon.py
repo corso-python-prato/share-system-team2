@@ -298,7 +298,7 @@ class Daemon(RegexMatchingEventHandler):
         if os.path.isfile(abs_path):
             return abs_path
         else:
-            return None
+            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
 
     def create_observer(self):
         """
