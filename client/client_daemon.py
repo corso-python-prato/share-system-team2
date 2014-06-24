@@ -27,7 +27,7 @@ class Daemon(RegexMatchingEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(Daemon.CONFIG_DIR,'dir_state.p')        
+    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state.p')        
 
     # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
     DEFAULT_CONFIG = OrderedDict()
