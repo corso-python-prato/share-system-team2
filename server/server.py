@@ -239,7 +239,7 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-      def _delete(self, username):
+    def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
