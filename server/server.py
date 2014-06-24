@@ -138,7 +138,6 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     welcome_file = join(dirpath, 'WELCOME')
     with open(welcome_file, 'w') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
-    last_timestamp = file_timestamp(welcome_file)
 
     for dirname in default_dirs:
         subdirpath = join(dirpath, dirname)
@@ -148,7 +147,6 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         # beacuse wee need files to see the directories.
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
-        last_timestamp = file_timestamp(filepath)
     logger.info('{} created'.format(dirpath))
     return calculate_dir_snapshot(dirpath)
 
