@@ -9,6 +9,7 @@ import os
 import hashlib
 import re
 import time
+import pickle
 
 from sys import exit as exit
 from collections import OrderedDict
@@ -53,6 +54,7 @@ class Daemon(RegexMatchingEventHandler):
         self.dir_state =  {}  # {'timestamp': <timestamp>, 'md5': <md5>}
         self.running = 0
         self.client_snapshot = {}
+        self.local_dir_state = {}
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
@@ -393,6 +395,7 @@ class Daemon(RegexMatchingEventHandler):
         Starts the communication with the command_manager.
         """
 
+        self.local_dir_state =  self.load_local_dir_state()        
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
@@ -436,11 +439,27 @@ class Daemon(RegexMatchingEventHandler):
             self.observer.stop()
             self.observer.join()
             self.listener_socket.close()
+            # Save timestamp and global_md5
+            self.save_local_dir_state()           
         self.running = 0
         if exit_message:
             print exit_message
         exit(exit_status)
 
+    def save_local_dir_state(self):
+        global_md5 = self.calculate_md5_of_dir()
+        self.local_dir_state = {'timestamp':'','global_md5':global_md5}
+        pickle.dump( self.local_dir_state, open( "dir_state.p", "wb" ) )
+        print "local_dir_state saved"
+
+    def load_local_dir_state(self):
+        if os.path.isfile('dir_state.p'):
+            self.local_dir_state = pickle.load( open( "dir_state.p", "rb" ) )
+            print "load_dir_state loaded"
+            return True            
+        else:
+            print "no dir state file found"
+            return False
     def calculate_md5_of_dir(self, directory, verbose=0):
         """
         Calculate the md5 of the entire directory,
