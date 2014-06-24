@@ -1,0 +1,134 @@
+-------------------------------------------------------------------------------
+Server launched at 2014-06-11 13:17:04.328027
+File logging level: 10
+Registered user(s): Pippo
+1 registered user(s) found
+-------------------------------------------------------------------------------
+Server launched at 2014-06-11 13:17:04.483364
+File logging level: 10
+Registered user(s): Pippo
+1 registered user(s) found
+-------------------------------------------------------------------------------
+Server imported at 2014-06-12 13:28:15.457432
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/testfile.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/unexisting.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+-------------------------------------------------------------------------------
+Server imported at 2014-06-12 13:29:58.864593
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/testfile.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/unexisting.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+-------------------------------------------------------------------------------
+Server imported at 2014-06-12 13:31:05.685622
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/testfile.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/unexisting.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+-------------------------------------------------------------------------------
+Server imported at 2014-06-12 13:32:16.072348
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/testfile.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Files.get(u'testdownload/unexisting.txt')
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+Creating user...
+Saved 1 users
+('User "pyboxtestuser" created', 201)
+-------------------------------------------------------------------------------
+Server launched at 2014-06-13 20:00:02.325122
+File logging level: 10
+Registered user(s): pyboxtestuser
+1 registered user(s) found
+-------------------------------------------------------------------------------
+Server launched at 2014-06-13 20:00:02.472468
+File logging level: 10
+Registered user(s): pyboxtestuser
+1 registered user(s) found
+-------------------------------------------------------------------------------
+Server launched at 2014-06-16 10:25:27.757261
+File logging level: 10
+Registered user(s): pyboxtestuser
+1 registered user(s) found
+-------------------------------------------------------------------------------
+Server launched at 2014-06-16 10:25:27.904386
+File logging level: 10
+Registered user(s): pyboxtestuser
+1 registered user(s) found
+Creating user...
+Saved 2 users
+('User "alessandro" created', 201)
+-------------------------------------------------------------------------------
+Server launched at 2014-06-16 10:32:39.042715
+File logging level: 10
+Registered user(s): alessandro, pyboxtestuser
+2 registered user(s) found
+-------------------------------------------------------------------------------
+Server launched at 2014-06-16 10:32:39.203113
+File logging level: 10
+Registered user(s): alessandro, pyboxtestuser
+2 registered user(s) found
+Files.get('')
+launch snapshot of 'filestorage/alessandro'...
+snapshot returned 1 files

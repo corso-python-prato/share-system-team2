@@ -239,24 +239,7 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-    def _get_src_dst(self, username):
-        """
-        Get the source and destination paths to complete _move and _copy actions.
-        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and
-        returns the absolute paths of them
-        """
-        src = request.form['src']
-        dst = request.form['dst']
-        src_path = os.path.abspath(join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(join(FILE_ROOT, username))
-
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
-
-        return src_path, dst_path
-
-    def _delete(self, username):
+      def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
