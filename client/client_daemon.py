@@ -9,6 +9,7 @@ import os
 import hashlib
 import re
 import time
+import pickle
 
 from sys import exit as exit
 from collections import OrderedDict
@@ -50,21 +51,17 @@ class Daemon(RegexMatchingEventHandler):
 
     def __init__(self):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
-        # Initialize variable
-        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
-        self.dir_state = {}  # {'timestamp': <timestamp>, 'md5': <md5>}
+        # Just Initialize variable the Daemon.start() do the other things
+        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)        
         self.running = 0
         self.client_snapshot = {}
+        self.local_dir_state = {}
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
-
-        # Operations necessary to start the daemon
-        self.build_client_snapshot()
-        self._sync_with_server()
-        self.create_observer()
+        
 
     def load_cfg(self, config_path):
         """
@@ -401,6 +398,12 @@ class Daemon(RegexMatchingEventHandler):
         Starts the communication with the command_manager.
         """
 
+        self.local_dir_state =  self.load_local_dir_state()        
+        # Operations necessary to start the daemon
+        self.build_client_snapshot()
+        self._sync_with_server()
+        self.create_observer()
+
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
@@ -440,22 +443,42 @@ class Daemon(RegexMatchingEventHandler):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
+
         if self.daemon_state == 'started':
             self.observer.stop()
             self.observer.join()
             self.listener_socket.close()
+            # Save timestamp and global_md5
+            self.save_local_dir_state()           
         self.running = 0
         if exit_message:
             print exit_message
         exit(exit_status)
 
-    def calculate_md5_of_dir(self, directory, verbose=0):
+    def save_local_dir_state(self):
+        global_md5 = self.calculate_md5_of_dir()
+        self.local_dir_state = {'timestamp':'','global_md5':global_md5}
+        pickle.dump( self.local_dir_state, open( "dir_state.p", "wb" ) )
+        print "local_dir_state saved"
+
+    def load_local_dir_state(self):
+        if os.path.isfile('dir_state.p'):
+            self.local_dir_state = pickle.load( open( "dir_state.p", "rb" ) )
+            print "load_dir_state loaded"
+            return True            
+        else:
+            print "no dir state file found"
+            return False
+
+
+    def calculate_md5_of_dir(self, verbose=0):
         """
         Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
         """
+        directory = self.cfg['sharing_path']
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
@@ -482,7 +505,7 @@ class Daemon(RegexMatchingEventHandler):
             print stop - start
         return md5Hash.hexdigest()
 
-    def hash_file(self, file_path):
+    def hash_file(self, file_path, chunk_size=1024):
         """
         :accept an absolute file path
         :return the md5 hash of received file
@@ -492,7 +515,7 @@ class Daemon(RegexMatchingEventHandler):
             f1 = open(file_path, 'rb')
             while 1:
                 # Read file in as little chunks
-                    buf = f1.read(1024)
+                    buf = f1.read(chunk_size)
                     if not buf:
                         break
                     md5Hash.update(hashlib.md5(buf).hexdigest())
