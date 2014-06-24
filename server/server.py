@@ -127,7 +127,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     """
     Create the default user directory.
     :param username: str
-    :param default_dirs: tuple
+    :param default_dirs: dict
     """
     dirpath = join(FILE_ROOT, username)
     if os.path.isdir(dirpath):
@@ -148,7 +148,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
-    return calculate_dir_snapshot(dirpath)
+    return compute_dir_state(dirpath)
 
 
 def load_userdata():
@@ -341,13 +341,15 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def calculate_dir_snapshot(root_path):
+def compute_dir_state(root_path):
     """
-    Walk on root_path returning a snapshot in a dict.
+    Walk on root_path returning the directory snapshot in a dict (dict keys are identified by this 2 constants:
+    LAST_SERVER_TIMESTAMP and SNAPSHOT)
+
     :param root_path: str
-    :return: tuple
+    :return: dict.
     """
-    result = {}
+    snapshot = {}
     last_timestamp = 0
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
@@ -363,8 +365,10 @@ def calculate_dir_snapshot(root_path):
                 timestamp = file_timestamp(filepath)
                 if timestamp > last_timestamp:
                     last_timestamp = timestamp
-                result[filepath[len(root_path) + 1:]] = [timestamp, md5]
-    return last_timestamp, result
+                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+    state = {LAST_SERVER_TIMESTAMP: last_timestamp,
+             SNAPSHOT: snapshot}
+    return state
 
 
 class Files(Resource):
@@ -403,8 +407,10 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            last_server_timestamp, snapshot = calculate_dir_snapshot(user_rootpath)
+            server_state = compute_dir_state(user_rootpath)
+            snapshot = server_state[SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
+            last_server_timestamp = server_state[LAST_SERVER_TIMESTAMP]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: snapshot})
         logging.debug(response)
