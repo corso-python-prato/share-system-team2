@@ -49,9 +49,8 @@ class Daemon(RegexMatchingEventHandler):
 
     def __init__(self):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
-        # Initialize variable
-        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
-        self.dir_state =  {}  # {'timestamp': <timestamp>, 'md5': <md5>}
+        # Just Initialize variable the Daemon.start() do the other things
+        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)        
         self.running = 0
         self.client_snapshot = {}
         self.local_dir_state = {}
@@ -60,11 +59,7 @@ class Daemon(RegexMatchingEventHandler):
         self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
-
-        # Operations necessary to start the daemon
-        self.build_client_snapshot()
-        self._sync_with_server()
-        self.create_observer()
+        
 
     def load_cfg(self, config_path):
         """
@@ -396,6 +391,11 @@ class Daemon(RegexMatchingEventHandler):
         """
 
         self.local_dir_state =  self.load_local_dir_state()        
+        # Operations necessary to start the daemon
+        self.build_client_snapshot()
+        self._sync_with_server()
+        self.create_observer()
+
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
