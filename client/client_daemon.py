@@ -14,7 +14,6 @@ from sys import exit as exit
 from collections import OrderedDict
 from shutil import copy2
 
-
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
@@ -81,6 +80,13 @@ class Daemon(RegexMatchingEventHandler):
             with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
                 json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
             return Daemon.DEFAULT_CONFIG
+
+        # Search if config directory exists otherwise create it
+        if not os.path.isdir(Daemon.CONFIG_DIR):
+            try:
+                os.makedirs(Daemon.CONFIG_DIR)
+            except (OSError, IOError):
+                self.stop(1, '\nImpossible to create "{}" directory! Permission denied!\n'.format(Daemon.CONFIG_DIR))
 
         if os.path.isfile(config_path):
             try:
