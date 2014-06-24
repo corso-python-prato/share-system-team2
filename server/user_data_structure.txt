@@ -2,7 +2,7 @@
 		 'password': <password>,
 		 'server_timestamp': <timestamp>,
 		 'files': {<path>: (<timestamp>, <md5>),
-		 		 <path>: (<timestamp>, <md5>),
+		 		   <path>: (<timestamp>, <md5>),
 		 		 ...
 		 		 }
 		 },
