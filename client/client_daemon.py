@@ -21,15 +21,6 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import RegexMatchingEventHandler
 from connection_manager import ConnectionManager
 
-    # SNAPSHOT STRUCTURE
-    # {
-    #     "last_timestamp":"",
-    #     "files":{
-    #             "<file_path>":('<md5>','<timestamp>')
-
-    #             }
-
-    # }
 
 class Daemon(RegexMatchingEventHandler):
     # Default configuration for Daemon, loaded if fail to load from file in PATH_CONFIG
@@ -50,7 +41,9 @@ class Daemon(RegexMatchingEventHandler):
                      '.*\/(\..*)',  # hidden files TODO: improve
                      ]
 
-    PATH_CONFIG = 'config.json'
+    # Default path for config file
+    PATH_CONFIG = os.path.abspath('./config')
+    # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
     def __init__(self):
@@ -63,15 +56,11 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(Daemon.PATH_CONFIG)
-        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
-        # TODO: Allow the setting of sharing path by user
-        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
-
+        self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
+
         # Operations necessary to start the daemon
-        self.connect_to_server()
         self.build_client_snapshot()
-        # TODO implement NEW sync_with_server
         self._sync_with_server()
         self.create_observer()
 
@@ -95,7 +84,7 @@ class Daemon(RegexMatchingEventHandler):
                 with open(config_path, 'r') as fo:
                     loaded_config = json.load(fo)
             except ValueError:
-                print 'Impossible to read "{0}"! "{0}" overwrited and loaded default config!'.format(config_path)
+                print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
             corrupted_config = False
             for k in Daemon.DEFAULT_CONFIG:
@@ -104,17 +93,39 @@ class Daemon(RegexMatchingEventHandler):
             if not corrupted_config:
                 return loaded_config
             else:
-                print '"{0}" corrupted! "{0}" overwrited and loaded default config!'.format(config_path)
+                print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
         else:
-            print '{0} doesn\'t exist, "{0}" overwrited and loaded default config!'.format(config_path)
+            print '\nWarning "{0}" doesn\'t exist, Config file overwrited and loaded default config!\n'.format(config_path)
             return build_default_cfg()
 
-    def connect_to_server(self):
-        # self.cfg['server_address']
-        pass    
+    def init_sharing_path(self):
+        """
+        Check that the sharing folder exists otherwise create it.
+        If is impossible to create exit with msg error.
+        """
+
+        # We call os.path.abspath to unrelativize the sharing path(now is relative for development purpose)
+        self.cfg['sharing_path'] = os.path.abspath(self.cfg['sharing_path'])
+        if not os.path.isdir(self.cfg['sharing_path']):
+            try:
+                os.makedirs(self.cfg['sharing_path'])
+            except OSError:
+                self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
+                          .format(self.cfg['sharing_path'], self.PATH_CONFIG))
 
     def build_client_snapshot(self):
+        """
+        Build a snapshot of the sharing folder with the following structure
+
+        self.client_snapshot
+        {
+            "last_timestamp":"",
+            "files":{
+            "<file_path>":('<timestamp>', '<md5>')
+        }
+        """
+
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
@@ -247,11 +258,11 @@ class Daemon(RegexMatchingEventHandler):
         total_md5 = self.calculate_md5_of_dir(self.cfg['sharing_path'])
         print "TOTAL MD5: ", total_md5
 
-        for filepath in server_snapshot: 
+        for filepath in server_snapshot:
             if filepath not in self.client_snapshot:
                 # TODO: check if download succeed, if so update client_snapshot with the new file
                 self.conn_mng.dispatch_request('download', {'filepath': filepath})
-                self.client_snapshot[filepath] = server_snapshot[filepath]            
+                self.client_snapshot[filepath] = server_snapshot[filepath]
             elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                 hashed_file = hash_file(self.absolutize_path(filepath))
@@ -404,6 +415,7 @@ class Daemon(RegexMatchingEventHandler):
                         # handle all other sockets
                         length = s.recv(Daemon.INT_SIZE)
                         if length:
+                            # i need to do [0] and cast int becouse the struct.unpuck return a tupla like (23234234,) with the lenght as a string
                             length = int(struct.unpack('!i', length)[0])
                             message = json.loads(s.recv(length))
                             for cmd, data in message.items():
@@ -431,7 +443,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def calculate_md5_of_dir(self, directory, verbose=0):
         """
-        Calculate the md5 of the entire directory, 
+        Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
@@ -441,7 +453,7 @@ class Daemon(RegexMatchingEventHandler):
         md5Hash = hashlib.md5()
         if not os.path.exists(directory):
             return -1
-        
+
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
                 filepath = os.path.join(root,names)
@@ -453,7 +465,7 @@ class Daemon(RegexMatchingEventHandler):
                     hashed_file = self.hash_file(filepath)
                     if hashed_file:
                         md5Hash.update(hashed_file)
-                        md5Hash.update(hashlib.md5(filepath).hexdigest())              
+                        md5Hash.update(hashlib.md5(filepath).hexdigest())
                     else:
                         print "can't hash file: ", filepath
 
@@ -461,27 +473,6 @@ class Daemon(RegexMatchingEventHandler):
             stop = time.time()
             print stop - start
         return md5Hash.hexdigest()
-
-    def read_file(self, file_path):
-        """
-        Read file in chunks 
-        :return the readed file as binary or None in case of error
-        """
-        readed = ''
-        try:
-            f1 = open(file_path, 'rb')
-            while 1:
-                # Read file in as little chunks
-                    buf = f1.read(1024)
-                    if not buf:
-                        break                
-                    readed += buf
-            f1.close()
-            return readed 
-        except (OSError, IOError) as e:
-            print e
-            return None
-            # You can't open the file for some reason
 
     def hash_file(self, file_path):
         """
@@ -495,7 +486,7 @@ class Daemon(RegexMatchingEventHandler):
                 # Read file in as little chunks
                     buf = f1.read(1024)
                     if not buf:
-                        break                
+                        break
                     md5Hash.update(hashlib.md5(buf).hexdigest())
             f1.close()
             return md5Hash.hexdigest()
@@ -505,5 +496,5 @@ class Daemon(RegexMatchingEventHandler):
             # You can't open the file for some reason
 
 if __name__ == '__main__':
-    daemon = Daemon()    
+    daemon = Daemon()
     daemon.start()

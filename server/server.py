@@ -133,7 +133,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     """
     Create the default user directory.
     :param username: str
-    :param default_dirs: tuple
+    :param default_dirs: dict
     """
     dirpath = join(FILE_ROOT, username)
     if os.path.isdir(dirpath):
@@ -144,7 +144,6 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     welcome_file = join(dirpath, 'WELCOME')
     with open(welcome_file, 'w') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
-    last_timestamp = file_timestamp(welcome_file)
 
     for dirname in default_dirs:
         subdirpath = join(dirpath, dirname)
@@ -154,9 +153,8 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         # beacuse wee need files to see the directories.
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
-        last_timestamp = file_timestamp(filepath)
     logger.info('{} created'.format(dirpath))
-    return last_timestamp, calculate_dir_snapshot(dirpath)
+    return compute_dir_state(dirpath)
 
 
 def load_userdata():
@@ -196,14 +194,6 @@ def verify_password(username, password):
         logger.info('User "{}" does not exist'.format(username))
         res = False
     return res
-
-
-@app.route('/')
-def welcome():
-    """
-    Simple welcome public url.
-    """
-    return 'Welcome from {} server!\n'.format(__title__), HTTP_OK
 
 
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
@@ -257,7 +247,6 @@ class Actions(Resource):
         """
         src = request.form['src']
         dst = request.form['dst']
-
         src_path = os.path.abspath(join(FILE_ROOT, username, src))
         dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
         real_root = os.path.realpath(join(FILE_ROOT, username))
@@ -365,13 +354,15 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def calculate_dir_snapshot(root_path):
+def compute_dir_state(root_path):
     """
-    Walk on root_path returning a snapshot in a dict.
+    Walk on root_path returning the directory snapshot in a dict (dict keys are identified by this 2 constants:
+    LAST_SERVER_TIMESTAMP and SNAPSHOT)
+
     :param root_path: str
-    :return: tuple
+    :return: dict.
     """
-    result = {}
+    snapshot = {}
     last_timestamp = 0
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
@@ -387,8 +378,10 @@ def calculate_dir_snapshot(root_path):
                 timestamp = file_timestamp(filepath)
                 if timestamp > last_timestamp:
                     last_timestamp = timestamp
-                result[filepath[len(root_path) + 1:]] = [timestamp, md5]
-    return last_timestamp, result
+                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+    state = {LAST_SERVER_TIMESTAMP: last_timestamp,
+             SNAPSHOT: snapshot}
+    return state
 
 
 class Files(Resource):
@@ -426,8 +419,10 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            last_server_timestamp, snapshot = calculate_dir_snapshot(user_rootpath)
+            server_state = compute_dir_state(user_rootpath)
+            snapshot = server_state[SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
+            last_server_timestamp = server_state[LAST_SERVER_TIMESTAMP]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: snapshot})
         logging.debug(response)
@@ -503,7 +498,7 @@ def main():
     parser.add_argument('--verbose', default=False, action='store_true',
                         help='set console verbosity level to INFO (3) [default: %(default)s]. \
                         Ignored if --debug option is set.')
-    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, nargs='?',
+    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
     parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
@@ -516,16 +511,8 @@ def main():
         # If set to True, win against verbosity parameter
         console_handler.setLevel(logging.INFO)
     else:
-        if args.verbosity == 0:  # Only show critical error message (very quiet)
-            console_handler.setLevel(logging.CRITICAL)
-        if args.verbosity == 1:  # Only show error message (quite quiet)
-            console_handler.setLevel(logging.ERROR)
-        elif args.verbosity == 2:  # Show only warning and error messages
-            console_handler.setLevel(logging.WARNING)
-        elif args.verbosity == 3:  # Verbose: show all messages except the debug ones
-            console_handler.setLevel(logging.INFO)
-        elif args.verbosity == 4:  # Show *all* messages
-            console_handler.setLevel(logging.DEBUG)
+        levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
+        console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
 
