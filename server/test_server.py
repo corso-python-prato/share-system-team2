@@ -411,6 +411,16 @@ class TestUsers(unittest.TestCase):
         """
         test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': USR, 'password': PW})
+        # test that userdata is actually updated
+        single_user_data = server.userdata[USR]
+        self.assertIn(USR, server.userdata)
+        # test single user data structure (as currently defined)
+        self.assertIsInstance(single_user_data, dict)
+        self.assertIn(server.LAST_SERVER_TIMESTAMP, single_user_data)
+        self.assertIn(server.SNAPSHOT, single_user_data)
+        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
+        self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
+        # test server response
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 
     def test_signup_if_user_already_exists(self):
