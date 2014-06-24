@@ -435,6 +435,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
+
         if self.daemon_state == 'started':
             self.observer.stop()
             self.observer.join()
@@ -460,13 +461,16 @@ class Daemon(RegexMatchingEventHandler):
         else:
             print "no dir state file found"
             return False
-    def calculate_md5_of_dir(self, directory, verbose=0):
+
+
+    def calculate_md5_of_dir(self, verbose=0):
         """
         Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
         """
+        directory = self.cfg['sharing_path']
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
