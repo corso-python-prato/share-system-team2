@@ -8,7 +8,11 @@ import datetime
 import argparse
 import hashlib
 join = os.path.join
+normpath = os.path.normpath
+abspath = os.path.abspath
+
 import time
+import pprint
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -97,7 +101,6 @@ def now_timestamp():
     :return: int
     """
     return int(time.time())
-
 
 def file_timestamp(filepath):
     """
@@ -213,7 +216,10 @@ def create_user():
             response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
             enc_pass = _encrypt_password(password)
-            last_server_timestamp, dir_snapshot = init_user_directory(username)
+
+            temp = init_user_directory(username)
+            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
+           
             single_user_data = {PASSWORD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot}
@@ -245,7 +251,7 @@ class Actions(Resource):
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
-     
+       
         if not check_path(filepath, username):
             abort(HTTP_FORBIDDEN)
 
@@ -258,12 +264,18 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(filepath), username)
         # file deleted, last_server_timestamp is set to current timestamp
-        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
+       
+        last_server_timestamp = now_timestamp()
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'].pop(normpath(filepath))
+       
+        return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
         """
         Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
-        json format: {LAST_SERVER_TIMESTAMP: int}
+        jso
+        userdata[username]n format: {LAST_SERVER_TIMESTAMP: int}
         """
         
         src = request.form['src']
@@ -279,14 +291,18 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         # TODO: return dst file timestamp inste of current timestamp?
-        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
+
+        last_server_timestamp = now_timestamp()
+        _, md5 = userdata[username]['files'][normpath(src)]
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
         """
         Move a file from a given source path to a destination path, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
-
         src = request.form['src']
         dst = request.form['dst']
         
@@ -301,7 +317,14 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(src), username)
         # TODO: return dst file timestamp instead of current timestamp?
-        return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
+      
+
+        last_server_timestamp = now_timestamp()
+        _, md5 = userdata[username]['files'][normpath(src)]
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'].pop(normpath(src))
+        userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
         """
@@ -435,6 +458,7 @@ class Files(Resource):
         The file must not exist in the server, otherwise only return an http forbidden code.
         :param path: str
         """
+        username = auth.username()
         upload_file = request.files['file']
         dirname, filename = self._get_dirname_filename(path)
 
@@ -445,7 +469,14 @@ class Files(Resource):
                 abort(HTTP_FORBIDDEN)
         filepath = join(dirname, filename)
         upload_file.save(filepath)
-        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
+
+        last_server_timestamp = now_timestamp()
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        
+        userdata[username]['files'][normpath(filepath)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        pprint.pprint(userdata[username]['files'][normpath(filepath)])
+        resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
+        #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
         resp.status_code = HTTP_CREATED
         return resp
 
@@ -457,15 +488,22 @@ class Files(Resource):
         Return the file timestamp of the file updated in the server.
         :param path: str
         """
+        username = auth.username()
         upload_file = request.files['file']
         dirname, filename = self._get_dirname_filename(path)
-        server_path = join(dirname, filename)
+        filepath = join(dirname, filename)
 
-        if os.path.isfile(server_path):
-            upload_file.save(server_path)
+        if os.path.isfile(filepath):
+            upload_file.save(filepath)
         else:
             abort(HTTP_NOT_FOUND)
-        resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(server_path)})
+
+        last_server_timestamp = now_timestamp()
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'][normpath(filepath)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+
+        resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})   
+        #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
         resp.status_code = HTTP_CREATED
         return resp
 
