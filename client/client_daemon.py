@@ -273,7 +273,7 @@ class Daemon(RegexMatchingEventHandler):
                 self.client_snapshot[filepath] = server_snapshot[filepath]
             elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
-                hashed_file = hash_file(self.absolutize_path(filepath))
+                hashed_file = self.hash_file(self.absolutize_path(filepath))
                 self.client_snapshot[filepath] = ['', hashed_file]
         for filepath in self.client_snapshot:
             if filepath not in server_snapshot:
