@@ -53,7 +53,7 @@ class Daemon(RegexMatchingEventHandler):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
         # Initialize variable
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
-        self.dir_state =  {}  # {'timestamp': <timestamp>, 'md5': <md5>}
+        self.dir_state = {}  # {'timestamp': <timestamp>, 'md5': <md5>}
         self.running = 0
         self.client_snapshot = {}
         self.listener_socket = None
@@ -93,6 +93,7 @@ class Daemon(RegexMatchingEventHandler):
             for k in Daemon.DEFAULT_CONFIG:
                 if k not in loaded_config:
                     corrupted_config = True
+            # In the case is all gone right run config in loaded_config
             if not corrupted_config:
                 return loaded_config
             else:
@@ -131,13 +132,13 @@ class Daemon(RegexMatchingEventHandler):
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     filepath = os.path.join(dirpath, filename)
-                    matched_regex = False
+                    unwanted_file = False
                     for r in Daemon.IGNORED_REGEX:
                         if re.match(r, filepath) is not None:
-                            matched_regex = True
+                            unwanted_file = True
                             print 'Ignored Path:', filepath
                             break
-                    if not matched_regex:
+                    if not unwanted_file:
                         relative_path = self.relativize_path(filepath)
                         with open(filepath, 'rb') as f:
                             self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
@@ -286,7 +287,7 @@ class Daemon(RegexMatchingEventHandler):
             relative_path = tokens[-1]
             return relative_path[1:]
         else:
-            self.stop(1, 'Impossible to use "{}" path, please change dir name'.format(abs_path))
+            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
 
     def absolutize_path(self, rel_path):
         """
