@@ -126,13 +126,10 @@ class Daemon(RegexMatchingEventHandler):
 
         self.client_snapshot
         {
-            "last_timestamp":"",
-            "files":{
             "<file_path>":('<timestamp>', '<md5>')
         }
         """
 
-        self.client_snapshot = {'last_timestamp':''}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
                     filepath = os.path.join(dirpath, filename)
@@ -273,7 +270,7 @@ class Daemon(RegexMatchingEventHandler):
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                 hashed_file = self.hash_file(self.absolutize_path(filepath))
                 self.client_snapshot[filepath] = ['', hashed_file]
-        for filepath in self.client_snapshot:
+        for filepath in self.client_snapshot:            
             if filepath not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
@@ -495,6 +492,7 @@ class Daemon(RegexMatchingEventHandler):
         When the filepath isn't in client_snapshot the md5 is calculated on fly
         :return is the md5 hash of the directory
         """
+
         directory = self.cfg['sharing_path']
         if verbose:
             start = time.time()
