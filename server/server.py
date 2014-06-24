@@ -150,7 +150,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
             fp.write('{} {}\n'.format(username, dirname))
         last_timestamp = file_timestamp(filepath)
     logger.info('{} created'.format(dirpath))
-    return last_timestamp, calculate_dir_snapshot(dirpath)
+    return calculate_dir_snapshot(dirpath)
 
 
 def load_userdata():
