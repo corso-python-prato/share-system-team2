@@ -84,6 +84,12 @@ def _read_file(filename):
         content = f.read()
     return content
 
+def check_path(path, username):
+    path = os.path.abspath(join(FILE_ROOT, username, path))
+    root = os.path.abspath(join(FILE_ROOT, username))
+    if root in path:
+        return True
+    return False
 
 def now_timestamp():
     """
@@ -127,7 +133,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     """
     Create the default user directory.
     :param username: str
-    :param default_dirs: tuple
+    :param default_dirs: dict
     """
     dirpath = join(FILE_ROOT, username)
     if os.path.isdir(dirpath):
@@ -148,7 +154,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         with open(filepath, 'w') as fp:
             fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
-    return calculate_dir_snapshot(dirpath)
+    return compute_dir_state(dirpath)
 
 
 def load_userdata():
@@ -233,61 +239,46 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-    def _get_src_dst(self, username):
-        """
-        Get the source and destination paths to complete _move and _copy actions.
-        Controls if both source and destination are in real_root (http://~.../actions/<cmd>) and
-        returns the absolute paths of them
-        """
-        src = request.form['src']
-        dst = request.form['dst']
-        src_path = os.path.abspath(join(FILE_ROOT, username, src))
-        dst_path = os.path.abspath(join(FILE_ROOT, username, dst))
-        real_root = os.path.realpath(join(FILE_ROOT, username))
-
-        if real_root not in src_path and real_root not in dst_path:
-            abort(HTTP_FORBIDDEN)
-
-        return src_path, dst_path
-
     def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
-        rootpath = join(FILE_ROOT, username, filepath)
-        filepath = os.path.abspath(rootpath)
-        real_root = os.path.realpath(join(FILE_ROOT, username))
+     
+        if not check_path(filepath, username):
+            abort(HTTP_FORBIDDEN)
 
         if not os.path.isfile(filepath):
             abort(HTTP_NOT_FOUND)
-
-        if real_root not in filepath:
-            abort(HTTP_FORBIDDEN)
 
         try:
             os.remove(filepath)
         except OSError:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(filepath), username)
-        # I deleted a file, so the last server timestamp is the current timestamp
+        # file deleted, last_server_timestamp is set to current timestamp
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path and return the current server timestamp in a json.
+        Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
-        src_path, dst_path = self._get_src_dst(username)
+        
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        if not (check_path(src, username) or check_path(dst, username)):
+            abort(HTTP_FORBIDDEN)
 
-        if os.path.isfile(src_path):
-            if not os.path.exists(os.path.dirname(dst_path)):
-                os.makedirs(os.path.dirname(dst_path))
-            shutil.copy(src_path, dst_path)
+        if os.path.isfile(src):
+            if not os.path.exists(os.path.dirname(dst)):
+                os.makedirs(os.path.dirname(dst))
+            shutil.copy(src, dst)
         else:
             abort(HTTP_NOT_FOUND)
-        # TODO: return dst file timestamp instead of current timestamp?
+        # TODO: return dst file timestamp inste of current timestamp?
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
     def _move(self, username):
@@ -295,15 +286,20 @@ class Actions(Resource):
         Move a file from a given source path to a destination path, and return the current server timestamp in a json.
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
-        src_path, dst_path = self._get_src_dst(username)
 
-        if os.path.isfile(src_path):
-            if not os.path.exists(os.path.dirname(dst_path)):
-                os.makedirs(os.path.dirname(dst_path))
-            shutil.move(src_path, dst_path)
+        src = request.form['src']
+        dst = request.form['dst']
+        
+        if not (check_path(src, username) or check_path(dst, username)):
+            abort(HTTP_FORBIDDEN)
+
+        if os.path.isfile(src):
+            if not os.path.exists(os.path.dirname(dst)):
+                os.makedirs(os.path.dirname(dst))
+            shutil.move(src, dst)
         else:
             abort(HTTP_NOT_FOUND)
-        self._clear_dirs(os.path.dirname(src_path), username)
+        self._clear_dirs(os.path.dirname(src), username)
         # TODO: return dst file timestamp instead of current timestamp?
         return jsonify({LAST_SERVER_TIMESTAMP: now_timestamp()})
 
@@ -341,13 +337,15 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def calculate_dir_snapshot(root_path):
+def compute_dir_state(root_path):
     """
-    Walk on root_path returning a snapshot in a dict.
+    Walk on root_path returning the directory snapshot in a dict (dict keys are identified by this 2 constants:
+    LAST_SERVER_TIMESTAMP and SNAPSHOT)
+
     :param root_path: str
-    :return: tuple
+    :return: dict.
     """
-    result = {}
+    snapshot = {}
     last_timestamp = 0
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
@@ -363,8 +361,10 @@ def calculate_dir_snapshot(root_path):
                 timestamp = file_timestamp(filepath)
                 if timestamp > last_timestamp:
                     last_timestamp = timestamp
-                result[filepath[len(root_path) + 1:]] = [timestamp, md5]
-    return last_timestamp, result
+                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+    state = {LAST_SERVER_TIMESTAMP: last_timestamp,
+             SNAPSHOT: snapshot}
+    return state
 
 
 class Files(Resource):
@@ -385,11 +385,10 @@ class Files(Resource):
         if path:
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
-            real_dirname = os.path.realpath(dirname)
-            real_root = os.path.realpath(join(FILE_ROOT, username))
-
-            if real_root not in real_dirname:
+           
+            if not check_path(dirname, username):
                 abort(HTTP_FORBIDDEN)
+
             if not os.path.exists(dirname):
                 abort(HTTP_NOT_FOUND)
             s_filename = secure_filename(os.path.split(path)[-1])
@@ -403,8 +402,10 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            last_server_timestamp, snapshot = calculate_dir_snapshot(user_rootpath)
+            server_state = compute_dir_state(user_rootpath)
+            snapshot = server_state[SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
+            last_server_timestamp = server_state[LAST_SERVER_TIMESTAMP]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: snapshot})
         logging.debug(response)
@@ -419,11 +420,9 @@ class Files(Resource):
         username = auth.username()
         dirname = os.path.dirname(path)
         dirname = (join(FILE_ROOT, username, dirname))
-        real_dirname = os.path.realpath(dirname)
-        real_root = os.path.realpath(join(FILE_ROOT, username))
         filename = os.path.split(path)[-1]
 
-        if real_root not in real_dirname:
+        if not check_path(dirname, username):
             abort(HTTP_FORBIDDEN)
 
         return dirname, filename
