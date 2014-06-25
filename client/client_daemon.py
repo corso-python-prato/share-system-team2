@@ -51,8 +51,9 @@ class Daemon(RegexMatchingEventHandler):
 
     def __init__(self):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
+
         # Just Initialize variable the Daemon.start() do the other things
-        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)        
+        self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}
         self.local_dir_state = {}
@@ -61,7 +62,6 @@ class Daemon(RegexMatchingEventHandler):
         self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
-        
 
     def load_cfg(self, config_path):
         """
@@ -116,7 +116,7 @@ class Daemon(RegexMatchingEventHandler):
             try:
                 os.makedirs(self.cfg['sharing_path'])
             except OSError:
-                self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'\
+                self.stop(1, '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'
                           .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
 
     def build_client_snapshot(self):
@@ -276,7 +276,6 @@ class Daemon(RegexMatchingEventHandler):
             if filepath not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
-
     def relativize_path(self, abs_path):
         """
         This function relativize the path watched by daemon:
@@ -392,13 +391,12 @@ class Daemon(RegexMatchingEventHandler):
         self.conn_mng.dispatch_request(data['cmd'], data['file'])
         self.client_snapshot[filepath] = ['', hashed_file]
 
-
     def start(self):
         """
         Starts the communication with the command_manager.
         """
 
-        self.local_dir_state =  self.load_local_dir_state()        
+        self.local_dir_state = self.load_local_dir_state()
         # Operations necessary to start the daemon
         self.build_client_snapshot()
         self._sync_with_server()
@@ -449,7 +447,7 @@ class Daemon(RegexMatchingEventHandler):
             self.observer.join()
             self.listener_socket.close()
             # Save timestamp and global_md5
-            self.save_local_dir_state()           
+            self.save_local_dir_state()
         self.running = 0
         if exit_message:
             print exit_message
@@ -457,19 +455,18 @@ class Daemon(RegexMatchingEventHandler):
 
     def save_local_dir_state(self):
         global_md5 = self.calculate_md5_of_dir()
-        self.local_dir_state = {'timestamp':'','global_md5':global_md5}
-        pickle.dump( self.local_dir_state, open( "dir_state.p", "wb" ) )
+        self.local_dir_state = {'timestamp': '', 'global_md5': global_md5}
+        pickle.dump(self.local_dir_state, open("dir_state.p", "wb"))
         print "local_dir_state saved"
 
     def load_local_dir_state(self):
         if os.path.isfile('dir_state.p'):
-            self.local_dir_state = pickle.load( open( "dir_state.p", "rb" ) )
+            self.local_dir_state = pickle.load(open("dir_state.p", "rb"))
             print "load_dir_state loaded"
-            return True            
+            return True
         else:
             print "no dir state file found"
             return False
-
 
     def calculate_md5_of_dir(self, verbose=0):
         """
@@ -487,7 +484,7 @@ class Daemon(RegexMatchingEventHandler):
 
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
-                filepath = os.path.join(root,names)
+                filepath = os.path.join(root, names)
                 rel_path = self.relativize_path(filepath)
                 if rel_path in self.client_snapshot:
                     md5Hash.update(self.client_snapshot[rel_path][1])
