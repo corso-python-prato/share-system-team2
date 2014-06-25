@@ -36,10 +36,11 @@ REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
 
 
-def userpath2serverpath(username, path):
+def userpath2serverpath(username, path=''):
     """
     Given an username and its relative path, return the
-    corrisponding path in the server.
+    corresponding path in the server. If the path is empty,
+    return the user path directory in the server.
     :param username: str
     :param path: str
     :return: str
@@ -74,7 +75,7 @@ def create_user_dir(username):
     :param username:
     :return:
     """
-    os.makedirs(userpath2serverpath(username, ''))
+    os.makedirs(userpath2serverpath(username))
 
 
 def build_tstuser_dir(username):
@@ -93,7 +94,7 @@ def build_tstuser_dir(username):
         (os.path.join('subdir', 'barfile.md'), 'bar', '37b51d194a7513e45b56f6524f2d51f2'),
     ]
 
-    user_root = userpath2serverpath(username, '')
+    user_root = userpath2serverpath(username)
     # If directory already exists, destroy it
     if os.path.isdir(user_root):
         shutil.rmtree(user_root)
@@ -121,7 +122,7 @@ def _manually_remove_user(username):  # TODO: make this from server module
     if USR in server.userdata:
         server.userdata.pop(username)
     # Remove user directory if exists!
-    user_dirpath = userpath2serverpath(USR, '')
+    user_dirpath = userpath2serverpath(USR)
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
         logging.info('"%s" user directory removed' % user_dirpath)
