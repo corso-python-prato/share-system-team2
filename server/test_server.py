@@ -263,7 +263,6 @@ class TestRequests(unittest.TestCase):
         dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
 
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
-        _create_file(USR, dst_move_test_file_path, 'different other content')
 
         test = self.app.post(move_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
