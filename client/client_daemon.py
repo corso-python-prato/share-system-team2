@@ -9,7 +9,6 @@ import os
 import hashlib
 import re
 import time
-import pickle
 
 from sys import exit as exit
 from collections import OrderedDict
@@ -27,6 +26,7 @@ class Daemon(RegexMatchingEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
     # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
     DEFAULT_CONFIG = OrderedDict()
@@ -395,10 +395,10 @@ class Daemon(RegexMatchingEventHandler):
         """
         Starts the communication with the command_manager.
         """
-
-        self.local_dir_state = self.load_local_dir_state()
-        # Operations necessary to start the daemon
         self.build_client_snapshot()
+        self.load_local_dir_state()
+
+        # Operations necessary to start the daemon
         self._sync_with_server()
         self.create_observer()
 
@@ -441,32 +441,46 @@ class Daemon(RegexMatchingEventHandler):
         """
         Stop the Daemon components (observer and communication with command_manager).
         """
-
         if self.daemon_state == 'started':
+            self.running = 0
             self.observer.stop()
             self.observer.join()
             self.listener_socket.close()
-            # Save timestamp and global_md5
-            self.save_local_dir_state()
-        self.running = 0
+        print exit_message
+        self.daemon_state == 'down'
+        self.save_local_dir_state()
+        print exit_message
         if exit_message:
             print exit_message
         exit(exit_status)
 
+    def update_local_dir_state(self, last_timestamp):
+        """
+        Update the local_dir_state with last_timestamp operation and save it on disk
+        """
+        self.local_dir_state['last_timestamp'] = last_timestamp
+        self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+        self.save_local_dir_state()
+
     def save_local_dir_state(self):
-        global_md5 = self.calculate_md5_of_dir()
-        self.local_dir_state = {'timestamp': '', 'global_md5': global_md5}
-        pickle.dump(self.local_dir_state, open("dir_state.p", "wb"))
+        """
+        Save local_dir_state on disk
+        """
+        json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
         print "local_dir_state saved"
 
     def load_local_dir_state(self):
-        if os.path.isfile('dir_state.p'):
-            self.local_dir_state = pickle.load(open("dir_state.p", "rb"))
-            print "load_dir_state loaded"
-            return True
+        """
+        Load local dir state on self.local_dir_state variable
+        if file doesn't exists it will be created without timestamp
+        """
+        if os.path.isfile(Daemon.LOCAL_DIR_STATE_PATH):
+            self.local_dir_state = json.load(open(Daemon.LOCAL_DIR_STATE_PATH, "rb"))
+            print "Loaded dir_state"
         else:
-            print "no dir state file found"
-            return False
+            self.local_dir_state = {'last_timestamp': '', 'global_md5': self.calculate_md5_of_dir()}
+            json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
+            print "dir_state not found, Initialize new dir_state"
 
     def calculate_md5_of_dir(self, verbose=0):
         """
