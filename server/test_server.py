@@ -34,14 +34,13 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
-# WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
-# create test folders and files for 'files/' api
 
 
-def userpath2serverpath(username, path):
+def userpath2serverpath(username, path=''):
     """
     Given an username and its relative path, return the
-    corrisponding path in the server.
+    corresponding path in the server. If the path is empty,
+    return the user path directory in the server.
     :param username: str
     :param path: str
     :return: str
@@ -76,7 +75,7 @@ def create_user_dir(username):
     :param username:
     :return:
     """
-    os.makedirs(userpath2serverpath(username, ''))
+    os.makedirs(userpath2serverpath(username))
 
 
 def build_tstuser_dir(username):
@@ -95,7 +94,7 @@ def build_tstuser_dir(username):
         (os.path.join('subdir', 'barfile.md'), 'bar', '37b51d194a7513e45b56f6524f2d51f2'),
     ]
 
-    user_root = userpath2serverpath(username, '')
+    user_root = userpath2serverpath(username)
     # If directory already exists, destroy it
     if os.path.isdir(user_root):
         shutil.rmtree(user_root)
@@ -123,7 +122,7 @@ def _manually_remove_user(username):  # TODO: make this from server module
     if USR in server.userdata:
         server.userdata.pop(username)
     # Remove user directory if exists!
-    user_dirpath = userpath2serverpath(USR, '')
+    user_dirpath = userpath2serverpath(USR)
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
         logging.info('"%s" user directory removed' % user_dirpath)
@@ -265,7 +264,6 @@ class TestRequests(unittest.TestCase):
         dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
 
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
-        _create_file(USR, dst_move_test_file_path, 'different other content')
 
         test = self.app.post(move_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
@@ -420,6 +418,9 @@ class TestUsers(unittest.TestCase):
         self.assertIn(server.SNAPSHOT, single_user_data)
         self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
         self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
+        # test that the user directory is created
+        user_dirpath = userpath2serverpath(USR)
+        self.assertTrue(os.path.isdir(user_dirpath))
         # test server response
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 
