@@ -83,8 +83,7 @@ class ConnectionManager(object):
 
     def do_upload(self, data):
         filepath = os.path.join(self.cfg['sharing_path'], data['filepath'])
-        url = ''.join([
-            self.files_url, data['filepath']])
+        url = ''.join([self.files_url, data['filepath']])
         _file = {'file': (open(filepath, 'rb'))}
         print 'do_upload', url
         try:

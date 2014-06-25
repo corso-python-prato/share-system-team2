@@ -111,7 +111,6 @@ class Daemon(RegexMatchingEventHandler):
         Check that the sharing folder exists otherwise create it.
         If is impossible to create exit with msg error.
         """
-
         if not os.path.isdir(self.cfg['sharing_path']):
             try:
                 os.makedirs(self.cfg['sharing_path'])
@@ -151,14 +150,15 @@ class Daemon(RegexMatchingEventHandler):
         # TODO makes request to server and return a tuple (timestamp, dir_tree)
         pass
 
-    def md5_exists(self, searched_md5):
-        # TODO check if md5 match with almost one of md5 of file in the directory
-        # return a path if match, 'None' otherwise
+    def search_md5(self, searched_md5):
+        """
+        Recive as parameter the md5 of a file and return the first knowed path with the same md5
+        """
         for path in self.client_snapshot:
                 if searched_md5 in self.client_snapshot[path][1]:
                     return path
         else:
-            self.stop(1, 'Copy Error!!')
+            return None
 
     def sync_with_server_to_future(self):
         """
@@ -195,7 +195,7 @@ class Daemon(RegexMatchingEventHandler):
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
                     if timestamp > local_timestamp:
-                        founded_path = self.md5_exists(md5)
+                        founded_path = self.search_md5(md5)
                         rel_filepath = self.relativize_path(filepath)
                         if founded_path:
                             _make_copy(src=self.absolutize_path(founded_path), dst=filepath)
@@ -223,7 +223,7 @@ class Daemon(RegexMatchingEventHandler):
                 pass
             else:  # local_timestamp < server_timestamp
                 for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = self.md5_exists(md5)
+                    retval = self.search_md5(md5)
                     if retval:
                         if retval[0] in self.client_snapshot:
                             pass  # copy file
@@ -270,6 +270,7 @@ class Daemon(RegexMatchingEventHandler):
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                 hashed_file = self.hash_file(self.absolutize_path(filepath))
                 self.client_snapshot[filepath] = ['', hashed_file]
+
         for filepath in self.client_snapshot:
             if filepath not in server_snapshot:
                 self.conn_mng.dispatch_request('upload', {'filepath': filepath})
