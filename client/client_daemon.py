@@ -313,79 +313,107 @@ class Daemon(RegexMatchingEventHandler):
     ####################################
 
     def on_created(self, e):
-        def build_data(cmd, e, new_md5=None):
+        def build_data(cmd, rel_new_path, new_md5, founded_path=None):
             """
             Prepares the data from event handler to be delivered to connection_manager.
             """
             data = {'cmd': cmd}
             if cmd == 'copy':
-                path_with_searched_md5 = self.md5_exists(new_md5)
-                # TODO check what happen when i find more than 1 path with the new_md5
-                data['file'] = {'src': path_with_searched_md5,
-                                'dst': self.relativize_path(e.src_path),
-                                'md5': self.client_snapshot[path_with_searched_md5],
+                data['file'] = {'src': founded_path,
+                                'dst': rel_new_path,
+                                'md5': new_md5,
                                 }
             else:
-                f = open(e.src_path, 'rb')
-                data['file'] = {'filepath': self.relativize_path(e.src_path),
-                                'md5': hashlib.md5(f.read()).hexdigest(),
+                data['file'] = {'filepath': rel_new_path,
+                                'md5': new_md5,
                                 }
             return data
 
-        with open(e.src_path, 'rb') as f:
-            new_md5 = hashlib.md5(f.read()).hexdigest()
-        relative_path = self.relativize_path(e.src_path)
+        new_md5 = self.hash_file(e.src_path)
+        rel_new_path = self.relativize_path(e.src_path)
+        founded_path = self.search_md5(new_md5)
+
         # with this check i found the copy events
-        if new_md5 in self.client_snapshot.values():
+        if founded_path:
             print 'start copy'
-            data = build_data('copy', e, new_md5)
-            self.client_snapshot[data['file']['dst']] = data['file']['md5']
+            data = build_data('copy', rel_new_path, new_md5, founded_path)
+
         # this elif check that this created aren't modified event
-        elif relative_path in self.client_snapshot:
+        elif rel_new_path in self.client_snapshot:
             print 'start modified FROM CREATE!!!!!'
-            data = build_data('modify', e)
-            self.client_snapshot[data['file']['filepath']] = data['file']['md5']
-        else:
+            data = build_data('modify', rel_new_path, new_md5)
+
+        else: # Finally we find a real create event!
             print 'start create'
-            data = build_data('upload', e)
-            self.client_snapshot[data['file']['filepath']] = data['file']['md5']
-        self.conn_mng.dispatch_request(data['cmd'], data['file'])
+            data = build_data('upload', rel_new_path, new_md5)
+
+        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        if event_timestamp:
+            self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
+            self.update_local_dir_state(event_timestamp)
+        else:
+            self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
+                      .format(data['cmd'], e.src_path ))
 
     def on_moved(self, e):
 
         print 'start move'
-        with open(e.dest_path, 'rb') as f:
-            dest_md5 = hashlib.md5(f.read()).hexdigest()
-        data = {'cmd': 'move',
-                'file': {'src': self.relativize_path(e.src_path),
-                         'dst': self.relativize_path(e.dest_path),
-                         'md5': dest_md5,
-                         }
+        rel_src_path = self.relativize_path(e.dest_path)
+        rel_dest_path = self.relativize_path(e.dest_path)
+        # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
+        if self.client_snapshot.get(rel_src_path, 'ERROR') != 'ERROR':
+            md5 = self.client_snapshot[rel_src_path][1]
+        else:
+            self.stop(1, 'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
+
+        data = {'src': rel_src_path,
+                 'dst': rel_dest_path,
+                 'md5': md5,
+                 }
+        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        event_timestamp = self.conn_mng.dispatch_request('move', data)
+        if event_timestamp:
+            self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
+            # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
+            self.client_snapshot.pop(rel_src_path)
+            self.update_local_dir_state(event_timestamp)
+        else:
+            self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(e.src_path ))
+
+    def on_modified(self, e):
+
+        print 'start modified'
+        new_md5 = self.hash_file(e.src_path)
+        rel_path = self.relativize_path(e.src_path)
+
+        data = {'filepath': rel_path,
+                'md5': new_md5
                 }
-        self.client_snapshot[data['file']['dst']] = data['file']['md5']
-        self.client_snapshot.pop(data['file']['src'], 'NOTHING TO POP')
-        self.conn_mng.dispatch_request(data['cmd'], data['file'])
+
+        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        event_timestamp = self.conn_mng.dispatch_request('modify', data)
+        if event_timestamp:
+            self.client_snapshot[rel_path] = [event_timestamp, new_md5]
+            self.update_local_dir_state(event_timestamp)
+        else:
+            self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
     def on_deleted(self, e):
 
         print 'start delete'
         rel_deleted_path = self.relativize_path(e.src_path)
-        self.client_snapshot.pop(rel_deleted_path, 'NOTHING TO POP')
-        self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
 
-    def on_modified(self, e):
-
-        print 'start modified'
-        with open(e.src_path, 'rb') as f:
-            data = {'cmd': 'modify',
-                    'file': {'filepath': self.relativize_path(e.src_path),
-                             'md5': hashlib.md5(f.read()).hexdigest()
-                             }
-                    }
-        filepath = self.relativize_path(e.src_path)
-        hashed_file = self.hash_file(e.src_path)
-        self.conn_mng.dispatch_request(data['cmd'], data['file'])
-        self.client_snapshot[filepath] = ['', hashed_file]
+        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
+        if event_timestamp:
+            # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
+            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') != 'ERROR':
+                self.update_local_dir_state(event_timestamp)
+            else:
+                self.stop(1, 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path))
+        else:
+            self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
     def start(self):
         """
