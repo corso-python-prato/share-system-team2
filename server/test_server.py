@@ -34,8 +34,6 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
-# WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
-# create test folders and files for 'files/' api
 
 
 def userpath2serverpath(username, path):
