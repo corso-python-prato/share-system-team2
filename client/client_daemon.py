@@ -360,7 +360,7 @@ class Daemon(RegexMatchingEventHandler):
     def on_moved(self, e):
 
         print 'start move'
-        rel_src_path = self.relativize_path(e.dest_path)
+        rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
         # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
         if self.client_snapshot.get(rel_src_path, 'ERROR') != 'ERROR':
