@@ -251,24 +251,42 @@ class Actions(Resource):
         json format: {LAST_SERVER_TIMESTAMP: int}
         """
         filepath = request.form['filepath']
-       
+
         if not check_path(filepath, username):
             abort(HTTP_FORBIDDEN)
 
-        if not os.path.isfile(filepath):
+        #FIX DI CARLO ##########################################
+        abspath = os.path.abspath(join(FILE_ROOT, username, filepath))
+
+        if not os.path.isfile(abspath):
             abort(HTTP_NOT_FOUND)
 
         try:
-            os.remove(filepath)
+            os.remove(abspath)
         except OSError:
             abort(HTTP_NOT_FOUND)
-        self._clear_dirs(os.path.dirname(filepath), username)
+        self._clear_dirs(os.path.dirname(abspath), username)
         # file deleted, last_server_timestamp is set to current timestamp
-       
+
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
-       
+
+        # if not os.path.isfile(filepath):
+        #     abort(HTTP_NOT_FOUND)
+        #
+        # try:
+        #     os.remove(filepath)
+        # except OSError:
+        #     abort(HTTP_NOT_FOUND)
+        # self._clear_dirs(os.path.dirname(filepath), username)
+        # # file deleted, last_server_timestamp is set to current timestamp
+        #
+        # last_server_timestamp = now_timestamp()
+        # userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        # userdata[username]['files'].pop(normpath(filepath))
+        ########################### FIX DI CARLO####################################################
+
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
