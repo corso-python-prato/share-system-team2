@@ -55,8 +55,8 @@ class Daemon(RegexMatchingEventHandler):
         # Just Initialize variable the Daemon.start() do the other things
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
-        self.client_snapshot = {}
-        self.local_dir_state = {}
+        self.client_snapshot = {} # EXAMPLE {'<filepath1>: ['<timestamp>', '<md5>', '<filepath2>: ...}
+        self.local_dir_state = {} # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
@@ -125,12 +125,9 @@ class Daemon(RegexMatchingEventHandler):
 
         self.client_snapshot
         {
-            "last_timestamp":"",
-            "files":{
             "<file_path>":('<timestamp>', '<md5>')
         }
         """
-
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
                 for filename in files:
@@ -264,10 +261,11 @@ class Daemon(RegexMatchingEventHandler):
         print "TOTAL MD5: ", total_md5
 
         for filepath in server_snapshot:
+
             if filepath not in self.client_snapshot:
-                # TODO: check if download succeed, if so update client_snapshot with the new file
                 self.conn_mng.dispatch_request('download', {'filepath': filepath})
                 self.client_snapshot[filepath] = server_snapshot[filepath]
+
             elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
                 self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                 hashed_file = self.hash_file(self.absolutize_path(filepath))
@@ -312,8 +310,6 @@ class Daemon(RegexMatchingEventHandler):
     # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
     # TODO update struct with new more performance data structure
     # TODO verify what happen if the server return a error message
-    ####################################
-    # In client_snapshot the structure are {'<filepath>' : '<md5>'} so you have to convert!!!!
     ####################################
 
     def on_created(self, e):
@@ -424,7 +420,8 @@ class Daemon(RegexMatchingEventHandler):
                         # handle all other sockets
                         length = s.recv(Daemon.INT_SIZE)
                         if length:
-                            # i need to do [0] and cast int becouse the struct.unpuck return a tupla like (23234234,) with the lenght as a string
+                            # i need to do [0] and cast int because the struct.unpack return a tupla like (23234234,)
+                            # with the length as a string
                             length = int(struct.unpack('!i', length)[0])
                             message = json.loads(s.recv(length))
                             for cmd, data in message.items():
