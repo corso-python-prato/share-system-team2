@@ -98,12 +98,19 @@ def build_tstuser_dir(username):
 
 
 def _manually_create_user(username, pw):
+    """
+    Create an user, its server directory, and return its userdata dictionary.
+    :param username: str
+    :param pw: str
+    :return: dict
+    """
     enc_pass = server._encrypt_password(pw)
-    single_user_data = {server.PASSWORD: enc_pass,
-                        server.LAST_SERVER_TIMESTAMP: server.now_timestamp(),
-                        server.SNAPSHOT: {}}  # set empty directory as snapshot
+    # Create user direvtory with default structure (use the server function)
+    user_dir_state = server.init_user_directory(username)
+    single_user_data = user_dir_state
+    single_user_data[server.PASSWORD] = enc_pass
     server.userdata[username] = single_user_data
-    create_user_dir(username)
+    return single_user_data
 
 
 def _manually_remove_user(username):  # TODO: make this from server module
@@ -192,15 +199,24 @@ class TestRequests(unittest.TestCase):
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
 
     def test_files_put_with_auth(self):
+        """
+        Test put. File content and stored md5 must be changed.
+        """
         path = 'test_put/file_to_change.txt'
         _create_file(USR, path, 'I will change')
         to_modify_filepath = userpath2serverpath(USR, path)
+        old_content = open(to_modify_filepath).read()
+        old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
 
         url = SERVER_FILES_API + path
         test = self.app.put(url,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
-        # TODO: check that content has changed
+
+        new_content = open(to_modify_filepath).read()
+        self.assertNotEqual(old_content, new_content)
+        new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+        self.assertNotEqual(old_md5, new_md5)
         self.assertEqual(test.status_code, server.HTTP_CREATED)  # 200 or 201 (OK or created)?
 
     def test_delete_file_path(self):
@@ -220,6 +236,7 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
+        self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
 
     def test_copy_file_path(self):
         """
@@ -434,6 +451,98 @@ class TestUsers(unittest.TestCase):
         test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': '', 'password': 'pass'})
         self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
+
+
+def get_dic_dir_states():
+    """
+    Return a tuple with dictionary state and directory state of all users.
+    NB: Passwords are removed from the dictionary states.
+    :return: tuple
+    """
+    dic_state = {}
+    dir_state = {}
+    for username in server.userdata:
+        single_user_data = server.userdata[username].copy()
+        single_user_data.pop(server.PASSWORD)  # not very beautiful
+        dic_state[username] = single_user_data
+        dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
+    return dic_state, dir_state
+
+
+class TestUserdataConsistence(unittest.TestCase):
+    """
+    Testing consistence between userdata dictionary and actual files.
+    """
+
+    def setUp(self):
+        setup_test_dir()
+        self.app = server.app.test_client()
+        self.app.testing = True
+        # To see the tracebacks in case of 500 server error!
+        server.app.config.update(TESTING=True)
+
+    def test_consistence_after_actions(self):
+        """
+        Complex test that do several actions and finally test the consistence.
+        """
+        # FIXME: Sometimes, randomly, this test fails (more often it pass). I suspect this issue is related to (int) timestamps.
+        # Possible fix: always use file_timestamp instead of now_timestamp in server module.
+
+        # create user
+        user = 'pippo'
+        _manually_create_user(user, 'pass')
+
+        # post
+        _create_file(user, 'new_file', 'ciao!!!')
+        url = SERVER_FILES_API + 'new_file'
+        self.app.post(url, headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+
+        # move
+        move_test_url = SERVER_ACTIONS_API + 'move'
+        src_move_test_file_path = 'test_move_src/testmovesrc.txt'
+        dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
+        #create source file to be moved and its destination
+        _create_file(user, src_move_test_file_path, 'this is the file to be moved')
+        test = self.app.post(move_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        # copy
+        copy_test_url = SERVER_FILES_API + 'copy'
+        test = self.app.post(copy_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        # intermediate check
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
+
+        # create other user
+        user, pw = 'pluto', 'pw'
+        _manually_create_user(user, pw)
+        # post a file
+        path = 'dir/dirfile.txt'
+        _create_file(user, path, 'dirfile content...')
+        self.app.post(SERVER_FILES_API + path,
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))})
+
+        # delete it
+        self.app.post(SERVER_FILES_API + 'delete',
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
+                      data={'filepath': path})
+
+        # final check
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
+
+        # Now I manually delete a file in the server and must be NOT synchronized!
+        os.remove(userpath2serverpath(user, 'WELCOME'))
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertNotEqual(dic_state, dir_state)  # NOT EQUAL
+
+        # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
 if __name__ == '__main__':

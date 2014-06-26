@@ -12,7 +12,6 @@ normpath = os.path.normpath
 abspath = os.path.abspath
 
 import time
-import pprint
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -404,7 +403,7 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def compute_dir_state(root_path):
+def compute_dir_state(root_path):  # TODO: make function accepting just an username instead of an user root_path.
     """
     Walk on root_path returning the directory snapshot in a dict (dict keys are identified by this 2 constants:
     LAST_SERVER_TIMESTAMP and SNAPSHOT)
@@ -518,7 +517,6 @@ class Files(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        pprint.pprint(userdata[username]['files'][normpath(path)])
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
         resp.status_code = HTTP_CREATED
@@ -544,7 +542,7 @@ class Files(Resource):
 
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(filepath)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})   
         #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
