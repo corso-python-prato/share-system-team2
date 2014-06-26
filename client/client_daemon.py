@@ -462,6 +462,9 @@ class Daemon(RegexMatchingEventHandler):
                             r_list.remove(s)
         except KeyboardInterrupt:
             self.stop(0)
+        self.observer.stop()
+        self.observer.join()
+        self.listener_socket.close()
 
     def stop(self, exit_status, exit_message=None):
         """
@@ -469,13 +472,8 @@ class Daemon(RegexMatchingEventHandler):
         """
         if self.daemon_state == 'started':
             self.running = 0
-            self.observer.stop()
-            self.observer.join()
-            self.listener_socket.close()
-        print exit_message
-        self.daemon_state == 'down'
+            self.daemon_state == 'down'
         self.save_local_dir_state()
-        print exit_message
         if exit_message:
             print exit_message
         exit(exit_status)
