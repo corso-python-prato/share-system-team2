@@ -134,9 +134,6 @@ class Daemon(RegexMatchingEventHandler):
         # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
         return True
 
-    def get_server_files(self):
-        # TODO makes request to server and return a tuple (timestamp, dir_tree)
-        pass
 
     def md5_exists(self, searched_md5):
         # TODO check if md5 match with almost one of md5 of file in the directory
@@ -151,6 +148,9 @@ class Daemon(RegexMatchingEventHandler):
         """
         Download from server the files state and find the difference from actual state.
         """
+        def _get_server_files():
+            response = self.conn_mng.dispatch_request('get_server_snapshot', '')
+            return response['server_timestamp'], response['files']
         def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
             # and make a diffs classification
