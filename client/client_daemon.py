@@ -208,7 +208,7 @@ class Daemon(RegexMatchingEventHandler):
                     return k
             return None
 
-        local_timestamp = self.dir_state['timestamp']
+        local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
 
         sync_commands = []
