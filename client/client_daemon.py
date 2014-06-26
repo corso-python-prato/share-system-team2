@@ -143,13 +143,9 @@ class Daemon(RegexMatchingEventHandler):
         else:
             self.stop(1, 'Copy Error!!')
 
-    def sync_with_server_to_future(self):
-        """
-        Makes the synchronization with server
-        """
-        def _get_server_files():
-            response = self.conn_mng.dispatch_request('get_server_snapshot', '')
-            return response['server_timestamp'], response['files']
+    def _sync_process(self, server_timestamp, server_dir_tree):
+        # Makes the synchronization logic and return a list of commands to launch
+        # for server synchronization
 
         def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
@@ -201,9 +197,9 @@ class Daemon(RegexMatchingEventHandler):
             return None
 
         local_timestamp = self.dir_state['timestamp']
-        server_timestamp, server_dir_tree = _get_server_files()
-
         tree_diff = _filter_tree_difference(server_dir_tree)
+
+        sync_commands = []
 
         if self._is_directory_modified():
             if local_timestamp == server_timestamp:
@@ -212,15 +208,18 @@ class Daemon(RegexMatchingEventHandler):
 
                 # files in server but not in client: remove them from server
                 for filepath in tree_diff['new_on_server']:
-                    self.conn_mng.dispatch_request('delete', {'filepath': filepath})
+                    sync_commands.append(('delete', filepath))
+                    #self.conn_mng.dispatch_request('delete', {'filepath': filepath})
 
                 # files modified in client: send modified files to server
                 for filepath in tree_diff['modified']:
-                    self.conn_mng.dispatch_request('modified', {'filepath': filepath})
+                    sync_commands.append(('modified', filepath))
+                    #self.conn_mng.dispatch_request('modified', {'filepath': filepath})
 
                 # files in client but not in server: upload them to server
                 for filepath in tree_diff['new_on_client']:
-                    self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+                    sync_commands.append(('upload', filepath))
+                    #self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
             else:  # local_timestamp < server_timestamp
                 # the server has the command
@@ -238,32 +237,38 @@ class Daemon(RegexMatchingEventHandler):
                     else:
                         if timestamp > local_timestamp:
                             # the files in server is more updated
-                            self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                            sync_commands.append(('download', filepath))
+                            #self.conn_mng.dispatch_request('download', {'filepath': filepath})
                         else:
                             # the client has deleted the file, so delete it on server
-                            self.conn_mng.dispatch_request('delete', {'filepath': filepath})
+                            sync_commands.append(('delete', filepath))
+                            #self.conn_mng.dispatch_request('delete', {'filepath': filepath})
 
                 for filepath in tree_diff['modified']:
                     timestamp, md5 = server_dir_tree[filepath]
 
                     if timestamp < local_timestamp:
                         # the client has modified the file, so update it on server
-                        self.conn_mng.dispatch_request('modify', {'filepath': filepath})
+                        sync_commands.append(('modify', filepath))
+                        #self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                     else:
                         # it's the worst case:
                         # we have a conflict with server,
                         # someone has modified files while daemon was down and someone else has modified
                         # the same file on server
-                        _make_copy(filepath, filepath + '.conflicted')
-                        self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+                        conflicted_path = ''.join([filepath, '.conflicted'])
+                        _make_copy(filepath, conflicted_path)
+                        sync_commands.append(('upload', conflicted_path))
+                        #self.conn_mng.dispatch_request('upload', {'filepath': conflicted_path})
 
                 for filepath in tree_diff['new_on_client']:
-                    self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+                    sync_commands.append(('upload', filepath))
+                    #self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
         else:  # directory not modified
             if local_timestamp == server_timestamp:
                 # it's the best case. Client and server are already synchronized
-                return True
+                return []
             else:  # local_timestamp < server_timestamp
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
@@ -279,18 +284,37 @@ class Daemon(RegexMatchingEventHandler):
                             tree_diff['new_on_client'].remove(filepath)
                     else:
                         # it's a new file
-                        self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                        sync_commands.append(('download', filepath))
+                        #self.conn_mng.dispatch_request('download', {'filepath': filepath})
 
                 for filepath in tree_diff['modified']:
-                    self.conn_mng.dispatch_request('download', {'filepath': filepath})
+                    sync_commands.append(('download', filepath))
+                    #self.conn_mng.dispatch_request('download', {'filepath': filepath})
 
                 for filepath in tree_diff['new_on_client']:
                     # files that have been deleted on server, so have to delete them
                     try:
                         os.remove(self.absolutize_path(filepath))
                     except OSError:
-                        return False
+                        # it should raise an exceptions
+                        pass
                     self.client_snapshot.pop(filepath)
+
+        return sync_commands
+
+    def sync_with_server_to_future(self):
+        """
+        Makes the synchronization with server
+        """
+        response = self.conn_mng.dispatch_request('get_server_snapshot', '')
+        server_timestamp = response['server_timestamp']
+        files = response['files']
+
+        sync_commands = self._sync_process(server_timestamp, files)
+
+        # makes all synchronization commands
+        for command, path in sync_commands:
+            self.conn_mng.dispatch_request(command, {'filepath': path})
 
     def _sync_with_server(self):
         """
