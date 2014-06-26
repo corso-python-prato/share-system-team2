@@ -302,13 +302,7 @@ class TestGetRequests(unittest.TestCase):
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
-
-        # Create temporary file
-        server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
-        if not os.path.exists(os.path.dirname(server_filepath)):
-            os.makedirs(os.path.dirname(server_filepath))
-        with open(server_filepath, 'w') as fp:
-            fp.write('some text')
+        _create_file(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH, 'some text')
 
     def tearDown(self):
         server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
