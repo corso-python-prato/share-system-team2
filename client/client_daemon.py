@@ -339,10 +339,6 @@ class Daemon(RegexMatchingEventHandler):
         else:
             server_timestamp = server_snapshot['server_timestamp']
             server_snapshot = server_snapshot['files']
-
-        total_md5 = self.calculate_md5_of_dir(self.cfg['sharing_path'])
-        print "TOTAL MD5: ", total_md5
-
         for filepath in server_snapshot:
 
             if filepath not in self.client_snapshot:
@@ -433,6 +429,7 @@ class Daemon(RegexMatchingEventHandler):
 
         # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
         if event_timestamp:
             self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
             self.update_local_dir_state(event_timestamp)
@@ -457,6 +454,7 @@ class Daemon(RegexMatchingEventHandler):
                  }
         # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('move', data)
+        print 'event_timestamp di "move" =', event_timestamp
         if event_timestamp:
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
             # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
@@ -478,6 +476,7 @@ class Daemon(RegexMatchingEventHandler):
         # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('modify', data)
         if event_timestamp:
+            print 'event_timestamp di "modified" =', event_timestamp
             self.client_snapshot[rel_path] = [event_timestamp, new_md5]
             self.update_local_dir_state(event_timestamp)
         else:
@@ -491,6 +490,7 @@ class Daemon(RegexMatchingEventHandler):
         # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
         if event_timestamp:
+            print 'event_timestamp di "delete" =', event_timestamp
             # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
             if self.client_snapshot.pop(rel_deleted_path, 'ERROR') != 'ERROR':
                 self.update_local_dir_state(event_timestamp)
