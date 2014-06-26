@@ -192,15 +192,24 @@ class TestRequests(unittest.TestCase):
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
 
     def test_files_put_with_auth(self):
+        """
+        Test put. File content and stored md5 must be changed.
+        """
         path = 'test_put/file_to_change.txt'
         _create_file(USR, path, 'I will change')
         to_modify_filepath = userpath2serverpath(USR, path)
+        old_content = open(to_modify_filepath).read()
+        old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
 
         url = SERVER_FILES_API + path
         test = self.app.put(url,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
-        # TODO: check that content has changed
+
+        new_content = open(to_modify_filepath).read()
+        self.assertNotEqual(old_content, new_content)
+        new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+        self.assertNotEqual(old_md5, new_md5)
         self.assertEqual(test.status_code, server.HTTP_CREATED)  # 200 or 201 (OK or created)?
 
     def test_delete_file_path(self):
