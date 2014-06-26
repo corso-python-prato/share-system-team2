@@ -319,8 +319,11 @@ class Daemon(RegexMatchingEventHandler):
         Makes the synchronization with server
         """
         response = self.conn_mng.dispatch_request('get_server_snapshot', '')
-        server_timestamp = response['server_timestamp']
-        files = response['files']
+        if response is None:
+            self.stop(1, '\nReceived bad snapshot. Server down?\n')
+        else:
+            server_timestamp = response['server_timestamp']
+            files = response['files']
 
         sync_commands = self._sync_process(server_timestamp, files)
 
