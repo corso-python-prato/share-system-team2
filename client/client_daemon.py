@@ -314,7 +314,7 @@ class Daemon(RegexMatchingEventHandler):
 
         return sync_commands
 
-    def sync_with_server_to_future(self):
+    def sync_with_server(self):
         """
         Makes the synchronization with server
         """
@@ -327,32 +327,6 @@ class Daemon(RegexMatchingEventHandler):
         # makes all synchronization commands
         for command, path in sync_commands:
             self.conn_mng.dispatch_request(command, {'filepath': path})
-
-    def _sync_with_server(self):
-        """
-        Download from server the files state and find the difference from actual state.
-        """
-
-        server_snapshot = self.conn_mng.dispatch_request('get_server_snapshot')
-        if server_snapshot is None:
-            self.stop(1, '\nReceived bad snapshot. Server down?\n')
-        else:
-            server_timestamp = server_snapshot['server_timestamp']
-            server_snapshot = server_snapshot['files']
-        for filepath in server_snapshot:
-
-            if filepath not in self.client_snapshot:
-                self.conn_mng.dispatch_request('download', {'filepath': filepath})
-                self.client_snapshot[filepath] = server_snapshot[filepath]
-
-            elif server_snapshot[filepath][1] != self.client_snapshot[filepath][1]:
-                self.conn_mng.dispatch_request('modify', {'filepath': filepath})
-                hashed_file = self.hash_file(self.absolutize_path(filepath))
-                self.client_snapshot[filepath] = ['', hashed_file]
-
-        for filepath in self.client_snapshot:
-            if filepath not in server_snapshot:
-                self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
     def relativize_path(self, abs_path):
         """
@@ -507,7 +481,7 @@ class Daemon(RegexMatchingEventHandler):
         self.load_local_dir_state()
 
         # Operations necessary to start the daemon
-        self._sync_with_server()
+        self.sync_with_server()
         self.create_observer()
 
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
