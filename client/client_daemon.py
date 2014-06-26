@@ -153,13 +153,25 @@ class Daemon(RegexMatchingEventHandler):
             return response['server_timestamp'], response['files']
         def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
-            # and make a diffs classification
+            # and makes a diffs classification
             # return a dict representing that classification
-            # { 'new'     : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server, but not in client
-            #   'modified': <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server and client, but different
-            #   'deleted' : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files not in server, but in client
+            # E.g. { 'new_on_server'     : <[<filepath>, ...]>,  # files in server, but not in client
+            #   'modified'          : <[<filepath>, ...]>,  # files in server and client, but different
+            #   'new_on_client'     : <[<filepath>, ...]>,  # files not in server, but in client
             # }
-            return {'created': [], 'modified': [], 'deleted': []}
+            client_files = set(self.client_snapshot.keys())
+            server_files = set(server_dir_tree.keys())
+
+            new_on_server = list(server_files.difference(client_files))
+            new_on_client = list(client_files.difference(server_files))
+            modified = []
+
+            for filepath in server_files.intersection(client_files):
+                # check files md5
+                if server_dir_tree[filepath][1] == self.client_snapshot[filepath][1]:
+                    modified.append(filepath)
+
+            return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
 
         def _make_copy(src, dst):
             abs_src = self.absolutize_path(src)
