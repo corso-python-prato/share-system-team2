@@ -117,18 +117,18 @@ class Daemon(RegexMatchingEventHandler):
     def build_client_snapshot(self):
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-                for filename in files:
-                    filepath = os.path.join(dirpath, filename)
-                    matched_regex = False
-                    for r in Daemon.IGNORED_REGEX:
-                        if re.match(r, filepath) is not None:
-                            matched_regex = True
-                            print 'Ignored Path:', filepath
-                            break
-                    if not matched_regex:
-                        relative_path = self.relativize_path(filepath)
-                        with open(filepath, 'rb') as f:
-                            self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
+            for filename in files:
+                filepath = os.path.join(dirpath, filename)
+                matched_regex = False
+                for r in Daemon.IGNORED_REGEX:
+                    if re.match(r, filepath) is not None:
+                        matched_regex = True
+                        print 'Ignored Path:', filepath
+                        break
+                if not matched_regex:
+                    relative_path = self.relativize_path(filepath)
+                    with open(filepath, 'rb') as f:
+                        self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
         # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
@@ -142,8 +142,8 @@ class Daemon(RegexMatchingEventHandler):
         # TODO check if md5 match with almost one of md5 of file in the directory
         # return a path if match, 'None' otherwise
         for path in self.client_snapshot:
-                if searched_md5 in self.client_snapshot[path][1]:
-                    return path
+            if searched_md5 in self.client_snapshot[path][1]:
+                return path
         else:
             self.stop(1, 'Copy Error!!')
 
