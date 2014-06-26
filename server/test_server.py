@@ -98,12 +98,19 @@ def build_tstuser_dir(username):
 
 
 def _manually_create_user(username, pw):
+    """
+    Create an user, its server directory, and return its userdata dictionary.
+    :param username: str
+    :param pw: str
+    :return: dict
+    """
     enc_pass = server._encrypt_password(pw)
-    single_user_data = {server.PASSWORD: enc_pass,
-                        server.LAST_SERVER_TIMESTAMP: server.now_timestamp(),
-                        server.SNAPSHOT: {}}  # set empty directory as snapshot
+    # Create user direvtory with default structure (use the server function)
+    user_dir_state = server.init_user_directory(username)
+    single_user_data = user_dir_state
+    single_user_data[server.PASSWORD] = enc_pass
     server.userdata[username] = single_user_data
-    create_user_dir(username)
+    return single_user_data
 
 
 def _manually_remove_user(username):  # TODO: make this from server module
