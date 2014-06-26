@@ -174,6 +174,8 @@ class TestRequests(unittest.TestCase):
                              follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
+        # check that uploaded path exists in username files dict
+        self.assertIn(user_relative_upload_filepath, server.userdata[USR][server.SNAPSHOT])
         os.remove(uploaded_filepath)
         logging.info('"{}" removed'.format(uploaded_filepath))
 
