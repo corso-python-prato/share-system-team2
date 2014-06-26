@@ -12,7 +12,7 @@ import time
 
 from sys import exit as exit
 from collections import OrderedDict
-from shutil import copy2
+from shutil import copy2, move
 
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
@@ -42,8 +42,7 @@ class Daemon(RegexMatchingEventHandler):
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~
-                     '.*\/(\..*)',  # hidden files TODO: improve
+                     # gedit first delete file, create, and move to dest_path *.txt~                     
                      ]
 
     # Calculate int size in the machine architecture
@@ -144,106 +143,190 @@ class Daemon(RegexMatchingEventHandler):
 
     def _is_directory_modified(self):
         # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
-        return True
-
-    def get_server_files(self):
-        # TODO makes request to server and return a tuple (timestamp, dir_tree)
-        pass
+        return False
 
     def search_md5(self, searched_md5):
         """
         Recive as parameter the md5 of a file and return the first knowed path with the same md5
         """
         for path in self.client_snapshot:
-                if searched_md5 in self.client_snapshot[path][1]:
-                    return path
+            if searched_md5 in self.client_snapshot[path][1]:
+                return path
         else:
             return None
 
-    def sync_with_server_to_future(self):
-        """
-        Download from server the files state and find the difference from actual state.
-        """
+    def _sync_process(self, server_timestamp, server_dir_tree):
+        # Makes the synchronization logic and return a list of commands to launch
+        # for server synchronization
+
         def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
-            # and make a diffs classification
+            # and makes a diffs classification
             # return a dict representing that classification
-            # { 'new'     : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server, but not in client
-            #   'modified': <[(<filepath>, <timestamp>, <md5>), ...]>,  # files in server and client, but different
-            #   'deleted' : <[(<filepath>, <timestamp>, <md5>), ...]>,  # files not in server, but in client
+            # E.g. { 'new_on_server'     : <[<filepath>, ...]>,  # files in server, but not in client
+            #   'modified'          : <[<filepath>, ...]>,  # files in server and client, but different
+            #   'new_on_client'     : <[<filepath>, ...]>,  # files not in server, but in client
             # }
-            return {'created': [], 'modified': [], 'deleted': []}
+            client_files = set(self.client_snapshot.keys())
+            server_files = set(server_dir_tree.keys())
+
+            new_on_server = list(server_files.difference(client_files))
+            new_on_client = list(client_files.difference(server_files))
+            modified = []
+
+            for filepath in server_files.intersection(client_files):
+                # check files md5
+                if server_dir_tree[filepath][1] != self.client_snapshot[filepath][1]:
+                    modified.append(filepath)
+
+            return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
 
         def _make_copy(src, dst):
+            abs_src = self.absolutize_path(src)
+            abs_dst = self.absolutize_path(dst)
             try:
-                copy2(src, dst)
+                copy2(abs_src, abs_dst)
             except IOError:
                 return False
-            rel_src = self.relativize_path(src)
-            rel_dst = self.relativize_path(dst)
-            self.client_snapshot[rel_dst] = self.client_snapshot[rel_src]
+
+            self.client_snapshot[dst] = self.client_snapshot[src]
             return True
 
-        local_timestamp = self.dir_state['timestamp']
-        server_timestamp, server_dir_tree = self._get_server_files()
+        def _make_move(src, dst):
+            abs_src = self.absolutize_path(src)
+            abs_dst = self.absolutize_path(dst)
+            try:
+                move(abs_src, abs_dst)
+            except IOError:
+                return False
 
+            return True
+
+        def _check_md5(dir_tree, md5):
+            for k, v in dir_tree.items():
+                if md5 == v[1]:
+                    return k
+            return None
+
+        local_timestamp = self.dir_state['timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
 
+        sync_commands = []
+
         if self._is_directory_modified():
-            if local_timestamp >= server_timestamp:
-                pass
-            else:  # local_timestamp < server_timestamp
-                for filepath, timestamp, md5 in tree_diff['new']:
-                    if timestamp > local_timestamp:
-                        founded_path = self.search_md5(md5)
-                        rel_filepath = self.relativize_path(filepath)
-                        if founded_path:
-                            _make_copy(src=self.absolutize_path(founded_path), dst=filepath)
-                        else:
-                            # TODO check if download succeed
-                            self.conn_mng.dispatch_request('download', {'filepath': filepath})
-
-                            with open(filepath, 'rb') as fo:
-                                self.client_snapshot[rel_filepath][1] = hashlib.md5(fo.read()).hexdigest()
-                    else:  # file older then local_timestamp, this mean is time to delete it!
-                        # TODO check if delete succeed
-                        self.conn_mng.dispatch_request('delete', {'filepath': filepath})
-                        if rel_filepath in self.client_snapshot:
-                            del self.client_snapshot[rel_filepath]
-
-                for filepath, timestamp, md5 in tree_diff['modified']:
-                    pass  # download all files
-
-                for filepath, timestamp, md5 in tree_diff['deleted']:
-                    pass  # deleted files
-
-        else:
             if local_timestamp == server_timestamp:
-                # send all diffs to server
-                pass
+                # simple case: the client has the command
+                # it sends all folder modifications to server
+
+                # files in server but not in client: remove them from server
+                for filepath in tree_diff['new_on_server']:
+                    sync_commands.append(('delete', filepath))
+                    #self.conn_mng.dispatch_request('delete', {'filepath': filepath})
+
+                # files modified in client: send modified files to server
+                for filepath in tree_diff['modified']:
+                    sync_commands.append(('modified', filepath))
+                    #self.conn_mng.dispatch_request('modified', {'filepath': filepath})
+
+                # files in client but not in server: upload them to server
+                for filepath in tree_diff['new_on_client']:
+                    sync_commands.append(('upload', filepath))
+                    #self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+
             else:  # local_timestamp < server_timestamp
-                for filepath, timestamp, md5 in tree_diff['new']:
-                    retval = self.search_md5(md5)
-                    if retval:
-                        if retval[0] in self.client_snapshot:
-                            pass  # copy file
+                # the server has the command
+                for filepath in tree_diff['new_on_server']:
+                    timestamp, md5 = server_dir_tree[filepath]
+                    existed_filepath = _check_md5(self.client_snapshot, md5)
+
+                    if existed_filepath:
+                        # it's a copy or a move
+                        if _check_md5(server_dir_tree, md5):
+                            _make_copy(existed_filepath, filepath)
                         else:
-                            pass  # rename file
+                            _make_move(existed_filepath, filepath)
+                            tree_diff['new_on_client'].remove(filepath)
                     else:
                         if timestamp > local_timestamp:
-                            pass  # dowload file
+                            # the files in server is more updated
+                            sync_commands.append(('download', filepath))
+                            #self.conn_mng.dispatch_request('download', {'filepath': filepath})
                         else:
-                            pass  # delete file in server
+                            # the client has deleted the file, so delete it on server
+                            sync_commands.append(('delete', filepath))
+                            #self.conn_mng.dispatch_request('delete', {'filepath': filepath})
 
-                for filepath, timestamp, md5 in tree_diff['modified']:
+                for filepath in tree_diff['modified']:
+                    timestamp, md5 = server_dir_tree[filepath]
+
                     if timestamp < local_timestamp:
-                        pass  # upload file to server (update)
+                        # the client has modified the file, so update it on server
+                        sync_commands.append(('modify', filepath))
+                        #self.conn_mng.dispatch_request('modify', {'filepath': filepath})
                     else:
-                        pass  # duplicate file (.conflicted)
-                        # upload .conflicted file to server
+                        # it's the worst case:
+                        # we have a conflict with server,
+                        # someone has modified files while daemon was down and someone else has modified
+                        # the same file on server
+                        conflicted_path = ''.join([filepath, '.conflicted'])
+                        _make_copy(filepath, conflicted_path)
+                        sync_commands.append(('upload', conflicted_path))
+                        #self.conn_mng.dispatch_request('upload', {'filepath': conflicted_path})
 
-                for filepath, timestamp, md5 in tree_diff['deleted']:  # !!!! file in client and not in server ('deleted' isn't appropriate label, but now functionally)
-                    pass  # upload file to server
+                for filepath in tree_diff['new_on_client']:
+                    sync_commands.append(('upload', filepath))
+                    #self.conn_mng.dispatch_request('upload', {'filepath': filepath})
+
+        else:  # directory not modified
+            if local_timestamp == server_timestamp:
+                # it's the best case. Client and server are already synchronized
+                return []
+            else:  # local_timestamp < server_timestamp
+                # the server has the command
+                for filepath in tree_diff['new_on_server']:
+                    timestamp, md5 = server_dir_tree[filepath]
+                    existed_filepath = _check_md5(self.client_snapshot, md5)
+
+                    if existed_filepath:
+                        # it's a copy or a move
+                        if _check_md5(server_dir_tree, md5):
+                            _make_copy(existed_filepath, filepath)
+                        else:
+                            _make_move(existed_filepath, filepath)
+                            tree_diff['new_on_client'].remove(filepath)
+                    else:
+                        # it's a new file
+                        sync_commands.append(('download', filepath))
+                        #self.conn_mng.dispatch_request('download', {'filepath': filepath})
+
+                for filepath in tree_diff['modified']:
+                    sync_commands.append(('download', filepath))
+                    #self.conn_mng.dispatch_request('download', {'filepath': filepath})
+
+                for filepath in tree_diff['new_on_client']:
+                    # files that have been deleted on server, so have to delete them
+                    try:
+                        os.remove(self.absolutize_path(filepath))
+                    except OSError:
+                        # it should raise an exceptions
+                        pass
+                    self.client_snapshot.pop(filepath)
+
+        return sync_commands
+
+    def sync_with_server_to_future(self):
+        """
+        Makes the synchronization with server
+        """
+        response = self.conn_mng.dispatch_request('get_server_snapshot', '')
+        server_timestamp = response['server_timestamp']
+        files = response['files']
+
+        sync_commands = self._sync_process(server_timestamp, files)
+
+        # makes all synchronization commands
+        for command, path in sync_commands:
+            self.conn_mng.dispatch_request(command, {'filepath': path})
 
     def _sync_with_server(self):
         """
@@ -518,7 +601,7 @@ class Daemon(RegexMatchingEventHandler):
             start = time.time()
         md5Hash = hashlib.md5()
         if not os.path.exists(directory):
-            return -1
+            self.stop(1, 'Error during calculate md5! Impossible to find "{}" in user folder'.format(directory))
 
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:

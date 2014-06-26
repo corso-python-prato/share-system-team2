@@ -198,7 +198,7 @@ def load_userdata():
 
 def save_userdata(data):
     with open(USERDATA_FILENAME, 'wb') as fp:
-        json.dump(data, fp, 'utf-8')
+        json.dump(data, fp, 'utf-8', indent=4)
     logger.info('Saved {:,} users'.format(len(data)))
 
 
