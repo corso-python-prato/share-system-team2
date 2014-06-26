@@ -104,6 +104,19 @@ def check_path(path, username):
         return True
     return False
 
+
+def userpath2serverpath(username, path=''):
+    """
+    Given an username and its relative path, return the
+    corresponding path in the server. If the path is empty,
+    return the user path directory in the server.
+    :param username: str
+    :param path: str
+    :return: str
+    """
+    return os.path.realpath(os.path.join(FILE_ROOT, username, path))
+
+
 def now_timestamp():
     """
     Return the current server timestamp as an int.
@@ -307,14 +320,16 @@ class Actions(Resource):
         
         src = request.form['src']
         dst = request.form['dst']
+        server_src = userpath2serverpath(username, src)
+        server_dst = userpath2serverpath(username, dst)
         
         if not (check_path(src, username) or check_path(dst, username)):
             abort(HTTP_FORBIDDEN)
 
-        if os.path.isfile(src):
-            if not os.path.exists(os.path.dirname(dst)):
-                os.makedirs(os.path.dirname(dst))
-            shutil.copy(src, dst)
+        if os.path.isfile(server_src):
+            if not os.path.exists(os.path.dirname(server_dst)):
+                os.makedirs(os.path.dirname(server_dst))
+            shutil.copy(server_src, server_dst)
         else:
             abort(HTTP_NOT_FOUND)
         # TODO: return dst file timestamp inste of current timestamp?
@@ -332,17 +347,19 @@ class Actions(Resource):
         """
         src = request.form['src']
         dst = request.form['dst']
+        server_src = userpath2serverpath(username, src)
+        server_dst = userpath2serverpath(username, dst)
         
         if not (check_path(src, username) or check_path(dst, username)):
             abort(HTTP_FORBIDDEN)
 
-        if os.path.isfile(src):
-            if not os.path.exists(os.path.dirname(dst)):
-                os.makedirs(os.path.dirname(dst))
-            shutil.move(src, dst)
+        if os.path.isfile(server_src):
+            if not os.path.exists(os.path.dirname(server_dst)):
+                os.makedirs(os.path.dirname(server_dst))
+            shutil.move(server_src, server_dst)
         else:
             abort(HTTP_NOT_FOUND)
-        self._clear_dirs(os.path.dirname(src), username)
+        self._clear_dirs(os.path.dirname(server_src), username)
         # TODO: return dst file timestamp instead of current timestamp?
       
 

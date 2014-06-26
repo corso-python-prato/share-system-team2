@@ -50,7 +50,7 @@ def userpath2serverpath(username, path=''):
     return os.path.realpath(os.path.join(server.FILE_ROOT, username, path))
 
 
-def _create_file(username, user_relpath, content):
+def _create_file(username, user_relpath, content, update_userdata=True):
     """
     Create an user file with path <user_relpath> and content <content>
     and return it's last modification time (== creation time).
@@ -66,6 +66,9 @@ def _create_file(username, user_relpath, content):
     with open(filepath, 'wb') as fp:
         fp.write(content)
     mtime = os.path.getmtime(filepath)
+    if update_userdata:
+        server.userdata[username][server.SNAPSHOT][user_relpath] = [int(mtime),
+                                                                    server.calculate_file_md5(open(filepath, 'rb'))]
     return mtime
 
 
@@ -224,7 +227,7 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(delete_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'filepath': to_delete_filepath}, follow_redirects=True)
+                             data={'filepath': delete_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
@@ -246,7 +249,7 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(copy_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_copy_filepath, 'dst': dst_copy_filepath}, follow_redirects=True)
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
@@ -267,7 +270,7 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(move_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_move_filepath, 'dst': dst_move_filepath}, follow_redirects=True)
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
