@@ -162,6 +162,15 @@ class Daemon(RegexMatchingEventHandler):
             return {'created': [], 'modified': [], 'deleted': []}
 
         def _make_copy(src, dst):
+            abs_src = self.absolutize_path(src)
+            abs_dst = self.absolutize_path(dst)
+            try:
+                copy2(abs_src, abs_dst)
+            except IOError:
+                return False
+
+            self.client_snapshot[dst] = self.client_snapshot[src]
+            return True
             try:
                 copy2(src, dst)
             except IOError:
