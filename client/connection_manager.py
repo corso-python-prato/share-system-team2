@@ -168,8 +168,11 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore GET_SERVER_SNAPSHOT: ', url, 'Codice Errore: ', e
+            if 'UNAUTHORIZED' in e[0]:
+                self.do_reguser(('pasquale', 'secretpass'))
+                return self.do_get_server_snapshot(data)
         else:
-            return json.loads(r.content)
+            return json.loads(r.text)
 
     def _default(self, method):
         print 'Received Unknown Command:', method
