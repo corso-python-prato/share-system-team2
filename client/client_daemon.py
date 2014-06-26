@@ -517,7 +517,7 @@ class Daemon(RegexMatchingEventHandler):
             start = time.time()
         md5Hash = hashlib.md5()
         if not os.path.exists(directory):
-            return -1
+            self.stop(1, 'Error during calculate md5! Impossible to find "{}" in user folder'.format(directory))
 
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
