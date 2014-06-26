@@ -277,7 +277,6 @@ class Actions(Resource):
         if not check_path(filepath, username):
             abort(HTTP_FORBIDDEN)
 
-        #FIX DI CARLO ##########################################
         abspath = os.path.abspath(join(FILE_ROOT, username, filepath))
 
         if not os.path.isfile(abspath):
@@ -293,22 +292,6 @@ class Actions(Resource):
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
-
-        # if not os.path.isfile(filepath):
-        #     abort(HTTP_NOT_FOUND)
-        #
-        # try:
-        #     os.remove(filepath)
-        # except OSError:
-        #     abort(HTTP_NOT_FOUND)
-        # self._clear_dirs(os.path.dirname(filepath), username)
-        # # file deleted, last_server_timestamp is set to current timestamp
-        #
-        # last_server_timestamp = now_timestamp()
-        # userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        # userdata[username]['files'].pop(normpath(filepath))
-        ########################### FIX DI CARLO####################################################
-
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
@@ -516,11 +499,8 @@ class Files(Resource):
 
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        pprint.pprint(userdata[username]['files'][normpath(path)])
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
-        #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
         resp.status_code = HTTP_CREATED
         return resp
 
