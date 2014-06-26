@@ -42,8 +42,7 @@ class Daemon(RegexMatchingEventHandler):
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~
-                     '.*\/(\..*)',  # hidden files TODO: improve
+                     # gedit first delete file, create, and move to dest_path *.txt~                     
                      ]
 
     # Calculate int size in the machine architecture
@@ -518,7 +517,7 @@ class Daemon(RegexMatchingEventHandler):
             start = time.time()
         md5Hash = hashlib.md5()
         if not os.path.exists(directory):
-            return -1
+            self.stop(1, 'Error during calculate md5! Impossible to find "{}" in user folder'.format(directory))
 
         for root, dirs, files in os.walk(directory, followlinks=False):
             for names in files:
