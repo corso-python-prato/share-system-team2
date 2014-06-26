@@ -193,6 +193,12 @@ class Daemon(RegexMatchingEventHandler):
 
             return True
 
+        def _check_md5(dir_tree, md5):
+            for k, v in dir_tree.items():
+                if md5 == v[1]:
+                    return k
+            return None
+
         local_timestamp = self.dir_state['timestamp']
         server_timestamp, server_dir_tree = self._get_server_files()
 
