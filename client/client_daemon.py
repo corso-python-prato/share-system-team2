@@ -168,7 +168,7 @@ class Daemon(RegexMatchingEventHandler):
 
             for filepath in server_files.intersection(client_files):
                 # check files md5
-                if server_dir_tree[filepath][1] == self.client_snapshot[filepath][1]:
+                if server_dir_tree[filepath][1] != self.client_snapshot[filepath][1]:
                     modified.append(filepath)
 
             return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
