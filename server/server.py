@@ -404,7 +404,7 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
     return res
 
 
-def compute_dir_state(root_path):
+def compute_dir_state(root_path):  # TODO: make function accepting just an username instead of an user root_path.
     """
     Walk on root_path returning the directory snapshot in a dict (dict keys are identified by this 2 constants:
     LAST_SERVER_TIMESTAMP and SNAPSHOT)
