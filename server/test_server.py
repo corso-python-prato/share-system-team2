@@ -236,6 +236,7 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
+        self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
 
     def test_copy_file_path(self):
         """
