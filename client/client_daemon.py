@@ -12,7 +12,7 @@ import time
 
 from sys import exit as exit
 from collections import OrderedDict
-from shutil import copy2
+from shutil import copy2, move
 
 
 # we import PollingObserver instead of Observer because the deleted event
@@ -72,7 +72,7 @@ class Daemon(RegexMatchingEventHandler):
         self.connect_to_server()
         self.build_client_snapshot()
         # TODO implement NEW sync_with_server
-        self._sync_with_server()
+        # self.sync_with_server_to_future()
         self.create_observer()
 
     def load_cfg(self, config_path):
@@ -132,8 +132,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def _is_directory_modified(self):
         # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
-        return True
-
+        return False
 
     def md5_exists(self, searched_md5):
         # TODO check if md5 match with almost one of md5 of file in the directory
@@ -151,6 +150,7 @@ class Daemon(RegexMatchingEventHandler):
         def _get_server_files():
             response = self.conn_mng.dispatch_request('get_server_snapshot', '')
             return response['server_timestamp'], response['files']
+
         def _filter_tree_difference(server_dir_tree):
             # process local dir_tree and server dir_tree
             # and makes a diffs classification
@@ -183,6 +183,7 @@ class Daemon(RegexMatchingEventHandler):
 
             self.client_snapshot[dst] = self.client_snapshot[src]
             return True
+
         def _make_move(src, dst):
             abs_src = self.absolutize_path(src)
             abs_dst = self.absolutize_path(dst)
