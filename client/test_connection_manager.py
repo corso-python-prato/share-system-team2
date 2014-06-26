@@ -24,6 +24,34 @@ import httpretty
 
 
 class TestConnectionManager(unittest.TestCase):
+    PATH_CONFIG = 'config.json'
+
+    DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
+                  'cmd_address': 'localhost',
+                  'cmd_port': 50001,
+                  'api_suffix': '/API/V1/',
+                  'server_address': 'http://localhost:5000',
+                  'user': 'default_user',
+                  'pass': 'default_pass',
+                  'timeout_listener_sock': 0.5,
+                  'backlog_listener_sock': 1,
+                  }
+
+    def setUpClass(self):
+        if os.path.isfile(PATH_CONFIG):
+            with open(DEFAULT_CONFIG, 'r') as fo:
+                config = json.load(fo)
+            if config:
+                return config
+        return self.DEFAULT_CONFIG
+
+         def load_json(self, conf_path):
+        if os.path.isfile(conf_path):
+            with open(conf_path, 'r') as fo:
+                config = json.load(fo)
+            return config
+        else:
+            return self.DEFAULT_CONFIG
     def setUp(self):
         config = {'sharing_path': './sharing_folder',
                   'host': 'localhost',
@@ -81,7 +109,3 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_delete({'filepath': 'foo.txt'})
 
         self.assertEqual(response, 200)
-
-
-if __name__ == '__main__':
-    unittest.main()
