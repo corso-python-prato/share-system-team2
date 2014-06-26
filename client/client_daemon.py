@@ -129,18 +129,18 @@ class Daemon(RegexMatchingEventHandler):
         """
         self.client_snapshot = {}
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
-                for filename in files:
-                    filepath = os.path.join(dirpath, filename)
-                    unwanted_file = False
-                    for r in Daemon.IGNORED_REGEX:
-                        if re.match(r, filepath) is not None:
-                            unwanted_file = True
-                            print 'Ignored Path:', filepath
-                            break
-                    if not unwanted_file:
-                        relative_path = self.relativize_path(filepath)
-                        with open(filepath, 'rb') as f:
-                            self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
+            for filename in files:
+                filepath = os.path.join(dirpath, filename)
+                unwanted_file = False
+                for r in Daemon.IGNORED_REGEX:
+                    if re.match(r, filepath) is not None:
+                        unwanted_file = True
+                        print 'Ignored Path:', filepath
+                        break
+                if not unwanted_file:
+                    relative_path = self.relativize_path(filepath)
+                    with open(filepath, 'rb') as f:
+                        self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
         # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
