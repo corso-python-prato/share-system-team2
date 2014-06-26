@@ -12,7 +12,6 @@ normpath = os.path.normpath
 abspath = os.path.abspath
 
 import time
-import pprint
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -518,7 +517,6 @@ class Files(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        pprint.pprint(userdata[username]['files'][normpath(path)])
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
         resp.status_code = HTTP_CREATED
