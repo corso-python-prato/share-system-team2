@@ -89,6 +89,15 @@ def _read_file(filename):
     return content
 
 def check_path(path, username):
+    """
+    Check that a path don't fall in other user directories or upper.
+    Examples:
+
+    >>> check_path('Photos/myphoto.jpg', 'pippo')
+    True
+    >>> check_path('Photos/../../ciao.txt', 'paperino')
+    False
+    """
     path = os.path.abspath(join(FILE_ROOT, username, path))
     root = os.path.abspath(join(FILE_ROOT, username))
     if root in path:
