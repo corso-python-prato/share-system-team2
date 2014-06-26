@@ -40,6 +40,3 @@ class Testcmdmanager(unittest.TestCase):
     def test_failed_connection(self):
             self.assertRaises(socket.error, self.CommandParser.do_newUser, 'user pass') is False
 
-
-if __name__ == '__main__':
-    unittest.main()

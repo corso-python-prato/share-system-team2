@@ -81,7 +81,3 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_delete({'filepath': 'foo.txt'})
 
         self.assertEqual(response, 200)
-
-
-if __name__ == '__main__':
-    unittest.main()
