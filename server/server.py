@@ -198,7 +198,7 @@ def load_userdata():
 
 def save_userdata(data):
     with open(USERDATA_FILENAME, 'wb') as fp:
-        json.dump(data, fp, 'utf-8')
+        json.dump(data, fp, 'utf-8', indent=4)
     logger.info('Saved {:,} users'.format(len(data)))
 
 
@@ -252,15 +252,6 @@ def create_user():
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
-
-
-class User(object):
-    def __init__(self, username):
-        self.username = username
-
-    def add_path(self, path):
-        pass
-
 
 
 class Actions(Resource):
