@@ -42,8 +42,7 @@ class Daemon(RegexMatchingEventHandler):
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~
-                     '.*\/(\..*)',  # hidden files TODO: improve
+                     # gedit first delete file, create, and move to dest_path *.txt~                     
                      ]
 
     # Calculate int size in the machine architecture
