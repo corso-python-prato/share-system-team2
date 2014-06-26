@@ -171,13 +171,14 @@ class Daemon(RegexMatchingEventHandler):
 
             self.client_snapshot[dst] = self.client_snapshot[src]
             return True
+        def _make_move(src, dst):
+            abs_src = self.absolutize_path(src)
+            abs_dst = self.absolutize_path(dst)
             try:
-                copy2(src, dst)
+                move(abs_src, abs_dst)
             except IOError:
                 return False
-            rel_src = self.relativize_path(src)
-            rel_dst = self.relativize_path(dst)
-            self.client_snapshot[rel_dst] = self.client_snapshot[rel_src]
+
             return True
 
         local_timestamp = self.dir_state['timestamp']
