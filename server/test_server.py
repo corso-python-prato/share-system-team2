@@ -16,6 +16,7 @@ import json
 import logging
 
 import server
+from server import userpath2serverpath
 
 start_dir = os.getcwd()
 
@@ -34,20 +35,6 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
-
-
-def userpath2serverpath(username, path=''):
-    """
-    Given an username and its relative path, return the
-    corresponding path in the server. If the path is empty,
-    return the user path directory in the server.
-    :param username: str
-    :param path: str
-    :return: str
-    """
-    # This function depends on server module
-    # TODO: define this function into the server module and call from it
-    return os.path.realpath(os.path.join(server.FILE_ROOT, username, path))
 
 
 def _create_file(username, user_relpath, content, update_userdata=True):
