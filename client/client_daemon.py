@@ -146,7 +146,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def sync_with_server_to_future(self):
         """
-        Download from server the files state and find the difference from actual state.
+        Makes the synchronization with server
         """
         def _get_server_files():
             response = self.conn_mng.dispatch_request('get_server_snapshot', '')
