@@ -485,6 +485,9 @@ class TestUserdataConsistence(unittest.TestCase):
         """
         Complex test that do several actions and finally test the consistence.
         """
+        # FIXME: Sometimes, randomly, this test fails (more often it pass). I suspect this issue is related to (int) timestamps.
+        # Possible fix: always use file_timestamp instead of now_timestamp in server module.
+
         # create user
         user = 'pippo'
         _manually_create_user(user, 'pass')
@@ -505,15 +508,41 @@ class TestUserdataConsistence(unittest.TestCase):
                              data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
                              follow_redirects=True)
 
+        # copy
+        copy_test_url = SERVER_FILES_API + 'copy'
+        test = self.app.post(copy_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        # intermediate check
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
 
-        # Now I manually delete a file in the server and must be NOT synchronized.
+        # create other user
+        user, pw = 'pluto', 'pw'
+        _manually_create_user(user, pw)
+        # post a file
+        path = 'dir/dirfile.txt'
+        _create_file(user, path, 'dirfile content...')
+        self.app.post(SERVER_FILES_API + path,
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))})
+
+        # delete it
+        self.app.post(SERVER_FILES_API + 'delete',
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
+                      data={'filepath': path})
+
+        # final check
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
+
+        # Now I manually delete a file in the server and must be NOT synchronized!
         os.remove(userpath2serverpath(user, 'WELCOME'))
         dic_state, dir_state = get_dic_dir_states()
-        self.assertNotEqual(dic_state, dir_state)
+        self.assertNotEqual(dic_state, dir_state)  # NOT EQUAL
 
-        # WIP: Test not complete. TODO: Do more thigs! Put, copy, delete, etc.
+        # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
 if __name__ == '__main__':
