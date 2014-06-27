@@ -125,9 +125,7 @@ def _manually_remove_user(username):  # TODO: make this from server module?
     user_dirpath = userpath2serverpath(USR)
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
-        logging.info('"%s" user directory removed' % user_dirpath)
-    else:
-        logging.info('"%s" user directory does not exist...' % user_dirpath)
+        logging.debug('"%s" user directory removed' % user_dirpath)
 
 
 def setup_test_dir():
