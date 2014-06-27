@@ -173,8 +173,8 @@ class Daemon(RegexMatchingEventHandler):
         """
         Recive as parameter the md5 of a file and return the first knowed path with the same md5
         """
-        for path in self.client_snapshot:
-            if searched_md5 in self.client_snapshot[path][1]:
+        for path, tupla in self.client_snapshot.iteritems():
+            if searched_md5 in tupla[1]:
                 return path
         else:
             return None
@@ -409,7 +409,6 @@ class Daemon(RegexMatchingEventHandler):
                                 'md5': new_md5,
                                 }
             return data
-
         new_md5 = self.hash_file(e.src_path)
         rel_new_path = self.relativize_path(e.src_path)
         founded_path = self.search_md5(new_md5)
