@@ -24,7 +24,7 @@ import httpretty
 
 
 class TestConnectionManager(unittest.TestCase):
-    PATH_CONFIG = 'config.json'
+    PATH_CONFIG = 'config'
 
     DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
                   'cmd_address': 'localhost',
@@ -53,14 +53,17 @@ class TestConnectionManager(unittest.TestCase):
         else:
             return self.DEFAULT_CONFIG
     def setUp(self):
-        config = {'sharing_path': './sharing_folder',
-                  'host': 'localhost',
-                  'port': 50001,
-                  'api_suffix': '/API/V1/',
-                  'server_address': 'http://www.pyboxtest.com',
-                  'user': 'pasquale',
-                  'pass': 'secretpass',
-                  }
+        config = {
+                  "sharing_path": "/home/user/sharing_folder", 
+                  "cmd_address": "localhost", 
+                  "cmd_port": 50001, 
+                  "api_suffix": "/API/V1/", 
+                  "server_address": "http://localhost:5000", 
+                  "user": "pasquale", 
+                  "pass": "secretpass", 
+                  "timeout_listener_sock": 0.5, 
+                  "backlog_listener_sock": 1
+              }
 
         # httpretty.register_uri(httpretty.GET, 'http://fake.com:5000/API/V1/files/foo.txt', status=201)
         # httpretty.register_uri(httpretty.GET, 'http://fake.com:5000/API/V1/files/not_exist.txt', status=404)
@@ -109,3 +112,6 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_delete({'filepath': 'foo.txt'})
 
         self.assertEqual(response, 200)
+
+if __name__ == '__main__':
+    unittest.main()
