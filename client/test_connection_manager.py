@@ -90,24 +90,14 @@ class TestConnectionManager(unittest.TestCase):
     @httpretty.activate
     def test_do_move(self):
         url = ''.join((self.actions_url, 'move'))
-        print url
-        ts = str(time.time())
+        
+        js = json.dumps({"server_timestamp":time.time()})
         httpretty.register_uri(httpretty.POST, url, status=201, 
-            body='{"server_timestamp":' + ts +'}',
+            body=js,
             content_type="application/json")
 
-
         response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})        
-        self.assertEqual(response, {"server_timestamp":ts})
-
-    # @httpretty.activate
-    # def test_do_delete(self):
-    #     url = ''.join((self.actions_url, 'foo.txt'))
-
-    #     httpretty.register_uri(httpretty.POST, url, status=200)
-    #     response = self.cm.do_delete({'filepath': 'foo.txt'})
-    #     print response
-    #     # self.assertEqual(response, 200)
+        self.assertEqual(response, js)
 
     def tearDown(self):
         httpretty.disable()
