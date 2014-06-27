@@ -540,5 +540,18 @@ class TestUserdataConsistence(unittest.TestCase):
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
+class TestLoggingConfiguration(unittest.TestCase):
+    """
+    Testing log directory creation if it doesn't exists
+    """
+    def setUp(self):
+        if os.path.isdir('log'):
+            shutil.rmtree('log')
+
+    def test_create_log_directory(self):
+        self.assertFalse(os.path.exists('log') and os.path.isdir('log'))
+        reload(server)
+        self.assertTrue(os.path.exists('log') and os.path.isdir('log'))
+
 if __name__ == '__main__':
     unittest.main()
