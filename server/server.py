@@ -314,9 +314,8 @@ class Actions(Resource):
             shutil.copy(server_src, server_dst)
         else:
             abort(HTTP_NOT_FOUND)
-        # TODO: return dst file timestamp inste of current timestamp?
 
-        last_server_timestamp = now_timestamp()
+        last_server_timestamp = file_timestamp(server_dst)
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
@@ -342,10 +341,9 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
-        # TODO: return dst file timestamp instead of current timestamp?
       
 
-        last_server_timestamp = now_timestamp()
+        last_server_timestamp = file_timestamp(server_dst)
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
@@ -496,7 +494,7 @@ class Files(Resource):
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
-        last_server_timestamp = now_timestamp()
+        last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -521,12 +519,11 @@ class Files(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-        last_server_timestamp = now_timestamp()
+        last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
 
-        resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})   
-        #resp = jsonify({LAST_SERVER_TIMESTAMP: file_timestamp(filepath)})
+        resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
         return resp
 
