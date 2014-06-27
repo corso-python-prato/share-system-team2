@@ -113,18 +113,19 @@ def _manually_create_user(username, pw):
     return single_user_data
 
 
-def _manually_remove_user(username):  # TODO: make this from server module
-    # WARNING: Removing the test-user manually from db if it exists!
-    # (is it the right way to make sure that the test user don't exist?)
+def _manually_remove_user(username):  # TODO: make this from server module?
+    """
+    Remove user dictionary from server <userdata>, if exist,
+    and remove its directory from disk, if exist.
+    :param username: str
+    """
     if USR in server.userdata:
         server.userdata.pop(username)
     # Remove user directory if exists!
     user_dirpath = userpath2serverpath(USR)
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
-        logging.info('"%s" user directory removed' % user_dirpath)
-    else:
-        logging.info('"%s" user directory does not exist...' % user_dirpath)
+        logging.debug('"%s" user directory removed' % user_dirpath)
 
 
 def setup_test_dir():
@@ -302,13 +303,7 @@ class TestGetRequests(unittest.TestCase):
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
-
-        # Create temporary file
-        server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
-        if not os.path.exists(os.path.dirname(server_filepath)):
-            os.makedirs(os.path.dirname(server_filepath))
-        with open(server_filepath, 'w') as fp:
-            fp.write('some text')
+        _create_file(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH, 'some text')
 
     def tearDown(self):
         server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
