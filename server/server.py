@@ -262,7 +262,7 @@ class Actions(Resource):
                    'move': self._move,
                    }
         if methods:
-            methods.get(cmd)(username)
+            return methods.get(cmd)(username)
         else:
             abort(HTTP_NOT_FOUND)
 
