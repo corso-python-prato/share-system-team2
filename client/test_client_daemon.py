@@ -12,8 +12,8 @@ import client_daemon
 TEST_DIR = 'daemon_test'
 LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
+SERVER_TIMESTAMP = 1
 
-server_timestamp = 1
 files = {'ciao.txt': (3, 'md5md6'),
          'carlo.txt': (2, 'md6md6')}
 
@@ -71,7 +71,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon.client_snapshot = {'ciao.txt': (2, 'md5md5')}
 
     def _test_sync_process(self):
-        self.assertEqual(sorted(self.client_daemon._sync_process(server_timestamp, files)),
+        self.assertEqual(sorted(self.client_daemon._sync_process(SERVER_TIMESTAMP, files)),
                          sorted([('download', 'ciao.txt'), ('download', 'carlo.txt')]))
 
 
