@@ -39,6 +39,7 @@ class ConnectionManager(object):
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
         
+
         ### CREATE LOGGER ###
         self.logger = logging.getLogger("ConMng")
         self.logger.setLevel(level=logging_level)
@@ -131,8 +132,7 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = r.text            
             return event_timestamp
         return False
 
@@ -197,9 +197,6 @@ class ConnectionManager(object):
                 return self.do_get_server_snapshot(data)
         else:
             return json.loads(r.text)
-
-    #logging.info('ConnectionManager: do_reguser: URL: {} - DATA: {} '.format(url, data))
-    #logging.error('ConnectionManager: do_reguser: URL: {} - EXCEPTIONS_CATCHED: {} '.format(url, e))
 
     def _default(self, method):
         print 'Received Unknown Command:', method
