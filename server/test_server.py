@@ -113,9 +113,12 @@ def _manually_create_user(username, pw):
     return single_user_data
 
 
-def _manually_remove_user(username):  # TODO: make this from server module
-    # WARNING: Removing the test-user manually from db if it exists!
-    # (is it the right way to make sure that the test user don't exist?)
+def _manually_remove_user(username):  # TODO: make this from server module?
+    """
+    Remove user dictionary from server <userdata>, if exist,
+    and remove its directory from disk, if exist.
+    :param username: str
+    """
     if USR in server.userdata:
         server.userdata.pop(username)
     # Remove user directory if exists!
