@@ -39,10 +39,11 @@ class ConnectionManager(object):
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
         
+        ### CREATE LOGGER ###
         self.logger = logging.getLogger("ConMng")
         self.logger.setLevel(level=logging_level)
-        # create a file handler
 
+        # File Logger
         handler = logging.FileHandler('test_connection_manager.log')
         handler.setLevel(logging_level)
 
@@ -50,11 +51,11 @@ class ConnectionManager(object):
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
-        console_handler = logging.StreamHandler()        
-        console_handler.setLevel(logging_level)        
+        console_handler = logging.StreamHandler()    
+        console_handler.setLevel(logging_level)
 
         console_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(console_formatter)       
+        console_handler.setFormatter(console_formatter)
         
         self.logger.addHandler(console_handler)
 
