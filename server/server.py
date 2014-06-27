@@ -240,7 +240,7 @@ def create_user():
 
             temp = init_user_directory(username)
             last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
-           
+
             single_user_data = {PASSWORD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot}
@@ -299,12 +299,12 @@ class Actions(Resource):
         jso
         userdata[username]n format: {LAST_SERVER_TIMESTAMP: int}
         """
-        
+
         src = request.form['src']
         dst = request.form['dst']
         server_src = userpath2serverpath(username, src)
         server_dst = userpath2serverpath(username, dst)
-        
+
         if not (check_path(src, username) or check_path(dst, username)):
             abort(HTTP_FORBIDDEN)
 
@@ -330,7 +330,7 @@ class Actions(Resource):
         dst = request.form['dst']
         server_src = userpath2serverpath(username, src)
         server_dst = userpath2serverpath(username, dst)
-        
+
         if not (check_path(src, username) or check_path(dst, username)):
             abort(HTTP_FORBIDDEN)
 
@@ -341,7 +341,7 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
-      
+
 
         last_server_timestamp = file_timestamp(server_dst)
         _, md5 = userdata[username]['files'][normpath(src)]
@@ -432,7 +432,7 @@ class Files(Resource):
         if path:
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
-           
+
             if not check_path(dirname, username):
                 abort(HTTP_FORBIDDEN)
 
