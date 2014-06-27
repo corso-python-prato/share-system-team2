@@ -407,7 +407,9 @@ class TestGetRequests(unittest.TestCase):
         Test lato-server user files snapshot.
         """
         # The test user is created in setUp
-        expected_timestamp, expected_snapshot = build_tstuser_dir(USR)
+        
+        expected_timestamp = server.userdata[USR]['server_timestamp']
+        expected_snapshot = server.userdata[USR]['files']
         target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
                   server.SNAPSHOT: expected_snapshot}
         test = self.app.get(SERVER_FILES_API,
