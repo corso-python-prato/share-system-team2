@@ -36,6 +36,9 @@ logging.basicConfig(level=logging.WARNING)
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
 
+def make_basicauth_headers(user, pwd):
+    return {'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pwd))}    
+
 
 def _create_file(username, user_relpath, content, update_userdata=True):
     """
@@ -239,6 +242,7 @@ class TestRequests(unittest.TestCase):
         self.assertFalse(os.path.isfile(to_delete_filepath))
         self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
 
+
     def test_copy_file_path(self):
         """
         Test if a created source file is copied in a new created destination and assures the source file
@@ -263,7 +267,7 @@ class TestRequests(unittest.TestCase):
 
     def test_move_file_path(self):
         """
-        TTest if a created source file is moved in a new created destination and assures the source file
+        Test if a created source file is moved in a new created destination and assures the source file
         doesn't exists after
         """
         move_test_url = SERVER_ACTIONS_API + 'move'
@@ -281,6 +285,26 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
+
+    def test_move_file_path_with_wrong_cmd(self):
+        """
+        Test if commands (delete, copy, move) exist, otherwise KeyError and throw abort.
+        """    
+        move_test_url = SERVER_ACTIONS_API + 'wrong_cmd'
+        src_move_test_file_path = 'test_move_src/testmovesrc.txt'
+        dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
+        #create source file to be moved and its destination
+        src_move_filepath = userpath2serverpath(USR, src_move_test_file_path)
+        dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
+
+        _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
+
+        test = self.app.post(move_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
+       
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
 
 
 class TestGetRequests(unittest.TestCase):
@@ -539,6 +563,19 @@ class TestUserdataConsistence(unittest.TestCase):
 
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
+
+class TestLoggingConfiguration(unittest.TestCase):
+    """
+    Testing log directory creation if it doesn't exists
+    """
+    def setUp(self):
+        if os.path.isdir('log'):
+            shutil.rmtree('log')
+
+    def test_create_log_directory(self):
+        self.assertFalse(os.path.exists('log') and os.path.isdir('log'))
+        reload(server)
+        self.assertTrue(os.path.exists('log') and os.path.isdir('log'))
 
 if __name__ == '__main__':
     unittest.main()
