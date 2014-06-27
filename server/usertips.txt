@@ -9,7 +9,7 @@
 
 Upload (POST):
 
-    curl --form "file=@file3.dat" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/files/test6/test7/<path>
+    curl --form "file=@<path_to_be_uploaded>" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/files/<new_path>
 
 Download (GET):
 
@@ -17,7 +17,7 @@ Download (GET):
 
 Update (PUT):
 
-    curl -X PUT "http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/files/test/<path>"
+    curl -X PUT --form "file=@<new_path>" "http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/files/<path_to_be_updated>"
 
 
 ## Actions
@@ -41,3 +41,4 @@ Move (POST):
 Creating new user (signup):
 
     curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
+  
