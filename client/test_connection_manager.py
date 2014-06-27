@@ -7,6 +7,7 @@ import os
 import json
 import httpretty
 import time
+import shutil
 # API:
 #  - GET /diffs, con parametro timestamp
 #
@@ -31,13 +32,16 @@ class TestConnectionManager(unittest.TestCase):
     LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
     def setUp(self):        
-        httpretty.enable() 
-        #self.cm = ConnectionManager()
+        httpretty.enable()
+        
         with open(TestConnectionManager.CONFIG_FILEPATH,'r') as fo:
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
+        # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
+        self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
+        
 
         # create this auth testing
         self.authServerAddress = "http://"+self.cfg['user']+":"+self.cfg['pass']+"@www.pyboxtest.com"        
@@ -48,6 +52,7 @@ class TestConnectionManager(unittest.TestCase):
         self.shares_url = ''.join([self.base_url, 'shares/'])
 
         self.cm = ConnectionManager(self.cfg)
+        self.make_fake_dir()
 
     # files:
     @httpretty.activate
@@ -70,11 +75,7 @@ class TestConnectionManager(unittest.TestCase):
 
     @httpretty.activate
     def test_do_upload_success(self):
-        # make fake file
-        fake_file = os.path.join(self.cfg['sharing_path'],'foo.txt')
-        with open(fake_file,'w') as fc:
-            fc.write('foo.txt :)')
-
+        
         # prepare fake server
         url = ''.join((self.files_url, 'foo.txt'))        
         js = json.dumps({"server_timestamp":time.time()})
@@ -83,8 +84,7 @@ class TestConnectionManager(unittest.TestCase):
                                                     content_type="application/json")
 
         # call api
-        response = self.cm.do_upload({'filepath':'foo.txt'})        
-        os.remove(fake_file)
+        response = self.cm.do_upload({'filepath':'foo.txt'})                
         self.assertEqual(response, js)
 
     # actions:
@@ -103,6 +103,22 @@ class TestConnectionManager(unittest.TestCase):
     def tearDown(self):
         httpretty.disable()
         httpretty.reset()
+        self.remove_fake_dir()
+
+    def make_fake_dir(self):
+        sharing_path = os.path.join(self.cfg['sharing_path'])
+        
+        if os.path.exists(sharing_path):
+            shutil.rmtree(sharing_path)
+        else:
+            os.makedirs(os.path.join(self.cfg['sharing_path']))
+
+        fake_file = os.path.join(self.cfg['sharing_path'],'foo.txt')
+        with open(fake_file,'w') as fc:
+            fc.write('foo.txt :)')
+
+    def remove_fake_dir(self):
+        shutil.rmtree(os.path.join(self.cfg['sharing_path']))
 
 if __name__ == '__main__':
     unittest.main()
