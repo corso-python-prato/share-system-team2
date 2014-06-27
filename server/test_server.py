@@ -1,4 +1,4 @@
-# !/usr/bin/env python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 server test module
@@ -16,6 +16,7 @@ import json
 import logging
 
 import server
+from server import userpath2serverpath
 
 start_dir = os.getcwd()
 
@@ -34,24 +35,9 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
-# WARNING: this username is reserved for testing purpose ONLY! TODO: make this user not registrable
-# create test folders and files for 'files/' api
 
 
-def userpath2serverpath(username, path):
-    """
-    Given an username and its relative path, return the
-    corrisponding path in the server.
-    :param username: str
-    :param path: str
-    :return: str
-    """
-    # This function depends on server module
-    # TODO: define this function into the server module and call from it
-    return os.path.realpath(os.path.join(server.FILE_ROOT, username, path))
-
-
-def _create_file(username, user_relpath, content):
+def _create_file(username, user_relpath, content, update_userdata=True):
     """
     Create an user file with path <user_relpath> and content <content>
     and return it's last modification time (== creation time).
@@ -67,6 +53,9 @@ def _create_file(username, user_relpath, content):
     with open(filepath, 'wb') as fp:
         fp.write(content)
     mtime = os.path.getmtime(filepath)
+    if update_userdata:
+        server.userdata[username][server.SNAPSHOT][user_relpath] = [int(mtime),
+                                                                    server.calculate_file_md5(open(filepath, 'rb'))]
     return mtime
 
 
@@ -76,7 +65,7 @@ def create_user_dir(username):
     :param username:
     :return:
     """
-    os.makedirs(userpath2serverpath(username, ''))
+    os.makedirs(userpath2serverpath(username))
 
 
 def build_tstuser_dir(username):
@@ -95,7 +84,7 @@ def build_tstuser_dir(username):
         (os.path.join('subdir', 'barfile.md'), 'bar', '37b51d194a7513e45b56f6524f2d51f2'),
     ]
 
-    user_root = userpath2serverpath(username, '')
+    user_root = userpath2serverpath(username)
     # If directory already exists, destroy it
     if os.path.isdir(user_root):
         shutil.rmtree(user_root)
@@ -109,26 +98,34 @@ def build_tstuser_dir(username):
 
 
 def _manually_create_user(username, pw):
+    """
+    Create an user, its server directory, and return its userdata dictionary.
+    :param username: str
+    :param pw: str
+    :return: dict
+    """
     enc_pass = server._encrypt_password(pw)
-    single_user_data = {server.PASSWORD: enc_pass,
-                        server.LAST_SERVER_TIMESTAMP: server.now_timestamp(),
-                        server.SNAPSHOT: {}}  # set empty directory as snapshot
+    # Create user direvtory with default structure (use the server function)
+    user_dir_state = server.init_user_directory(username)
+    single_user_data = user_dir_state
+    single_user_data[server.PASSWORD] = enc_pass
     server.userdata[username] = single_user_data
-    create_user_dir(username)
+    return single_user_data
 
 
-def _manually_remove_user(username):  # TODO: make this from server module
-    # WARNING: Removing the test-user manually from db if it exists!
-    # (is it the right way to make sure that the test user don't exist?)
+def _manually_remove_user(username):  # TODO: make this from server module?
+    """
+    Remove user dictionary from server <userdata>, if exist,
+    and remove its directory from disk, if exist.
+    :param username: str
+    """
     if USR in server.userdata:
         server.userdata.pop(username)
     # Remove user directory if exists!
-    user_dirpath = userpath2serverpath(USR, '')
+    user_dirpath = userpath2serverpath(USR)
     if os.path.exists(user_dirpath):
         shutil.rmtree(user_dirpath)
-        logging.info('"%s" user directory removed' % user_dirpath)
-    else:
-        logging.info('"%s" user directory does not exist...' % user_dirpath)
+        logging.debug('"%s" user directory removed' % user_dirpath)
 
 
 def setup_test_dir():
@@ -185,6 +182,8 @@ class TestRequests(unittest.TestCase):
                              follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
+        # check that uploaded path exists in username files dict
+        self.assertIn(user_relative_upload_filepath, server.userdata[USR][server.SNAPSHOT])
         os.remove(uploaded_filepath)
         logging.info('"{}" removed'.format(uploaded_filepath))
 
@@ -201,15 +200,24 @@ class TestRequests(unittest.TestCase):
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
 
     def test_files_put_with_auth(self):
+        """
+        Test put. File content and stored md5 must be changed.
+        """
         path = 'test_put/file_to_change.txt'
         _create_file(USR, path, 'I will change')
         to_modify_filepath = userpath2serverpath(USR, path)
+        old_content = open(to_modify_filepath).read()
+        old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
 
         url = SERVER_FILES_API + path
         test = self.app.put(url,
                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                             data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
-        # TODO: check that content has changed
+
+        new_content = open(to_modify_filepath).read()
+        self.assertNotEqual(old_content, new_content)
+        new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+        self.assertNotEqual(old_md5, new_md5)
         self.assertEqual(test.status_code, server.HTTP_CREATED)  # 200 or 201 (OK or created)?
 
     def test_delete_file_path(self):
@@ -225,10 +233,11 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(delete_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'filepath': to_delete_filepath}, follow_redirects=True)
+                             data={'filepath': delete_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
+        self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
 
     def test_copy_file_path(self):
         """
@@ -247,7 +256,7 @@ class TestRequests(unittest.TestCase):
 
         test = self.app.post(copy_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_copy_filepath, 'dst': dst_copy_filepath}, follow_redirects=True)
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
@@ -265,11 +274,10 @@ class TestRequests(unittest.TestCase):
         dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
 
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
-        _create_file(USR, dst_move_test_file_path, 'different other content')
 
         test = self.app.post(move_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_move_filepath, 'dst': dst_move_filepath}, follow_redirects=True)
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
@@ -295,13 +303,7 @@ class TestGetRequests(unittest.TestCase):
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
-
-        # Create temporary file
-        server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
-        if not os.path.exists(os.path.dirname(server_filepath)):
-            os.makedirs(os.path.dirname(server_filepath))
-        with open(server_filepath, 'w') as fp:
-            fp.write('some text')
+        _create_file(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH, 'some text')
 
     def tearDown(self):
         server_filepath = userpath2serverpath(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH)
@@ -411,6 +413,19 @@ class TestUsers(unittest.TestCase):
         """
         test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': USR, 'password': PW})
+        # test that userdata is actually updated
+        single_user_data = server.userdata[USR]
+        self.assertIn(USR, server.userdata)
+        # test single user data structure (as currently defined)
+        self.assertIsInstance(single_user_data, dict)
+        self.assertIn(server.LAST_SERVER_TIMESTAMP, single_user_data)
+        self.assertIn(server.SNAPSHOT, single_user_data)
+        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
+        self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
+        # test that the user directory is created
+        user_dirpath = userpath2serverpath(USR)
+        self.assertTrue(os.path.isdir(user_dirpath))
+        # test server response
         self.assertEqual(test.status_code, server.HTTP_CREATED)
 
     def test_signup_if_user_already_exists(self):
@@ -431,6 +446,98 @@ class TestUsers(unittest.TestCase):
         test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': '', 'password': 'pass'})
         self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
+
+
+def get_dic_dir_states():
+    """
+    Return a tuple with dictionary state and directory state of all users.
+    NB: Passwords are removed from the dictionary states.
+    :return: tuple
+    """
+    dic_state = {}
+    dir_state = {}
+    for username in server.userdata:
+        single_user_data = server.userdata[username].copy()
+        single_user_data.pop(server.PASSWORD)  # not very beautiful
+        dic_state[username] = single_user_data
+        dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
+    return dic_state, dir_state
+
+
+class TestUserdataConsistence(unittest.TestCase):
+    """
+    Testing consistence between userdata dictionary and actual files.
+    """
+
+    def setUp(self):
+        setup_test_dir()
+        self.app = server.app.test_client()
+        self.app.testing = True
+        # To see the tracebacks in case of 500 server error!
+        server.app.config.update(TESTING=True)
+
+    def test_consistence_after_actions(self):
+        """
+        Complex test that do several actions and finally test the consistence.
+        """
+        # FIXME: Sometimes, randomly, this test fails (more often it pass). I suspect this issue is related to (int) timestamps.
+        # Possible fix: always use file_timestamp instead of now_timestamp in server module.
+
+        # create user
+        user = 'pippo'
+        _manually_create_user(user, 'pass')
+
+        # post
+        _create_file(user, 'new_file', 'ciao!!!')
+        url = SERVER_FILES_API + 'new_file'
+        self.app.post(url, headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+
+        # move
+        move_test_url = SERVER_ACTIONS_API + 'move'
+        src_move_test_file_path = 'test_move_src/testmovesrc.txt'
+        dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
+        #create source file to be moved and its destination
+        _create_file(user, src_move_test_file_path, 'this is the file to be moved')
+        test = self.app.post(move_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        # copy
+        copy_test_url = SERVER_FILES_API + 'copy'
+        test = self.app.post(copy_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        # intermediate check
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
+
+        # create other user
+        user, pw = 'pluto', 'pw'
+        _manually_create_user(user, pw)
+        # post a file
+        path = 'dir/dirfile.txt'
+        _create_file(user, path, 'dirfile content...')
+        self.app.post(SERVER_FILES_API + path,
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))})
+
+        # delete it
+        self.app.post(SERVER_FILES_API + 'delete',
+                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
+                      data={'filepath': path})
+
+        # final check
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
+
+        # Now I manually delete a file in the server and must be NOT synchronized!
+        os.remove(userpath2serverpath(user, 'WELCOME'))
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertNotEqual(dic_state, dir_state)  # NOT EQUAL
+
+        # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
 if __name__ == '__main__':
