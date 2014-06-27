@@ -334,7 +334,7 @@ class Daemon(RegexMatchingEventHandler):
             self.conn_mng.dispatch_request(command, {'filepath': path})
             if command == 'delete':
                 self.client_snapshot.pop(path)
-            elif command == 'download':
+            elif command == 'download' or command == 'modified':
                 self.client_snapshot[path] = (server_timestamp, files[path][1])
             else:
                 continue
