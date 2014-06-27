@@ -200,6 +200,8 @@ class Daemon(RegexMatchingEventHandler):
             except IOError:
                 return False
 
+            self.client_snapshot[dst] = self.client_snapshot[src]
+            self.client_snapshot.pop(src)
             return True
 
         def _check_md5(dir_tree, md5):
@@ -330,32 +332,31 @@ class Daemon(RegexMatchingEventHandler):
         # makes all synchronization commands
         for command, path in sync_commands:
             self.conn_mng.dispatch_request(command, {'filepath': path})
+            if command == 'delete':
+                self.client_snapshot.pop(path)
+            elif command == 'download' or command == 'modified':
+                self.client_snapshot[path] = (server_timestamp, files[path][1])
+            else:
+                continue
+
 
     def relativize_path(self, abs_path):
         """
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        folder_watched_abs = self.cfg['sharing_path']
-        tokens = abs_path.split(folder_watched_abs)
-        # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
-        # in this case is impossible to use relative path and have valid path!
-        if len(tokens) is 2:
-            relative_path = tokens[-1]
-            return relative_path[1:]
+        if abs_path.startswith(self.cfg['sharing_path']):
+            relative_path = abs_path[len(self.cfg['sharing_path']) + 1:]
+            return relative_path
         else:
-            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
+            raise Exception
 
     def absolutize_path(self, rel_path):
         """
         This function absolutize a path that i have relativize before:
         for example: subfolder/ will be /home/user/watched/subfolder/
         """
-        abs_path = os.path.join(self.cfg['sharing_path'], rel_path)
-        if os.path.isfile(abs_path):
-            return abs_path
-        else:
-            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
+        return os.path.join(self.cfg['sharing_path'], rel_path)        
 
     def create_observer(self):
         """
@@ -495,6 +496,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.start()
         self.daemon_state = 'started'
         self.running = 1
+        polling_counter = 0
         try:
             while self.running:
                 r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
@@ -520,6 +522,15 @@ class Daemon(RegexMatchingEventHandler):
                         else:
                             s.close()
                             r_list.remove(s)
+
+                # synchronization polling
+                # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
+                # maybe optimizable but now functional
+                polling_counter += 1
+                if polling_counter == 6:
+                    self.sync_with_server()
+                    polling_counter = 0
+
         except KeyboardInterrupt:
             self.stop(0)
         self.observer.stop()
