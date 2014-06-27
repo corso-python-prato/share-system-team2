@@ -67,6 +67,24 @@ class TestConnectionManager(unittest.TestCase):
     #     data = {'filepath': 'file.tx'}
     #     response = self.cm.do_download(data)        
     #     self.assertEqual(response, False)
+    @httpretty.activate
+    def test_do_upload_success(self):
+        # make fake file
+        fake_file = os.path.join(self.cfg['sharing_path'],'foo.txt')
+        with open(fake_file,'w') as fc:
+            fc.write('foo.txt :)')
+
+        # prepare fake server
+        url = ''.join((self.files_url, 'foo.txt'))        
+        js = json.dumps({"server_timestamp":time.time()})
+        httpretty.register_uri(httpretty.POST, url, status=201, 
+                                                    body=js,
+                                                    content_type="application/json")
+
+        # call api
+        response = self.cm.do_upload({'filepath':'foo.txt'})        
+        os.remove(fake_file)
+        self.assertEqual(response, js)
 
     # actions:
     @httpretty.activate
