@@ -261,9 +261,9 @@ class Actions(Resource):
                    'copy': self._copy,
                    'move': self._move,
                    }
-        if methods:
-            return methods.get(cmd)(username)
-        else:
+        try:
+            return methods[cmd](username)
+        except KeyError:
             abort(HTTP_NOT_FOUND)
 
     def _delete(self, username):
