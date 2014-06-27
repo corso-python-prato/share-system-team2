@@ -7,6 +7,7 @@ import os
 import json
 import httpretty
 import time
+import shutil
 # API:
 #  - GET /diffs, con parametro timestamp
 #
@@ -31,8 +32,8 @@ class TestConnectionManager(unittest.TestCase):
     LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
     def setUp(self):        
-        httpretty.enable() 
-        #self.cm = ConnectionManager()
+        httpretty.enable()
+        
         with open(TestConnectionManager.CONFIG_FILEPATH,'r') as fo:
             self.cfg = json.load(fo)
 
@@ -40,7 +41,7 @@ class TestConnectionManager(unittest.TestCase):
         # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
         self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-        self.make_fake_dir()
+        
 
         # create this auth testing
         self.authServerAddress = "http://"+self.cfg['user']+":"+self.cfg['pass']+"@www.pyboxtest.com"        
@@ -51,6 +52,7 @@ class TestConnectionManager(unittest.TestCase):
         self.shares_url = ''.join([self.base_url, 'shares/'])
 
         self.cm = ConnectionManager(self.cfg)
+        self.make_fake_dir()
 
     # files:
     @httpretty.activate
@@ -104,14 +106,19 @@ class TestConnectionManager(unittest.TestCase):
         self.remove_fake_dir()
 
     def make_fake_dir(self):
-        os.makedirs(os.path.join(self.cfg['sharing_path'], 'TestConnectionManager'))
+        sharing_path = os.path.join(self.cfg['sharing_path'])
+        
+        if os.path.exists(sharing_path):
+            shutil.rmtree(sharing_path)
+        else:
+            os.makedirs(os.path.join(self.cfg['sharing_path']))
 
-        fake_file = os.path.join(self.cfg['sharing_path'],'TestConnectionManager','foo.txt')
+        fake_file = os.path.join(self.cfg['sharing_path'],'foo.txt')
         with open(fake_file,'w') as fc:
             fc.write('foo.txt :)')
 
     def remove_fake_dir(self):
-        shutil.rmtree(os.path.join(self.cfg['sharing_path'],'TestConnectionManager'))
+        shutil.rmtree(os.path.join(self.cfg['sharing_path']))
 
 if __name__ == '__main__':
     unittest.main()
