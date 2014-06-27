@@ -200,6 +200,8 @@ class Daemon(RegexMatchingEventHandler):
             except IOError:
                 return False
 
+            self.client_snapshot[dst] = self.client_snapshot[src]
+            self.client_snapshot.pop(src)
             return True
 
         def _check_md5(dir_tree, md5):
@@ -330,6 +332,13 @@ class Daemon(RegexMatchingEventHandler):
         # makes all synchronization commands
         for command, path in sync_commands:
             self.conn_mng.dispatch_request(command, {'filepath': path})
+            if command == 'delete':
+                self.client_snapshot.pop(path)
+            elif command == 'download':
+                self.client_snapshot[path] = (server_timestamp, files[path][1])
+            else:
+                continue
+
 
     def relativize_path(self, abs_path):
         """
