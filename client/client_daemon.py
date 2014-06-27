@@ -336,15 +336,11 @@ class Daemon(RegexMatchingEventHandler):
         This function relativize the path watched by daemon:
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
-        folder_watched_abs = self.cfg['sharing_path']
-        tokens = abs_path.split(folder_watched_abs)
-        # if len(tokens) is not 2 this mean folder_watched_abs is repeated in abs_path more then one time...
-        # in this case is impossible to use relative path and have valid path!
-        if len(tokens) is 2:
-            relative_path = tokens[-1]
-            return relative_path[1:]
+        if abs_path.startswith(self.cfg['sharing_path']):
+            relativize_path = abs_path[len(self.cfg['sharing_path']) + 1:] 
+            return relative_path
         else:
-            self.stop(1, 'Impossible to use "{}" path, please change dir path'.format(abs_path))
+            raise Exception
 
     def absolutize_path(self, rel_path):
         """
