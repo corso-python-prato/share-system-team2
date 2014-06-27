@@ -1,6 +1,8 @@
 share-system-team2
 ==================
 
+[![Build Status](https://api.travis-ci.org/corso-python-prato/share-system-team2.svg)](https://travis-ci.org/corso-python-prato/share-system-team2)
+
 # Server
 
 To start the server, go to the server directory and type:
