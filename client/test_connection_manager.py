@@ -2,9 +2,11 @@
 # -*- coding: utf-8 -*-
 
 import unittest
-import connection_manager
-
+from connection_manager import ConnectionManager
+import os
+import json
 import httpretty
+import time
 # API:
 #  - GET /diffs, con parametro timestamp
 #
@@ -24,94 +26,114 @@ import httpretty
 
 
 class TestConnectionManager(unittest.TestCase):
-    PATH_CONFIG = 'config'
+    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
-    DEFAULT_CONFIG = {'sharing_path': './sharing_folder',
-                  'cmd_address': 'localhost',
-                  'cmd_port': 50001,
-                  'api_suffix': '/API/V1/',
-                  'server_address': 'http://localhost:5000',
-                  'user': 'default_user',
-                  'pass': 'default_pass',
-                  'timeout_listener_sock': 0.5,
-                  'backlog_listener_sock': 1,
-                  }
+    def setUp(self):        
+        httpretty.enable() 
+        #self.cm = ConnectionManager()
+        with open(TestConnectionManager.CONFIG_FILEPATH,'r') as fo:
+            self.cfg = json.load(fo)
 
-    def setUpClass(self):
-        if os.path.isfile(PATH_CONFIG):
-            with open(DEFAULT_CONFIG, 'r') as fo:
-                config = json.load(fo)
-            if config:
-                return config
-        return self.DEFAULT_CONFIG
+        self.auth = (self.cfg['user'], self.cfg['pass'])
+        self.cfg['server_address'] = "http://www.pyboxtest.com"
 
-         def load_json(self, conf_path):
-        if os.path.isfile(conf_path):
-            with open(conf_path, 'r') as fo:
-                config = json.load(fo)
-            return config
-        else:
-            return self.DEFAULT_CONFIG
-    def setUp(self):
-        config = {
-                  "sharing_path": "/home/user/sharing_folder", 
-                  "cmd_address": "localhost", 
-                  "cmd_port": 50001, 
-                  "api_suffix": "/API/V1/", 
-                  "server_address": "http://localhost:5000", 
-                  "user": "pasquale", 
-                  "pass": "secretpass", 
-                  "timeout_listener_sock": 0.5, 
-                  "backlog_listener_sock": 1
-              }
+        # create this auth testing
+        self.authServerAddress = "http://"+self.cfg['user']+":"+self.cfg['pass']+"@www.pyboxtest.com"        
+        # example of self.base_url = 'http://localhost:5000/API/V1/'
+        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
+        self.files_url = ''.join([self.base_url, 'files/'])
+        self.actions_url = ''.join([self.base_url, 'actions/'])
+        self.shares_url = ''.join([self.base_url, 'shares/'])
 
-        # httpretty.register_uri(httpretty.GET, 'http://fake.com:5000/API/V1/files/foo.txt', status=201)
-        # httpretty.register_uri(httpretty.GET, 'http://fake.com:5000/API/V1/files/not_exist.txt', status=404)
-        # httpretty.register_uri(httpretty.POST, 'http://fake.com/API/V1/signup', status=201)
-        self.cm = connection_manager.ConnectionManager(config)
+        self.cm = ConnectionManager(self.cfg)
 
-    # files:
-    @httpretty.activate
-    def test_do_download(self):
-        httpretty.register_uri(httpretty.GET, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=200)
-        httpretty.register_uri(httpretty.GET, 'http://www.pyboxtest.com/API/V1/files/not_authenticated', status=401)
+    # # files:
+    # @httpretty.activate
+    # def test_download_normal_file(self):
+    #     url = ''.join((self.files_url, 'file.txt'))
+        
+    #     httpretty.register_uri(httpretty.GET, url, status=201)
+    #     data = {'filepath': 'file.txt'}
+    #     response = self.cm.do_download(data)        
+    #     self.assertEqual(response, True)
 
-        data = {'filepath': 'foo.txt'}
-        response = self.cm.do_download(data)
-
-        self.assertEqual(response, 200)
-
-    @httpretty.activate
-    def test_do_upload(self):
-        httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=200)
-        response = self.cm.do_upload({'filepath': 'foo.txt'})
-
-        self.assertEqual(response, 200)
-
-    @httpretty.activate
-    def test_do_modify(self):
-        httpretty.register_uri(httpretty.PUT, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=201)
-
-        response = self.cm.do_modify({'filepath': 'foo.txt'})
-
-        self.assertEqual(response, 201)
+    # @httpretty.activate
+    # def test_download_file_not_exists(self):
+    #     url = ''.join((self.files_url, 'file.tx'))
+        
+    #     httpretty.register_uri(httpretty.GET, url, status=404)
+    #     data = {'filepath': 'file.tx'}
+    #     response = self.cm.do_download(data)        
+    #     self.assertEqual(response, False)
 
     # actions:
     @httpretty.activate
     def test_do_move(self):
-        httpretty.register_uri(httpretty.POST, 'hhttp://www.pyboxtest.com/API/V1/actions/foo.txt', status=201)
+        url = ''.join((self.actions_url, 'move'))
+        print url
+        ts = str(time.time())
+        httpretty.register_uri(httpretty.POST, url, status=201, 
+            body='{"server_timestamp":' + ts +'}',
+            content_type="application/json")
 
-        response = self.cm.do_move({'src_path': 'foo.txt', 'dest_path': 'folder/foo.txt'})
 
-        self.assertEqual(response, 200)
+        response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})        
+        self.assertEqual(response, {"server_timestamp":ts})
 
-    @httpretty.activate
-    def test_do_delete(self):
-        httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/actions/foo.txt', status=200)
+    # @httpretty.activate
+    # def test_do_delete(self):
+    #     url = ''.join((self.actions_url, 'foo.txt'))
 
-        response = self.cm.do_delete({'filepath': 'foo.txt'})
+    #     httpretty.register_uri(httpretty.POST, url, status=200)
+    #     response = self.cm.do_delete({'filepath': 'foo.txt'})
+    #     print response
+    #     # self.assertEqual(response, 200)
 
-        self.assertEqual(response, 200)
+    def tearDown(self):
+        httpretty.disable()
+        httpretty.reset()
 
 if __name__ == '__main__':
     unittest.main()
+
+    # def test_download_unexistent_file(self):
+    #     print "53:questa e' self.test_url:", self.test_url
+    #     print ''.join((self.test_url, 'files/not_exist.txt'))
+    #     httpretty.register_uri(httpretty.GET, ''.join((self.test_url, 'files/not_exist.txt')), status=404)
+    #     data = {'filepath': 'not_exist.txt'}
+    #     response = self.cm.do_download(data)
+    #     self.assertEqual(response, False)
+
+    # @httpretty.activate
+    # def test_do_upload(self):
+    #     httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=200)
+    #     response = self.cm.do_upload({'filepath': 'foo.txt'})
+    #
+    #     self.assertEqual(response, 200)
+    #
+    # @httpretty.activate
+    # def test_do_modify(self):
+    #     httpretty.register_uri(httpretty.PUT, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=201)
+    #
+    #     response = self.cm.do_modify({'filepath': 'foo.txt'})
+    #
+    #     self.assertEqual(response, 201)
+    #
+    # # actions:
+    # @httpretty.activate
+    # def test_do_move(self):
+    #     httpretty.register_uri(httpretty.POST, 'hhttp://www.pyboxtest.com/API/V1/actions/foo.txt', status=201)
+    #
+    #     response = self.cm.do_move({'src_path': 'foo.txt', 'dest_path': 'folder/foo.txt'})
+    #
+    #     self.assertEqual(response, 200)
+    #
+    # @httpretty.activate
+    # def test_do_delete(self):
+    #     httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/actions/foo.txt', status=200)
+    #
+    #     response = self.cm.do_delete({'filepath': 'foo.txt'})
+    #
+    #     self.assertEqual(response, 200)
