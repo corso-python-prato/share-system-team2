@@ -12,7 +12,6 @@ normpath = os.path.normpath
 abspath = os.path.abspath
 
 import time
-import pprint
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth

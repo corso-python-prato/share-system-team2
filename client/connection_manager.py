@@ -56,7 +56,7 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore REGUSER: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            return r.text
         return False
 
     # files
@@ -78,7 +78,7 @@ class ConnectionManager(object):
                 os.makedirs(dirpath)
             with open(filepath, 'wb') as f:
                 f.write(r.content)
-            return r.status_code
+            return True
         return False
 
     def do_upload(self, data):
@@ -92,7 +92,9 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore upload: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            event_timestamp = r.text
+            print '98:CONTENUTO r.text:', r.text
+            return event_timestamp
         return False
 
     def do_modify(self, data):
@@ -106,7 +108,9 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore MODIFY: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            event_timestamp = r.text
+            print '114:CONTENUTO r.text:', r.text
+            return event_timestamp
         return False
 
     # actions:
@@ -121,7 +125,9 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore MOVE: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            event_timestamp = r.text
+            print '114:CONTENUTO r.text:', r.text
+            return event_timestamp
         return False
 
     def do_delete(self, data):
@@ -134,7 +140,9 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore DELETE: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            event_timestamp = r.text
+            print '146:CONTENUTO r.text:', r.text
+            return event_timestamp
         return False
 
     def do_copy(self, data):
@@ -147,7 +155,9 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore COPY: ', url, 'Codice Errore: ', e
         else:
-            return r.status_code
+            event_timestamp = r.text
+            print '161:CONTENUTO r.text:', r.text
+            return event_timestamp
         return False
 
     def do_get_server_snapshot(self, data):
@@ -158,8 +168,11 @@ class ConnectionManager(object):
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             print 'Errore GET_SERVER_SNAPSHOT: ', url, 'Codice Errore: ', e
+            if 'UNAUTHORIZED' in e[0]:
+                self.do_reguser(('pasquale', 'secretpass'))
+                return self.do_get_server_snapshot(data)
         else:
-            return json.loads(r.content)
+            return json.loads(r.text)
 
     def _default(self, method):
         print 'Received Unknown Command:', method
