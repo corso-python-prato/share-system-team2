@@ -334,7 +334,7 @@ class Daemon(RegexMatchingEventHandler):
             self.conn_mng.dispatch_request(command, {'filepath': path})
             if command == 'delete':
                 self.client_snapshot.pop(path)
-            elif command == 'download':
+            elif command == 'download' or command == 'modified':
                 self.client_snapshot[path] = (server_timestamp, files[path][1])
             else:
                 continue
@@ -346,7 +346,7 @@ class Daemon(RegexMatchingEventHandler):
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
         if abs_path.startswith(self.cfg['sharing_path']):
-            relative_path = abs_path[len(self.cfg['sharing_path']) + 1:] 
+            relative_path = abs_path[len(self.cfg['sharing_path']) + 1:]
             return relative_path
         else:
             raise Exception
