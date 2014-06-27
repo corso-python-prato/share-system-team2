@@ -59,14 +59,15 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_download(data)        
         self.assertEqual(response, True)
 
-    # @httpretty.activate
-    # def test_download_file_not_exists(self):
-    #     url = ''.join((self.files_url, 'file.tx'))
+    @httpretty.activate
+    def test_download_file_not_exists(self):
+        url = ''.join((self.files_url, 'file.tx'))
         
-    #     httpretty.register_uri(httpretty.GET, url, status=404)
-    #     data = {'filepath': 'file.tx'}
-    #     response = self.cm.do_download(data)        
-    #     self.assertEqual(response, False)
+        httpretty.register_uri(httpretty.GET, url, status=404)
+        data = {'filepath': 'file.tx'}
+        response = self.cm.do_download(data)        
+        self.assertEqual(response, False)
+
     @httpretty.activate
     def test_do_upload_success(self):
         # make fake file
