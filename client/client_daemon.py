@@ -346,7 +346,7 @@ class Daemon(RegexMatchingEventHandler):
         for example: /home/user/watched/subfolder/ will be subfolder/
         """
         if abs_path.startswith(self.cfg['sharing_path']):
-            relativize_path = abs_path[len(self.cfg['sharing_path']) + 1:] 
+            relative_path = abs_path[len(self.cfg['sharing_path']) + 1:]
             return relative_path
         else:
             raise Exception
