@@ -49,15 +49,15 @@ class TestConnectionManager(unittest.TestCase):
 
         self.cm = ConnectionManager(self.cfg)
 
-    # # files:
-    # @httpretty.activate
-    # def test_download_normal_file(self):
-    #     url = ''.join((self.files_url, 'file.txt'))
+    # files:
+    @httpretty.activate
+    def test_download_normal_file(self):
+        url = ''.join((self.files_url, 'file.txt'))
         
-    #     httpretty.register_uri(httpretty.GET, url, status=201)
-    #     data = {'filepath': 'file.txt'}
-    #     response = self.cm.do_download(data)        
-    #     self.assertEqual(response, True)
+        httpretty.register_uri(httpretty.GET, url, status=201)
+        data = {'filepath': 'file.txt'}
+        response = self.cm.do_download(data)        
+        self.assertEqual(response, True)
 
     # @httpretty.activate
     # def test_download_file_not_exists(self):
