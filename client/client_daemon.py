@@ -495,6 +495,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.start()
         self.daemon_state = 'started'
         self.running = 1
+        polling_counter = 0
         try:
             while self.running:
                 r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
@@ -520,6 +521,15 @@ class Daemon(RegexMatchingEventHandler):
                         else:
                             s.close()
                             r_list.remove(s)
+
+                # synchronization polling
+                # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
+                # maybe optimizable but now functional
+                polling_counter += 1
+                if polling_counter == 6:
+                    self.sync_with_server()
+                    polling_counter = 0
+
         except KeyboardInterrupt:
             self.stop(0)
         self.observer.stop()
