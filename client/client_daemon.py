@@ -200,6 +200,8 @@ class Daemon(RegexMatchingEventHandler):
             except IOError:
                 return False
 
+            self.client_snapshot[dst] = self.client_snapshot[src]
+            self.client_snapshot.pop(src)
             return True
 
         def _check_md5(dir_tree, md5):
@@ -330,6 +332,13 @@ class Daemon(RegexMatchingEventHandler):
         # makes all synchronization commands
         for command, path in sync_commands:
             self.conn_mng.dispatch_request(command, {'filepath': path})
+            if command == 'delete':
+                self.client_snapshot.pop(path)
+            elif command == 'download':
+                self.client_snapshot[path] = (server_timestamp, files[path][1])
+            else:
+                continue
+
 
     def relativize_path(self, abs_path):
         """
@@ -487,6 +496,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.start()
         self.daemon_state = 'started'
         self.running = 1
+        polling_counter = 0
         try:
             while self.running:
                 r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
@@ -512,6 +522,15 @@ class Daemon(RegexMatchingEventHandler):
                         else:
                             s.close()
                             r_list.remove(s)
+
+                # synchronization polling
+                # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
+                # maybe optimizable but now functional
+                polling_counter += 1
+                if polling_counter == 6:
+                    self.sync_with_server()
+                    polling_counter = 0
+
         except KeyboardInterrupt:
             self.stop(0)
         self.observer.stop()
