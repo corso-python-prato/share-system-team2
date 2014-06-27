@@ -37,7 +37,10 @@ class TestConnectionManager(unittest.TestCase):
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
+        # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
+        self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
+        self.make_fake_dir()
 
         # create this auth testing
         self.authServerAddress = "http://"+self.cfg['user']+":"+self.cfg['pass']+"@www.pyboxtest.com"        
@@ -49,51 +52,66 @@ class TestConnectionManager(unittest.TestCase):
 
         self.cm = ConnectionManager(self.cfg)
 
-    # # files:
-    # @httpretty.activate
-    # def test_download_normal_file(self):
-    #     url = ''.join((self.files_url, 'file.txt'))
+    # files:
+    @httpretty.activate
+    def test_download_normal_file(self):
+        url = ''.join((self.files_url, 'file.txt'))
         
-    #     httpretty.register_uri(httpretty.GET, url, status=201)
-    #     data = {'filepath': 'file.txt'}
-    #     response = self.cm.do_download(data)        
-    #     self.assertEqual(response, True)
+        httpretty.register_uri(httpretty.GET, url, status=201)
+        data = {'filepath': 'file.txt'}
+        response = self.cm.do_download(data)        
+        self.assertEqual(response, True)
 
-    # @httpretty.activate
-    # def test_download_file_not_exists(self):
-    #     url = ''.join((self.files_url, 'file.tx'))
+    @httpretty.activate
+    def test_download_file_not_exists(self):
+        url = ''.join((self.files_url, 'file.tx'))
         
-    #     httpretty.register_uri(httpretty.GET, url, status=404)
-    #     data = {'filepath': 'file.tx'}
-    #     response = self.cm.do_download(data)        
-    #     self.assertEqual(response, False)
+        httpretty.register_uri(httpretty.GET, url, status=404)
+        data = {'filepath': 'file.tx'}
+        response = self.cm.do_download(data)        
+        self.assertEqual(response, False)
+
+    @httpretty.activate
+    def test_do_upload_success(self):
+        
+        # prepare fake server
+        url = ''.join((self.files_url, 'foo.txt'))        
+        js = json.dumps({"server_timestamp":time.time()})
+        httpretty.register_uri(httpretty.POST, url, status=201, 
+                                                    body=js,
+                                                    content_type="application/json")
+
+        # call api
+        response = self.cm.do_upload({'filepath':'foo.txt'})                
+        self.assertEqual(response, js)
 
     # actions:
     @httpretty.activate
     def test_do_move(self):
         url = ''.join((self.actions_url, 'move'))
-        print url
-        ts = str(time.time())
+        
+        js = json.dumps({"server_timestamp":time.time()})
         httpretty.register_uri(httpretty.POST, url, status=201, 
-            body='{"server_timestamp":' + ts +'}',
+            body=js,
             content_type="application/json")
 
-
         response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})        
-        self.assertEqual(response, {"server_timestamp":ts})
-
-    # @httpretty.activate
-    # def test_do_delete(self):
-    #     url = ''.join((self.actions_url, 'foo.txt'))
-
-    #     httpretty.register_uri(httpretty.POST, url, status=200)
-    #     response = self.cm.do_delete({'filepath': 'foo.txt'})
-    #     print response
-    #     # self.assertEqual(response, 200)
+        self.assertEqual(response, js)
 
     def tearDown(self):
         httpretty.disable()
         httpretty.reset()
+        self.remove_fake_dir()
+
+    def make_fake_dir(self):
+        os.makedirs(os.path.join(self.cfg['sharing_path'], 'TestConnectionManager'))
+
+        fake_file = os.path.join(self.cfg['sharing_path'],'TestConnectionManager','foo.txt')
+        with open(fake_file,'w') as fc:
+            fc.write('foo.txt :)')
+
+    def remove_fake_dir(self):
+        shutil.rmtree(os.path.join(self.cfg['sharing_path'],'TestConnectionManager'))
 
 if __name__ == '__main__':
     unittest.main()

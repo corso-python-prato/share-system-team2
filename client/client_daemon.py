@@ -20,6 +20,30 @@ from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import RegexMatchingEventHandler
 from connection_manager import ConnectionManager
 
+class SkipObserver(Observer):
+    def __init__(self, *args):
+        Observer.__init__(self, *args)
+        self._skip_list = []
+
+    def skip(self, path):
+        self._skip_list.append(path)
+        print "evento aggiunto in lista skip:", path
+
+    def dispatch_events(self, event_queue, timeout):
+        event, watch = event_queue.get(block=True, timeout=timeout)
+        try:
+            for path in self._skip_list:
+                if path == event.src_path:
+                    print '\n\nSkipped event "{}" \n\non path: {}\n\n'.format(event, path)
+                    self._skip_list.remove(path)
+                    break
+            else:
+                self._dispatch_event(event, watch)
+        except KeyError:
+            print " tutto apposto?"
+            pass
+        event_queue.task_done()
+
 
 class Daemon(RegexMatchingEventHandler):
 
@@ -149,8 +173,8 @@ class Daemon(RegexMatchingEventHandler):
         """
         Recive as parameter the md5 of a file and return the first knowed path with the same md5
         """
-        for path in self.client_snapshot:
-            if searched_md5 in self.client_snapshot[path][1]:
+        for path, tupla in self.client_snapshot.iteritems():
+            if searched_md5 in tupla[1]:
                 return path
         else:
             return None
@@ -331,14 +355,13 @@ class Daemon(RegexMatchingEventHandler):
 
         # makes all synchronization commands
         for command, path in sync_commands:
-            self.conn_mng.dispatch_request(command, {'filepath': path})
             if command == 'delete':
                 self.client_snapshot.pop(path)
-            elif command == 'download':
+                self.observer.skip(self.absolutize_path(path))
+            elif command == 'download' or command == 'modified':
                 self.client_snapshot[path] = (server_timestamp, files[path][1])
-            else:
-                continue
-
+                self.observer.skip(self.absolutize_path(path))
+            self.conn_mng.dispatch_request(command, {'filepath': path})
 
     def relativize_path(self, abs_path):
         """
@@ -356,13 +379,13 @@ class Daemon(RegexMatchingEventHandler):
         This function absolutize a path that i have relativize before:
         for example: subfolder/ will be /home/user/watched/subfolder/
         """
-        return os.path.join(self.cfg['sharing_path'], rel_path)        
+        return os.path.join(self.cfg['sharing_path'], rel_path)
 
     def create_observer(self):
         """
         Create an instance of the watchdog Observer thread class.
         """
-        self.observer = Observer()
+        self.observer = SkipObserver()
         self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
 
     # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
@@ -386,7 +409,6 @@ class Daemon(RegexMatchingEventHandler):
                                 'md5': new_md5,
                                 }
             return data
-
         new_md5 = self.hash_file(e.src_path)
         rel_new_path = self.relativize_path(e.src_path)
         founded_path = self.search_md5(new_md5)
@@ -485,15 +507,15 @@ class Daemon(RegexMatchingEventHandler):
         self.load_local_dir_state()
 
         # Operations necessary to start the daemon
-        self.sync_with_server()
         self.create_observer()
+        self.observer.start()
+        self.sync_with_server()
 
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
         self.listener_socket.listen(self.cfg['backlog_listener_sock'])
         r_list = [self.listener_socket]
-        self.observer.start()
         self.daemon_state = 'started'
         self.running = 1
         polling_counter = 0
