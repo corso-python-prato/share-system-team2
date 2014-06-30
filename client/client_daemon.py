@@ -63,23 +63,23 @@ class Daemon(RegexMatchingEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
     # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
-    DEFAULT_CONFIG = OrderedDict()
-    DEFAULT_CONFIG['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
-    DEFAULT_CONFIG['cmd_address'] = 'localhost'
-    DEFAULT_CONFIG['cmd_port'] = 50001
-    DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
-    DEFAULT_CONFIG['server_address'] = 'http://localhost:5000'
-    DEFAULT_CONFIG['user'] = 'pasquale'
-    DEFAULT_CONFIG['pass'] = 'secretpass'
-    DEFAULT_CONFIG['timeout_listener_sock'] = 0.5
-    DEFAULT_CONFIG['backlog_listener_sock'] = 1
+    DEF_CONF = OrderedDict()
+    DEF_CONF['local_dir_state_path'] = os.path.join(CONFIG_DIR,'local_dir_state')
+    DEF_CONF['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
+    DEF_CONF['cmd_address'] = 'localhost'
+    DEF_CONF['cmd_port'] = 50001
+    DEF_CONF['api_suffix'] = '/API/V1/'
+    DEF_CONF['server_address'] = 'http://localhost:5000'
+    DEF_CONF['user'] = 'pasquale'
+    DEF_CONF['pass'] = 'secretpass'
+    DEF_CONF['timeout_listener_sock'] = 0.5
+    DEF_CONF['backlog_listener_sock'] = 1
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~                     
+                     # gedit first delete file, create, and move to dest_path *.txt~
                      ]
 
     # Calculate int size in the machine architecture
@@ -108,11 +108,11 @@ class Daemon(RegexMatchingEventHandler):
         def build_default_cfg():
             """
             Restore default config file by writing on file
-            :return: default configuration contained in the dictionary DEFAULT_CONFIG
+            :return: default configuration contained in the dictionary DEF_CONF
             """
             with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
-                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
-            return Daemon.DEFAULT_CONFIG
+                json.dump(Daemon.DEF_CONF, fo, skipkeys=True, ensure_ascii=True, indent=4)
+            return Daemon.DEF_CONF
 
         # Search if config directory exists otherwise create it
         if not os.path.isdir(Daemon.CONFIG_DIR):
@@ -129,7 +129,7 @@ class Daemon(RegexMatchingEventHandler):
                 print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
             corrupted_config = False
-            for k in Daemon.DEFAULT_CONFIG:
+            for k in Daemon.DEF_CONF:
                 if k not in loaded_config:
                     corrupted_config = True
             # In the case is all gone right run config in loaded_config
@@ -601,7 +601,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Save local_dir_state on disk
         """
-        json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
+        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
         print "local_dir_state saved"
 
     def load_local_dir_state(self):
@@ -609,12 +609,11 @@ class Daemon(RegexMatchingEventHandler):
         Load local dir state on self.local_dir_state variable
         if file doesn't exists it will be created without timestamp
         """
-        if os.path.isfile(Daemon.LOCAL_DIR_STATE_PATH):
-            self.local_dir_state = json.load(open(Daemon.LOCAL_DIR_STATE_PATH, "rb"))
             print "Loaded dir_state"
+        if os.path.isfile(self.cfg['local_dir_state_path']):
+            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
         else:
             self.local_dir_state = {'last_timestamp': '', 'global_md5': self.calculate_md5_of_dir()}
-            json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
             print "dir_state not found, Initialize new dir_state"
 
     def calculate_md5_of_dir(self, verbose=0):
