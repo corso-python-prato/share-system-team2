@@ -179,8 +179,10 @@ class Daemon(RegexMatchingEventHandler):
                         self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
-        # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
-        return False
+        if self.calculate_md5_of_dir() != self.local_dir_state['global_md5']:
+            return True
+        else:
+            return False
 
     def search_md5(self, searched_md5):
         """
