@@ -450,7 +450,7 @@ class Daemon(RegexMatchingEventHandler):
         print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
         if event_timestamp:
             self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
                       .format(data['cmd'], e.src_path ))
@@ -477,7 +477,7 @@ class Daemon(RegexMatchingEventHandler):
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
             # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
             self.client_snapshot.pop(rel_src_path)
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(e.src_path ))
 
@@ -496,7 +496,7 @@ class Daemon(RegexMatchingEventHandler):
         if event_timestamp:
             print 'event_timestamp di "modified" =', event_timestamp
             self.client_snapshot[rel_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
@@ -511,9 +511,9 @@ class Daemon(RegexMatchingEventHandler):
             print 'event_timestamp di "delete" =', event_timestamp
             # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
             if self.client_snapshot.pop(rel_deleted_path, 'ERROR') != 'ERROR':
-                self.update_local_dir_state(event_timestamp)
             else:
                 self.stop(1, 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path))
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
@@ -593,9 +593,12 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
         """
-        self.local_dir_state['last_timestamp'] = last_timestamp
-        self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
-        self.save_local_dir_state()
+        if isinstance(last_timestamp, int):
+            self.local_dir_state['last_timestamp'] = last_timestamp
+            self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+            self.save_local_dir_state()
+        else:
+            self.stop(1, 'Not int value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
 
     def save_local_dir_state(self):
         """
@@ -609,12 +612,24 @@ class Daemon(RegexMatchingEventHandler):
         Load local dir state on self.local_dir_state variable
         if file doesn't exists it will be created without timestamp
         """
-            print "Loaded dir_state"
+        def _rebuild_local_dir_state():
+            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.calculate_md5_of_dir()}
+            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
+
         if os.path.isfile(self.cfg['local_dir_state_path']):
             self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
+            if 'last_timestamp' in self.local_dir_state and 'global_md5' in self.local_dir_state \
+                    and isinstance(self.local_dir_state['last_timestamp'], int):
+                print "questo è last_timestamp:", self.local_dir_state['last_timestamp']
+                #self.local_dir_state['last_timestamp'] = int(self.local_dir_state['last_timestamp'])
+                print "Loaded local_dir_state"
+            else:
+                print "local_dir_state corrupted. Reinitialized new local_dir_state"
+                _rebuild_local_dir_state()
         else:
-            self.local_dir_state = {'last_timestamp': '', 'global_md5': self.calculate_md5_of_dir()}
-            print "dir_state not found, Initialize new dir_state"
+            print "local_dir_state not found. Initialize new local_dir_state"
+            _rebuild_local_dir_state()
+
 
     def calculate_md5_of_dir(self, verbose=0):
         """
