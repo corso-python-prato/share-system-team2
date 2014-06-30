@@ -223,6 +223,7 @@ class Daemon(RegexMatchingEventHandler):
         def _make_copy(src, dst):
             abs_src = self.absolutize_path(src)
             abs_dst = self.absolutize_path(dst)
+            self.observer.skip(abs_dst)
             try:
                 copy2(abs_src, abs_dst)
             except IOError:
@@ -234,6 +235,7 @@ class Daemon(RegexMatchingEventHandler):
         def _make_move(src, dst):
             abs_src = self.absolutize_path(src)
             abs_dst = self.absolutize_path(dst)
+            self.observer.skip(abs_dst)
             try:
                 move(abs_src, abs_dst)
             except IOError:
@@ -346,8 +348,10 @@ class Daemon(RegexMatchingEventHandler):
 
                 for filepath in tree_diff['new_on_client']:
                     # files that have been deleted on server, so have to delete them
+                    abs_filepath = self.absolutize_path(filepath)
+                    self.observer.skip(abs_filepath)
                     try:
-                        os.remove(self.absolutize_path(filepath))
+                        os.remove(abs_filepath)
                     except OSError:
                         # it should raise an exceptions
                         pass
@@ -372,7 +376,6 @@ class Daemon(RegexMatchingEventHandler):
         for command, path in sync_commands:
             if command == 'delete':
                 self.client_snapshot.pop(path)
-                self.observer.skip(self.absolutize_path(path))
             elif command == 'download' or command == 'modified':
                 self.client_snapshot[path] = (server_timestamp, files[path][1])
                 self.observer.skip(self.absolutize_path(path))
