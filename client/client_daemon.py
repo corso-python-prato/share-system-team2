@@ -461,11 +461,9 @@ class Daemon(RegexMatchingEventHandler):
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
         # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
-        if self.client_snapshot.get(rel_src_path, 'ERROR') != 'ERROR':
-            md5 = self.client_snapshot[rel_src_path][1]
-        else:
+        if self.client_snapshot.get(rel_src_path, 'ERROR') == 'ERROR':
             self.stop(1, 'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
-
+        md5 = self.client_snapshot[rel_src_path][1]
         data = {'src': rel_src_path,
                  'dst': rel_dest_path,
                  'md5': md5,
@@ -510,9 +508,8 @@ class Daemon(RegexMatchingEventHandler):
         if event_timestamp:
             print 'event_timestamp di "delete" =', event_timestamp
             # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
-            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') != 'ERROR':
-            else:
-                self.stop(1, 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path))
+            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') == 'ERROR':
+                print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path)
             self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
