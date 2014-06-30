@@ -100,6 +100,56 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})        
         self.assertEqual(response, js)
 
+    @httpretty.activate
+    def test_do_delete(self):
+        url = ''.join((self.actions_url, 'delete'))
+
+        js = json.dumps({"server_timestamp":time.time()})
+        httpretty.register_uri(httpretty.POST, url, status=201,
+             body=js,
+             content_type="application/json")
+        d = {'filepath': 'foo.txt'}
+
+        response = self.cm.do_delete(d)
+        self.assertEqual(response, js)
+
+    @httpretty.activate
+    def test_do_modify(self):
+        url = ''.join((self.files_url, 'foo.txt'))
+        js = json.dumps({"server_timestamp":time.time()})
+
+        httpretty.register_uri(httpretty.PUT, url, status=201,
+              body=js,
+              content_type="application/json")
+        
+        response = self.cm.do_modify({'filepath': 'foo.txt'})
+        self.assertEqual(response, js)
+
+    @httpretty.activate
+    def test_do_copy(self):
+        url = ''.join([self.actions_url, 'copy'])
+        d = {'src': 'foo.txt', 'dst': 'folder/foo.txt'}
+        js = json.dumps({"server_timestamp":time.time()})
+
+        httpretty.register_uri(httpretty.POST, url, status=201,
+            body=js,
+            content_type="application/json")
+
+        response = self.cm.do_copy(d)
+        self.assertEqual(response, js)
+
+    @httpretty.activate
+    def test_get_server_snapshot(self):
+        url = self.files_url
+        js = json.dumps({'files':'foo.txt'})
+
+        httpretty.register_uri(httpretty.GET, url, status=201,
+            body=js,
+            content_type="application/json")
+
+        response = self.cm.do_get_server_snapshot('')
+        self.assertEqual(json.dumps(response), js)
+
     def tearDown(self):
         httpretty.disable()
         httpretty.reset()
@@ -122,43 +172,3 @@ class TestConnectionManager(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-    # def test_download_unexistent_file(self):
-    #     print "53:questa e' self.test_url:", self.test_url
-    #     print ''.join((self.test_url, 'files/not_exist.txt'))
-    #     httpretty.register_uri(httpretty.GET, ''.join((self.test_url, 'files/not_exist.txt')), status=404)
-    #     data = {'filepath': 'not_exist.txt'}
-    #     response = self.cm.do_download(data)
-    #     self.assertEqual(response, False)
-
-    # @httpretty.activate
-    # def test_do_upload(self):
-    #     httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=200)
-    #     response = self.cm.do_upload({'filepath': 'foo.txt'})
-    #
-    #     self.assertEqual(response, 200)
-    #
-    # @httpretty.activate
-    # def test_do_modify(self):
-    #     httpretty.register_uri(httpretty.PUT, 'http://www.pyboxtest.com/API/V1/files/foo.txt', status=201)
-    #
-    #     response = self.cm.do_modify({'filepath': 'foo.txt'})
-    #
-    #     self.assertEqual(response, 201)
-    #
-    # # actions:
-    # @httpretty.activate
-    # def test_do_move(self):
-    #     httpretty.register_uri(httpretty.POST, 'hhttp://www.pyboxtest.com/API/V1/actions/foo.txt', status=201)
-    #
-    #     response = self.cm.do_move({'src_path': 'foo.txt', 'dest_path': 'folder/foo.txt'})
-    #
-    #     self.assertEqual(response, 200)
-    #
-    # @httpretty.activate
-    # def test_do_delete(self):
-    #     httpretty.register_uri(httpretty.POST, 'http://www.pyboxtest.com/API/V1/actions/foo.txt', status=200)
-    #
-    #     response = self.cm.do_delete({'filepath': 'foo.txt'})
-    #
-    #     self.assertEqual(response, 200)
