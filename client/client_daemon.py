@@ -27,23 +27,36 @@ class SkipObserver(Observer):
 
     def skip(self, path):
         self._skip_list.append(path)
-        print "evento aggiunto in lista skip:", path
+        print 'Path "{}" added to skip list!!!'.format(path)
 
     def dispatch_events(self, event_queue, timeout):
         event, watch = event_queue.get(block=True, timeout=timeout)
+        skip = False
         try:
-            for path in self._skip_list:
-                if path == event.src_path:
-                    print '\n\nSkipped event "{}" \n\non path: {}\n\n'.format(event, path)
-                    self._skip_list.remove(path)
-                    break
-            else:
-                self._dispatch_event(event, watch)
-        except KeyError:
-            print " tutto apposto?"
+            event.dest_path
+        except AttributeError:
             pass
-        event_queue.task_done()
+        else:
+            if event.dest_path in self._skip_list:
+                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\n\nSkipped event "{}" \non path: {}\n\n'.format(event, event.dest_path)
+                self._skip_list.remove(event.dest_path)
+                skip = True
+        try:
+            event.src_path
+        except AttributeError:
+            pass
+        else:
+            if event.src_path in self._skip_list:
+                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\nSkipped event "{}" \n on path: {}\n'.format(event, event.src_path)
+                self._skip_list.remove(event.src_path)
+                skip = True
 
+        if not skip:
+            self._dispatch_event(event, watch)
+
+        event_queue.task_done()
 
 class Daemon(RegexMatchingEventHandler):
 
