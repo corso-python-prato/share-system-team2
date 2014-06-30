@@ -50,11 +50,11 @@ class ConnectionManager(object):
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
-        console_handler = logging.StreamHandler()        
-        console_handler.setLevel(logging_level)        
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging_level)
 
         console_formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
-        console_handler.setFormatter(console_formatter)       
+        console_handler.setFormatter(console_formatter)
         
         self.logger.addHandler(console_handler)
 
@@ -73,7 +73,7 @@ class ConnectionManager(object):
         try:
             r = requests.post(url, data=data)
             r.raise_for_status()
-        except ConnectionManager.EXCEPTIONS_CATCHED as e:            
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
             return r.text
@@ -82,7 +82,7 @@ class ConnectionManager(object):
     # files
 
     def do_download(self, data):
-        url = ''.join([self.files_url, data['filepath']])        
+        url = ''.join([self.files_url, data['filepath']])
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_download',url, data))
         try:
             r = requests.get(url, auth=self.auth)
@@ -92,7 +92,7 @@ class ConnectionManager(object):
         else:
             filepath = os.path.join(self.cfg['sharing_path'], data['filepath'])
             dirpath, filename = os.path.split(filepath)
-            if not os.path.exists(dirpath):
+            if not os.path.isdir(dirpath):
                 # Create all missing directories
                 os.makedirs(dirpath)
             with open(filepath, 'wb') as f:
@@ -112,8 +112,8 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = json.loads(r.text)
+
             return event_timestamp
         return False
 
@@ -123,15 +123,15 @@ class ConnectionManager(object):
         
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_modify',url, data))
 
-        _file = {'file': (open(filepath, 'rb'))}        
+        _file = {'file': (open(filepath, 'rb'))}
         try:
             r = requests.put(url, auth=self.auth, files=_file)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = json.loads(r.text)
+
             return event_timestamp
         return False
 
@@ -147,8 +147,8 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = json.loads(r.text)
+
             return event_timestamp
         return False
 
@@ -162,8 +162,8 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = json.loads(r.text)
+
             return event_timestamp
         return False
 
@@ -177,8 +177,8 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             pass
         else:
-            event_timestamp = r.text
-            
+            event_timestamp = json.loads(r.text)
+
             return event_timestamp
         return False
 
@@ -192,7 +192,7 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             
             if 'UNAUTHORIZED' in e[0]:
-                self.do_reguser(('pasquale', 'secretpass'))
+                print self.do_reguser(('pasquale', 'secretpass'))
                 return self.do_get_server_snapshot(data)
         else:
             return json.loads(r.text)
