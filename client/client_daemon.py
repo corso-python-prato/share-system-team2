@@ -366,20 +366,49 @@ class Daemon(RegexMatchingEventHandler):
         response = self.conn_mng.dispatch_request('get_server_snapshot', '')
         if response is None:
             self.stop(1, '\nReceived bad snapshot. Server down?\n')
-        else:
-            server_timestamp = response['server_timestamp']
-            files = response['files']
+
+        server_timestamp = response['server_timestamp']
+        files = response['files']
 
         sync_commands = self._sync_process(server_timestamp, files)
+        self.update_local_dir_state(server_timestamp)
+
+        # Initialize the variable where we put the timestamp of the last operation we did
+        last_operation_timestamp = None
 
         # makes all synchronization commands
         for command, path in sync_commands:
             if command == 'delete':
-                self.client_snapshot.pop(path)
-            elif command == 'download' or command == 'modified':
-                self.client_snapshot[path] = (server_timestamp, files[path][1])
+                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if event_timestamp:
+                    print 'event_timestamp di "delete" INTO SYNC:', event_timestamp
+                    last_operation_timestamp = event_timestamp['server_timestamp']
+                    # If i can't find path inside client_snapshot there is inconsistent problem in client_snapshot!
+                    if self.client_snapshot.pop(path, 'ERROR') == 'ERROR':
+                        print 'Error during delete event INTO SYNC! Impossible to find "{}" inside client_snapshot'.format(path)
+                else:
+                    self.stop(1, 'Error during connection with the server. Server fail to "delete" this file: {}'.format(path))
+
+            elif command == 'modified' or command == 'upload':
+                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if event_timestamp:
+                    print 'event_timestamp di "{}" INTO SYNC: {}'.format(command, event_timestamp)
+                    last_operation_timestamp = event_timestamp['server_timestamp']
+                else:
+                    self.stop(1, 'Error during connection with the server. Server fail to "{}" this file: {}'.format(command, path))
+
+            else: # command == 'download'
+                print 'skip di download'
                 self.observer.skip(self.absolutize_path(path))
-            self.conn_mng.dispatch_request(command, {'filepath': path})
+                connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if connection_result:
+                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
+                    self.client_snapshot[path] = files[path]
+                else:
+                    self.stop(1, 'Error during connection with the server. Client fail to "download" this file: {}'.format(path))
+
+        if last_operation_timestamp:
+            self.update_local_dir_state(last_operation_timestamp)
 
     def relativize_path(self, abs_path):
         """
