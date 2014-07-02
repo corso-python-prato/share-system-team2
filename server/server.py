@@ -480,6 +480,21 @@ class Files(Resource):
 
         return dirname, filename
 
+    def _update_user_path(self, username, path):
+        """
+        Make all needed updates to <userdata> (dict and disk) after a post or a put.
+        Return the last modification int timestamp of written file.
+        :param username: str
+        :param path: str
+        :return: int
+        """
+        filepath = userpath2serverpath(username, path)
+        last_server_timestamp = file_timestamp(filepath)
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        save_userdata()
+        return last_server_timestamp
+
     @auth.login_required
     def post(self, path):
         """
@@ -500,11 +515,7 @@ class Files(Resource):
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
-        # FIXME: duplicted block of code
-        last_server_timestamp = file_timestamp(filepath)
-        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        save_userdata()
+        last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
@@ -528,11 +539,7 @@ class Files(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-        # FIXME: duplicted block of code
-        last_server_timestamp = file_timestamp(filepath)
-        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        save_userdata()
+        last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
