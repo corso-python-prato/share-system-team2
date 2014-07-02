@@ -93,6 +93,7 @@ class FileFakeEvent(object):
 class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
+        self.client_daemon.create_observer()
 
     def test_sync_process_directory_not_modified1(self):
         """
