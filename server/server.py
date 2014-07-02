@@ -464,7 +464,6 @@ class Files(Resource):
         logging.debug(response)
         return response
 
-    @auth.login_required
     def _get_dirname_filename(self, path):
         """
         Return dirname(directory name) and filename(file name) for a given path to complete
