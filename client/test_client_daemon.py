@@ -8,6 +8,8 @@ import httpretty
 import client_daemon
 
 
+start_dir = os.getcwd()
+
 TEST_DIR = 'daemon_test'
 LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
@@ -35,8 +37,6 @@ def folder_not_modified():
     Return True to indicate that sharing folder is modified during daemon is down
     """
     return False
-
-start_dir = os.getcwd()
 
 
 def setup_test_dir():
