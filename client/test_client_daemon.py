@@ -98,7 +98,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_not_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
         self.assertEqual(
@@ -116,7 +116,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_not_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         files.update({'new': (18, 'md5md6jkshkfv')})
@@ -137,7 +137,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_not_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         files.update({'new': (18, 'md5md6')})
@@ -158,7 +158,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_not_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -179,7 +179,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_not_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -197,7 +197,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -217,7 +217,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -238,7 +238,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -259,7 +259,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -281,7 +281,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -303,7 +303,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -324,7 +324,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -346,7 +346,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -368,7 +368,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -389,7 +389,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17, 'global_md5': ''}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
