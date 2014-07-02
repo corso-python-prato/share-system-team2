@@ -423,6 +423,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.files_url = self.base_url + 'files/'
         self.actions_url = self.base_url + 'actions/'
         self.local_dir_state_path = self.cfg['local_dir_state_path']
+        self.sharing_path = self.cfg['sharing_path']
 
         # Instantiate the daemon
         self.client_daemon = client_daemon.Daemon()
@@ -492,8 +493,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.client_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
 
         # Create fake event and file.
-        src_abs_path = os.path.join(self.client_daemon.cfg['sharing_path'], src_path)
-        dest_abs_path = os.path.join(self.client_daemon.cfg['sharing_path'], dest_path)
+        src_abs_path = os.path.join(self.sharing_path, src_path)
+        dest_abs_path = os.path.join(self.sharing_path, dest_path)
         event = FileFakeEvent(src_abs_path, content, dest_abs_path)
 
         # Create server response.
