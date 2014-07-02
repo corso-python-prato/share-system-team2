@@ -60,6 +60,13 @@ def tear_down_test_dir():
 
 
 def create_file(file_path, content=''):
+    """
+    Write <content> (default: '') into <file_path> and return the float timestamp
+    of created file, also creating inner directories if needed.
+    :param file_path: str
+    :param content: str
+    :return: float
+    """
     print 'Creating "{}"'.format(file_path)
     dirname = os.path.dirname(file_path)
     if not os.path.exists(dirname):
@@ -400,11 +407,15 @@ class TestClientDaemon(unittest.TestCase):
 
 
 class TestClientDaemonOnEvents(unittest.TestCase):
+    """
+    Test the "on_<something>" client daemon, triggered by watchdog.
+    """
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
     LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'local_dir_state')
 
     def setUp(self):
+        # Create and go into the test directory
         setup_test_dir()
         httpretty.enable()
 
@@ -436,6 +447,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
     def tearDown(self):
         httpretty.disable()
         httpretty.reset()
+        # Remove the test directory.
         tear_down_test_dir()
 
     @httpretty.activate
