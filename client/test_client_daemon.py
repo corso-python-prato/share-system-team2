@@ -1,3 +1,4 @@
+import hashlib
 import unittest
 import os
 import shutil
@@ -76,11 +77,12 @@ def create_file(file_path, content=''):
 class FileFakeEvent(object):
     """
     Class that simulates a file related event sent from watchdog.
-    Actually create 'src_path' attribute and the file in disk.
+    Actually create <src_path> and <dest_path> attributes and the file in disk.
     """
-    def __init__(self, src_path, content=''):
+    def __init__(self, src_path, content='', dest_path=None):
         self.src_path = src_path
         create_file(self.src_path, content=content)
+        self.dest_path = dest_path
 
 
 class TestClientDaemon(unittest.TestCase):
@@ -419,6 +421,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass']
         self.base_url = self.cfg['server_address'] + self.cfg['api_suffix']
         self.files_url = self.base_url + 'files/'
+        self.actions_url = self.base_url + 'actions/'
+        self.local_dir_state_path = self.cfg['local_dir_state_path']
 
         # Instantiate the daemon
         self.client_daemon = client_daemon.Daemon()
@@ -467,6 +471,58 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.assertIsInstance(self.client_daemon.local_dir_state[LAST_TIMESTAMP], int)
         # test exact value of timestamp
         self.assertEqual(self.client_daemon.local_dir_state[LAST_TIMESTAMP], ts2)
+
+    @httpretty.activate
+    def test_on_moved(self):
+        """
+        Test that daemon on_moved method cause the user path being correctly moved inside client_snapshot attribute,
+        global md5 changed, last timestamp correctly updated and local dir state saved.
+        """
+        # Create arbitrary initial values.
+        ts0 = 1403878699
+        ts1 = ts0 + 1
+        src_path = 'dir1/tomove.txt'
+        dest_path = 'dir2/tomove.txt'
+        content = 'arbitrary content'
+        md5 = hashlib.md5(content).hexdigest()
+        global_md5 = 'fake global md5'  # the real value doesn't really matter in this test.
+
+        # Create daemon initial state.
+        self.client_daemon.client_snapshot = {src_path: [ts0, md5]}  # the path that will be moved.
+        self.client_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
+
+        # Create fake event and file.
+        src_abs_path = os.path.join(self.client_daemon.cfg['sharing_path'], src_path)
+        dest_abs_path = os.path.join(self.client_daemon.cfg['sharing_path'], dest_path)
+        event = FileFakeEvent(src_abs_path, content, dest_abs_path)
+
+        # Create server response.
+        url = self.actions_url + 'move'  # NB: no final '/'!!!
+        httpretty.register_uri(httpretty.POST, url,
+                               status=200,
+                               body='{"server_timestamp":%d}' % ts1,
+                               content_type="application/json")
+
+        # Store some initial values.
+        local_dir_state_ts_start = os.path.getmtime(self.local_dir_state_path)
+        glob_md5_start = self.client_daemon.local_dir_state[GLOBAL_MD5]
+
+        # Call method to test.
+        self.client_daemon.on_moved(event)
+
+        # Store some final values to be compared.
+        glob_md5_end = self.client_daemon.local_dir_state[GLOBAL_MD5]
+        last_timestamp = self.client_daemon.local_dir_state[LAST_TIMESTAMP]
+
+        # Test assertions.
+        self.assertIn(dest_path, self.client_daemon.client_snapshot)
+        self.assertNotIn(src_path, self.client_daemon.client_snapshot)
+        self.assertNotEqual(glob_md5_start, glob_md5_end)  # md5 must be changed.
+        # Last timestamp must be correctly updated with which one received from server.
+        self.assertEqual(last_timestamp, ts1)
+        # Check that state is saved on disk by checking if current file timestamp
+        # is greater than the starting one.
+        self.assertLess(local_dir_state_ts_start, os.path.getmtime(self.local_dir_state_path))
 
 
 if __name__ == '__main__':
