@@ -253,7 +253,6 @@ class TestRequests(unittest.TestCase):
         dst_copy_test_file_path = 'test_copy_dst/testcopydst.txt'
         # Create source file to be copied and its destination.
         src_copy_filepath = userpath2serverpath(USR, src_copy_test_file_path)
-        dst_copy_filepath = userpath2serverpath(USR, dst_copy_test_file_path)
 
         _create_file(USR, src_copy_test_file_path, 'this is the file to be copied')
         _create_file(USR, dst_copy_test_file_path, 'different other content')
@@ -275,7 +274,6 @@ class TestRequests(unittest.TestCase):
         dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
         #create source file to be moved and its destination
         src_move_filepath = userpath2serverpath(USR, src_move_test_file_path)
-        dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
 
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
 
@@ -294,9 +292,6 @@ class TestRequests(unittest.TestCase):
         src_move_test_file_path = 'test_move_src/testmovesrc.txt'
         dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
         #create source file to be moved and its destination
-        src_move_filepath = userpath2serverpath(USR, src_move_test_file_path)
-        dst_move_filepath = userpath2serverpath(USR, dst_move_test_file_path)
-
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
 
         test = self.app.post(move_test_url,
