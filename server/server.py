@@ -266,9 +266,12 @@ class Actions(Resource):
                    'move': self._move,
                    }
         try:
-            return methods[cmd](username)
+            resp = methods[cmd](username)
         except KeyError:
             abort(HTTP_NOT_FOUND)
+        else:
+            save_userdata()
+            return resp
 
     def _delete(self, username):
         """
@@ -500,9 +503,12 @@ class Files(Resource):
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
+        # FIXME: duplicted block of code
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        save_userdata()
+
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
         return resp
@@ -525,9 +531,11 @@ class Files(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
+        # FIXME: duplicted block of code
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        save_userdata()
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
