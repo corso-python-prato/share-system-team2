@@ -506,9 +506,6 @@ class TestUserdataConsistence(unittest.TestCase):
         """
         Complex test that do several actions and finally test the consistence.
         """
-        # FIXME: Sometimes, randomly, this test fails (more often it pass). I suspect this issue is related to (int) timestamps.
-        # Possible fix: always use file_timestamp instead of now_timestamp in server module.
-
         # create user
         user = 'pippo'
         _manually_create_user(user, 'pass')
