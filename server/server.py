@@ -195,10 +195,10 @@ def load_userdata():
     return data
 
 
-def save_userdata(data):
+def save_userdata():
     with open(USERDATA_FILENAME, 'wb') as fp:
-        json.dump(data, fp, 'utf-8', indent=4)
-    logger.info('Saved {:,} users'.format(len(data)))
+        json.dump(userdata, fp, 'utf-8', indent=4)
+    logger.info('Saved {:,} users'.format(len(userdata)))
 
 
 @auth.verify_password
@@ -245,7 +245,7 @@ def create_user():
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot}
             userdata[username] = single_user_data
-            save_userdata(userdata)
+            save_userdata()
             response = 'User "{}" created.\n'.format(username), HTTP_CREATED
     else:
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
