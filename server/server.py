@@ -196,6 +196,10 @@ def load_userdata():
 
 
 def save_userdata():
+    """
+    Save module level <userdata> dict to disk as json.
+    :return: None
+    """
     with open(USERDATA_FILENAME, 'wb') as fp:
         json.dump(userdata, fp, 'utf-8', indent=4)
     logger.info('Saved {:,} users'.format(len(userdata)))
