@@ -13,8 +13,6 @@ LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
 SERVER_TIMESTAMP = 1
 
-files = {'ciao.txt': (3, 'md5md6'),
-         'carlo.txt': (2, 'md6md6')}
 
 base_dir_tree = {
     # <filepath>: (<timestamp>, <md5>)
