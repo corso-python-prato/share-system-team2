@@ -456,11 +456,8 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            server_state = compute_dir_state(user_rootpath)
-            #snapshot = server_state[SNAPSHOT]
             snapshot = userdata[username][SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
-            #last_server_timestamp = server_state[LAST_SERVER_TIMESTAMP]
             last_server_timestamp = userdata[username][LAST_SERVER_TIMESTAMP]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: snapshot})
