@@ -1,5 +1,4 @@
-__author__ = 'milly'
-
+import hashlib
 import unittest
 import os
 import shutil
@@ -9,13 +8,13 @@ import httpretty
 import client_daemon
 
 
+start_dir = os.getcwd()
+
 TEST_DIR = 'daemon_test'
 LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
+SERVER_TIMESTAMP = 1
 
-server_timestamp = 1
-files = {'ciao.txt': (3, 'md5md6'),
-         'carlo.txt': (2, 'md6md6')}
 
 base_dir_tree = {
     # <filepath>: (<timestamp>, <md5>)
@@ -33,7 +32,11 @@ def folder_modified():
     """
     return True
 
-start_dir = os.getcwd()
+def folder_not_modified():
+    """
+    Return True to indicate that sharing folder is modified during daemon is down
+    """
+    return False
 
 
 def setup_test_dir():
@@ -57,6 +60,13 @@ def tear_down_test_dir():
 
 
 def create_file(file_path, content=''):
+    """
+    Write <content> (default: '') into <file_path> and return the float timestamp
+    of created file, also creating inner directories if needed.
+    :param file_path: str
+    :param content: str
+    :return: float
+    """
     print 'Creating "{}"'.format(file_path)
     dirname = os.path.dirname(file_path)
     if not os.path.exists(dirname):
@@ -72,16 +82,18 @@ def create_file(file_path, content=''):
 class FileFakeEvent(object):
     """
     Class that simulates a file related event sent from watchdog.
-    Actually create 'src_path' attribute and the file in disk.
+    Actually create <src_path> and <dest_path> attributes and the file in disk.
     """
-    def __init__(self, src_path, content=''):
+    def __init__(self, src_path, content='', dest_path=None):
         self.src_path = src_path
         create_file(self.src_path, content=content)
+        self.dest_path = dest_path
 
 
 class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
+        self.client_daemon.create_observer()
 
     def test_sync_process_directory_not_modified1(self):
         """
@@ -89,8 +101,10 @@ class TestClientDaemon(unittest.TestCase):
         Directory not modified,
         timestamp client == timestamp server
         """
+        self.client_daemon._is_directory_modified = folder_not_modified
+
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
         self.assertEqual(
@@ -105,8 +119,10 @@ class TestClientDaemon(unittest.TestCase):
         timestamp client < timestamp server
         new file on server and not in client
         """
+        self.client_daemon._is_directory_modified = folder_not_modified
+
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         files.update({'new': (18, 'md5md6jkshkfv')})
@@ -124,8 +140,10 @@ class TestClientDaemon(unittest.TestCase):
         timestamp client < timestamp server
         new file on server and in client but with different filepath
         """
+        self.client_daemon._is_directory_modified = folder_not_modified
+
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         files.update({'new': (18, 'md5md6')})
@@ -143,8 +161,10 @@ class TestClientDaemon(unittest.TestCase):
         timestamp client < timestamp server
         file modified on server
         """
+        self.client_daemon._is_directory_modified = folder_not_modified
+
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -162,17 +182,16 @@ class TestClientDaemon(unittest.TestCase):
         timestamp client < timestamp server
         file is missing on server
         """
+        self.client_daemon._is_directory_modified = folder_not_modified
+
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
         self.client_daemon.client_snapshot.update({'carlito.txt': (1, 'jkdhlghkg')})
 
-        self.assertEqual(
-            self.client_daemon._sync_process(server_timestamp, files),
-            []
-        )
+        self.assertEqual(self.client_daemon._sync_process(server_timestamp, files), [])
 
     def test_sync_process_directory_modified1(self):
         """
@@ -184,7 +203,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -204,7 +223,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -225,7 +244,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -246,7 +265,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': server_timestamp}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -268,7 +287,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -290,7 +309,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -311,7 +330,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -333,7 +352,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -355,7 +374,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -376,7 +395,7 @@ class TestClientDaemon(unittest.TestCase):
         self.client_daemon._is_directory_modified = folder_modified
 
         server_timestamp = 18
-        self.client_daemon.local_dir_state = {'last_timestamp': 17}
+        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
 
         files = base_dir_tree.copy()
         self.client_daemon.client_snapshot = base_dir_tree.copy()
@@ -389,11 +408,15 @@ class TestClientDaemon(unittest.TestCase):
 
 
 class TestClientDaemonOnEvents(unittest.TestCase):
+    """
+    Test the "on_<something>" client daemon, triggered by watchdog.
+    """
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'dir_state')
+    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'local_dir_state')
 
     def setUp(self):
+        # Create and go into the test directory
         setup_test_dir()
         httpretty.enable()
 
@@ -408,10 +431,13 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass']
         self.base_url = self.cfg['server_address'] + self.cfg['api_suffix']
         self.files_url = self.base_url + 'files/'
+        self.actions_url = self.base_url + 'actions/'
+        self.local_dir_state_path = self.cfg['local_dir_state_path']
+        self.sharing_path = self.cfg['sharing_path']
 
         # Instantiate the daemon
         self.client_daemon = client_daemon.Daemon()
-
+        self.client_daemon.create_observer()
         # Injecting a fake client snapshot
         md5 = '50abe822532a06fb733ea3bc089527af'
         ts = 1403878699
@@ -422,6 +448,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
     def tearDown(self):
         httpretty.disable()
         httpretty.reset()
+        # Remove the test directory.
         tear_down_test_dir()
 
     @httpretty.activate
@@ -457,7 +484,59 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         # test exact value of timestamp
         self.assertEqual(self.client_daemon.local_dir_state[LAST_TIMESTAMP], ts2)
 
+    @httpretty.activate
+    def test_on_moved(self):
+        """
+        Test that daemon on_moved method cause the user path being correctly moved inside client_snapshot attribute,
+        global md5 changed, last timestamp correctly updated and local dir state saved.
+        """
+        # Create arbitrary initial values.
+        ts0 = 1403878699
+        ts1 = ts0 + 1
+        src_path = 'dir1/tomove.txt'
+        dest_path = 'dir2/tomove.txt'
+        content = 'arbitrary content'
+        md5 = hashlib.md5(content).hexdigest()
+        global_md5 = 'fake global md5'  # the real value doesn't really matter in this test.
+
+        # Create daemon initial state.
+        self.client_daemon.client_snapshot = {src_path: [ts0, md5]}  # the path that will be moved.
+        self.client_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
+
+        # Create fake event and file.
+        src_abs_path = os.path.join(self.sharing_path, src_path)
+        dest_abs_path = os.path.join(self.sharing_path, dest_path)
+        event = FileFakeEvent(src_abs_path, content, dest_abs_path)
+
+        # Create server response.
+        url = self.actions_url + 'move'  # NB: no final '/'!!!
+        httpretty.register_uri(httpretty.POST, url,
+                               status=200,
+                               body='{"server_timestamp":%d}' % ts1,
+                               content_type="application/json")
+
+        # Store some initial values.
+        local_dir_state_ts_start = os.path.getmtime(self.local_dir_state_path)
+        glob_md5_start = self.client_daemon.local_dir_state[GLOBAL_MD5]
+
+        # Call method to test.
+        self.client_daemon.on_moved(event)
+
+        # Store some final values to be compared.
+        glob_md5_end = self.client_daemon.local_dir_state[GLOBAL_MD5]
+        last_timestamp = self.client_daemon.local_dir_state[LAST_TIMESTAMP]
+
+        # Test assertions.
+        self.assertIn(dest_path, self.client_daemon.client_snapshot)
+        self.assertNotIn(src_path, self.client_daemon.client_snapshot)
+        self.assertNotEqual(glob_md5_start, glob_md5_end)  # md5 must be changed.
+        # Last timestamp must be correctly updated with which one received from server.
+        self.assertEqual(last_timestamp, ts1)
+        # Check that state is saved on disk by checking if current file timestamp
+        # is greater than the starting one.
+        self.assertLess(local_dir_state_ts_start, os.path.getmtime(self.local_dir_state_path))
+
 
 if __name__ == '__main__':
-    unittest.main(verbosity=3)
+    unittest.main()
 

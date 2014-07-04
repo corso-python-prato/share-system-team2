@@ -195,10 +195,14 @@ def load_userdata():
     return data
 
 
-def save_userdata(data):
+def save_userdata():
+    """
+    Save module level <userdata> dict to disk as json.
+    :return: None
+    """
     with open(USERDATA_FILENAME, 'wb') as fp:
-        json.dump(data, fp, 'utf-8', indent=4)
-    logger.info('Saved {:,} users'.format(len(data)))
+        json.dump(userdata, fp, 'utf-8', indent=4)
+    logger.info('Saved {:,} users'.format(len(userdata)))
 
 
 @auth.verify_password
@@ -245,7 +249,7 @@ def create_user():
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot}
             userdata[username] = single_user_data
-            save_userdata(userdata)
+            save_userdata()
             response = 'User "{}" created.\n'.format(username), HTTP_CREATED
     else:
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
@@ -262,9 +266,12 @@ class Actions(Resource):
                    'move': self._move,
                    }
         try:
-            return methods[cmd](username)
+            resp = methods[cmd](username)
         except KeyError:
             abort(HTTP_NOT_FOUND)
+        else:
+            save_userdata()
+            return resp
 
     def _delete(self, username):
         """
@@ -449,18 +456,14 @@ class Files(Resource):
         else:
             # If path is not given, return the snapshot of user directory.
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
-            server_state = compute_dir_state(user_rootpath)
-            #snapshot = server_state[SNAPSHOT]
             snapshot = userdata[username][SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
-            #last_server_timestamp = server_state[LAST_SERVER_TIMESTAMP]
             last_server_timestamp = userdata[username][LAST_SERVER_TIMESTAMP]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: snapshot})
         logging.debug(response)
         return response
 
-    @auth.login_required
     def _get_dirname_filename(self, path):
         """
         Return dirname(directory name) and filename(file name) for a given path to complete
@@ -475,6 +478,21 @@ class Files(Resource):
             abort(HTTP_FORBIDDEN)
 
         return dirname, filename
+
+    def _update_user_path(self, username, path):
+        """
+        Make all needed updates to <userdata> (dict and disk) after a post or a put.
+        Return the last modification int timestamp of written file.
+        :param username: str
+        :param path: str
+        :return: int
+        """
+        filepath = userpath2serverpath(username, path)
+        last_server_timestamp = file_timestamp(filepath)
+        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        save_userdata()
+        return last_server_timestamp
 
     @auth.login_required
     def post(self, path):
@@ -496,9 +514,8 @@ class Files(Resource):
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
-        last_server_timestamp = file_timestamp(filepath)
-        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        last_server_timestamp = self._update_user_path(username, path)
+
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED
         return resp
@@ -521,9 +538,7 @@ class Files(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-        last_server_timestamp = file_timestamp(filepath)
-        userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
         resp.status_code = HTTP_CREATED

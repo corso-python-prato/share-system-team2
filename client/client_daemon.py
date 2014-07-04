@@ -27,46 +27,59 @@ class SkipObserver(Observer):
 
     def skip(self, path):
         self._skip_list.append(path)
-        print "evento aggiunto in lista skip:", path
+        print 'Path "{}" added to skip list!!!'.format(path)
 
     def dispatch_events(self, event_queue, timeout):
         event, watch = event_queue.get(block=True, timeout=timeout)
+        skip = False
         try:
-            for path in self._skip_list:
-                if path == event.src_path:
-                    print '\n\nSkipped event "{}" \n\non path: {}\n\n'.format(event, path)
-                    self._skip_list.remove(path)
-                    break
-            else:
-                self._dispatch_event(event, watch)
-        except KeyError:
-            print " tutto apposto?"
+            event.dest_path
+        except AttributeError:
             pass
-        event_queue.task_done()
+        else:
+            if event.dest_path in self._skip_list:
+                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\n\nSkipped event "{}" \non path: {}\n\n'.format(event, event.dest_path)
+                self._skip_list.remove(event.dest_path)
+                skip = True
+        try:
+            event.src_path
+        except AttributeError:
+            pass
+        else:
+            if event.src_path in self._skip_list:
+                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\nSkipped event "{}" \n on path: {}\n'.format(event, event.src_path)
+                self._skip_list.remove(event.src_path)
+                skip = True
 
+        if not skip:
+            self._dispatch_event(event, watch)
+
+        event_queue.task_done()
 
 class Daemon(RegexMatchingEventHandler):
 
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR,'dir_state')
 
     # Default configuration for Daemon, loaded if fail to load the config file from CONFIG_DIR
-    DEFAULT_CONFIG = OrderedDict()
-    DEFAULT_CONFIG['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
-    DEFAULT_CONFIG['cmd_address'] = 'localhost'
-    DEFAULT_CONFIG['cmd_port'] = 50001
-    DEFAULT_CONFIG['api_suffix'] = '/API/V1/'
-    DEFAULT_CONFIG['server_address'] = 'http://localhost:5000'
-    DEFAULT_CONFIG['user'] = 'pasquale'
-    DEFAULT_CONFIG['pass'] = 'secretpass'
-    DEFAULT_CONFIG['timeout_listener_sock'] = 0.5
-    DEFAULT_CONFIG['backlog_listener_sock'] = 1
+    DEF_CONF = OrderedDict()
+    DEF_CONF['local_dir_state_path'] = os.path.join(CONFIG_DIR,'local_dir_state')
+    DEF_CONF['sharing_path'] = os.path.join(os.environ['HOME'], 'sharing_folder')
+    DEF_CONF['cmd_address'] = 'localhost'
+    DEF_CONF['cmd_port'] = 50001
+    DEF_CONF['api_suffix'] = '/API/V1/'
+    DEF_CONF['server_address'] = 'http://localhost:5000'
+    DEF_CONF['user'] = 'pasquale'
+    DEF_CONF['pass'] = 'secretpass'
+    DEF_CONF['timeout_listener_sock'] = 0.5
+    DEF_CONF['backlog_listener_sock'] = 1
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~                     
+                     # gedit first delete file, create, and move to dest_path *.txt~
                      ]
 
     # Calculate int size in the machine architecture
@@ -95,11 +108,11 @@ class Daemon(RegexMatchingEventHandler):
         def build_default_cfg():
             """
             Restore default config file by writing on file
-            :return: default configuration contained in the dictionary DEFAULT_CONFIG
+            :return: default configuration contained in the dictionary DEF_CONF
             """
             with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
-                json.dump(Daemon.DEFAULT_CONFIG, fo, skipkeys=True, ensure_ascii=True, indent=4)
-            return Daemon.DEFAULT_CONFIG
+                json.dump(Daemon.DEF_CONF, fo, skipkeys=True, ensure_ascii=True, indent=4)
+            return Daemon.DEF_CONF
 
         # Search if config directory exists otherwise create it
         if not os.path.isdir(Daemon.CONFIG_DIR):
@@ -116,7 +129,7 @@ class Daemon(RegexMatchingEventHandler):
                 print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(config_path)
                 return build_default_cfg()
             corrupted_config = False
-            for k in Daemon.DEFAULT_CONFIG:
+            for k in Daemon.DEF_CONF:
                 if k not in loaded_config:
                     corrupted_config = True
             # In the case is all gone right run config in loaded_config
@@ -166,8 +179,10 @@ class Daemon(RegexMatchingEventHandler):
                         self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
-        # TODO process directory and get global md5. if the directory is modified return 'True', else return 'False'
-        return False
+        if self.calculate_md5_of_dir() != self.local_dir_state['global_md5']:
+            return True
+        else:
+            return False
 
     def search_md5(self, searched_md5):
         """
@@ -208,6 +223,7 @@ class Daemon(RegexMatchingEventHandler):
         def _make_copy(src, dst):
             abs_src = self.absolutize_path(src)
             abs_dst = self.absolutize_path(dst)
+            self.observer.skip(abs_dst)
             try:
                 copy2(abs_src, abs_dst)
             except IOError:
@@ -219,6 +235,7 @@ class Daemon(RegexMatchingEventHandler):
         def _make_move(src, dst):
             abs_src = self.absolutize_path(src)
             abs_dst = self.absolutize_path(dst)
+            self.observer.skip(abs_dst)
             try:
                 move(abs_src, abs_dst)
             except IOError:
@@ -331,8 +348,10 @@ class Daemon(RegexMatchingEventHandler):
 
                 for filepath in tree_diff['new_on_client']:
                     # files that have been deleted on server, so have to delete them
+                    abs_filepath = self.absolutize_path(filepath)
+                    self.observer.skip(abs_filepath)
                     try:
-                        os.remove(self.absolutize_path(filepath))
+                        os.remove(abs_filepath)
                     except OSError:
                         # it should raise an exceptions
                         pass
@@ -347,21 +366,49 @@ class Daemon(RegexMatchingEventHandler):
         response = self.conn_mng.dispatch_request('get_server_snapshot', '')
         if response is None:
             self.stop(1, '\nReceived bad snapshot. Server down?\n')
-        else:
-            server_timestamp = response['server_timestamp']
-            files = response['files']
+
+        server_timestamp = response['server_timestamp']
+        files = response['files']
 
         sync_commands = self._sync_process(server_timestamp, files)
+        self.update_local_dir_state(server_timestamp)
+
+        # Initialize the variable where we put the timestamp of the last operation we did
+        last_operation_timestamp = None
 
         # makes all synchronization commands
         for command, path in sync_commands:
             if command == 'delete':
-                self.client_snapshot.pop(path)
+                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if event_timestamp:
+                    print 'event_timestamp di "delete" INTO SYNC:', event_timestamp
+                    last_operation_timestamp = event_timestamp['server_timestamp']
+                    # If i can't find path inside client_snapshot there is inconsistent problem in client_snapshot!
+                    if self.client_snapshot.pop(path, 'ERROR') == 'ERROR':
+                        print 'Error during delete event INTO SYNC! Impossible to find "{}" inside client_snapshot'.format(path)
+                else:
+                    self.stop(1, 'Error during connection with the server. Server fail to "delete" this file: {}'.format(path))
+
+            elif command == 'modified' or command == 'upload':
+                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if event_timestamp:
+                    print 'event_timestamp di "{}" INTO SYNC: {}'.format(command, event_timestamp)
+                    last_operation_timestamp = event_timestamp['server_timestamp']
+                else:
+                    self.stop(1, 'Error during connection with the server. Server fail to "{}" this file: {}'.format(command, path))
+
+            else: # command == 'download'
+                print 'skip di download'
                 self.observer.skip(self.absolutize_path(path))
-            elif command == 'download' or command == 'modified':
-                self.client_snapshot[path] = (server_timestamp, files[path][1])
-                self.observer.skip(self.absolutize_path(path))
-            self.conn_mng.dispatch_request(command, {'filepath': path})
+                connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if connection_result:
+                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
+                    self.client_snapshot[path] = files[path]
+                else:
+                    self.stop(1, 'Error during connection with the server. Client fail to "download" this file: {}'.format(path))
+
+        if last_operation_timestamp:
+            self.update_local_dir_state(last_operation_timestamp)
 
     def relativize_path(self, abs_path):
         """
@@ -432,7 +479,7 @@ class Daemon(RegexMatchingEventHandler):
         print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
         if event_timestamp:
             self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
                       .format(data['cmd'], e.src_path ))
@@ -443,11 +490,9 @@ class Daemon(RegexMatchingEventHandler):
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
         # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
-        if self.client_snapshot.get(rel_src_path, 'ERROR') != 'ERROR':
-            md5 = self.client_snapshot[rel_src_path][1]
-        else:
+        if self.client_snapshot.get(rel_src_path, 'ERROR') == 'ERROR':
             self.stop(1, 'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
-
+        md5 = self.client_snapshot[rel_src_path][1]
         data = {'src': rel_src_path,
                  'dst': rel_dest_path,
                  'md5': md5,
@@ -459,7 +504,7 @@ class Daemon(RegexMatchingEventHandler):
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
             # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
             self.client_snapshot.pop(rel_src_path)
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(e.src_path ))
 
@@ -478,7 +523,7 @@ class Daemon(RegexMatchingEventHandler):
         if event_timestamp:
             print 'event_timestamp di "modified" =', event_timestamp
             self.client_snapshot[rel_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
@@ -492,10 +537,9 @@ class Daemon(RegexMatchingEventHandler):
         if event_timestamp:
             print 'event_timestamp di "delete" =', event_timestamp
             # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
-            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') != 'ERROR':
-                self.update_local_dir_state(event_timestamp)
-            else:
-                self.stop(1, 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path))
+            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') == 'ERROR':
+                print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(rel_deleted_path)
+            self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
@@ -565,7 +609,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         if self.daemon_state == 'started':
             self.running = 0
-            self.daemon_state == 'down'
+            self.daemon_state = 'down'
         self.save_local_dir_state()
         if exit_message:
             print exit_message
@@ -575,15 +619,18 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
         """
-        self.local_dir_state['last_timestamp'] = last_timestamp
-        self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
-        self.save_local_dir_state()
+        if isinstance(last_timestamp, int):
+            self.local_dir_state['last_timestamp'] = last_timestamp
+            self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+            self.save_local_dir_state()
+        else:
+            self.stop(1, 'Not int value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
 
     def save_local_dir_state(self):
         """
         Save local_dir_state on disk
         """
-        json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
+        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
         print "local_dir_state saved"
 
     def load_local_dir_state(self):
@@ -591,13 +638,24 @@ class Daemon(RegexMatchingEventHandler):
         Load local dir state on self.local_dir_state variable
         if file doesn't exists it will be created without timestamp
         """
-        if os.path.isfile(Daemon.LOCAL_DIR_STATE_PATH):
-            self.local_dir_state = json.load(open(Daemon.LOCAL_DIR_STATE_PATH, "rb"))
-            print "Loaded dir_state"
+        def _rebuild_local_dir_state():
+            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.calculate_md5_of_dir()}
+            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
+
+        if os.path.isfile(self.cfg['local_dir_state_path']):
+            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
+            if 'last_timestamp' in self.local_dir_state and 'global_md5' in self.local_dir_state \
+                    and isinstance(self.local_dir_state['last_timestamp'], int):
+                print "questo è last_timestamp:", self.local_dir_state['last_timestamp']
+                #self.local_dir_state['last_timestamp'] = int(self.local_dir_state['last_timestamp'])
+                print "Loaded local_dir_state"
+            else:
+                print "local_dir_state corrupted. Reinitialized new local_dir_state"
+                _rebuild_local_dir_state()
         else:
-            self.local_dir_state = {'last_timestamp': '', 'global_md5': self.calculate_md5_of_dir()}
-            json.dump(self.local_dir_state, open(Daemon.LOCAL_DIR_STATE_PATH, "wb"), indent=4)
-            print "dir_state not found, Initialize new dir_state"
+            print "local_dir_state not found. Initialize new local_dir_state"
+            _rebuild_local_dir_state()
+
 
     def calculate_md5_of_dir(self, verbose=0):
         """
