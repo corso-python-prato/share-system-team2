@@ -7,14 +7,15 @@ import struct
 import json
 
 
+DAEMON_HOST = 'localhost'
+DAEMON_PORT = 50001
+
+
 class CommandParser(cmd.Cmd):
     """
     Command line interpreter
     Parse user input
     """
-
-    DAEMON_HOST = 'localhost'
-    DAEMON_PORT = 50001
 
     # Override attribute in cmd.Cmd
     prompt = '(PyBox)>>> '
@@ -24,23 +25,40 @@ class CommandParser(cmd.Cmd):
         it sends user input command to the daemon server
         """
         if not message:
-            return
+            raise
 
-        message = json.dumps(message)
+        data_packet = json.dumps(message)
 
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            s.connect((self.DAEMON_HOST, self.DAEMON_PORT))
+            s.connect((DAEMON_HOST, DAEMON_PORT))
 
-            lenght = struct.pack('!i', len(message))
-            s.sendall(lenght)
-            s.sendall(message)
+            # send the command to daemon
+            data_packet_size = struct.pack('!i', len(data_packet))
+            s.sendall(data_packet_size)
+            s.sendall(data_packet)
+
+            # receive the information message from daemon
+            response_size = s.recv(struct.calcsize('!i'))
+            if len(response_size) == struct.calcsize('!i'):
+                response_size = int(struct.unpack('!i', response_size)[0])
+                response_packet = ''
+                remaining_size = response_size
+                while len(response_packet) < response_size:
+                    response_buffer = s.recv(remaining_size)
+                    remaining_size -= len(response_buffer)
+                    response_packet = ''.join([response_packet, response_buffer])
+
+                response = json.loads(response_packet)
+
+                print response['message']
+            else:
+                raise Exception('Error: lost connection with daemon')
+
             s.close()
-            return True
-        except socket.error:
+        except socket.error as ex:
             # log exception message
-            print 'daemon is not running'
-            return False
+            print 'Socket Error: ', ex
 
     def do_quit(self, line):
         """Exit Command"""
