@@ -441,8 +441,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         # Injecting a fake client snapshot
         md5 = '50abe822532a06fb733ea3bc089527af'
         ts = 1403878699
-
-        self.client_daemon.client_snapshot = {'dir/file.txt': [ts, md5]}
+        path = 'dir/file.txt'
+        self.client_daemon.client_snapshot = {path: [ts, md5]}
         self.client_daemon.local_dir_state = {LAST_TIMESTAMP: ts, GLOBAL_MD5: md5}
 
     def tearDown(self):
@@ -450,6 +450,21 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         httpretty.reset()
         # Remove the test directory.
         tear_down_test_dir()
+
+    def test_md5_of_client_snapshot(self, verbose = 1):
+        """
+        Test the Daemons function
+        """
+        md5Hash = hashlib.md5()
+        
+        for path, time_md5 in self.client_daemon.client_snapshot.items():
+            # extract md5 from tuple. we don't need hexdigest it's already md5
+            md5Hash.update(time_md5[1])
+            md5Hash.update(hashlib.md5(path).hexdigest())
+
+        response_of_function = self.client_daemon.md5_of_client_snapshot()
+        self.assertNotEqual(response_of_function,'50abe822532a06fb733ea3bc089527af')
+        self.assertEqual(response_of_function,md5Hash.hexdigest())
 
     @httpretty.activate
     def test_on_created(self):
