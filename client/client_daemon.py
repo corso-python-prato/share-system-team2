@@ -179,7 +179,7 @@ class Daemon(RegexMatchingEventHandler):
                         self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
-        if self.calculate_md5_of_dir() != self.local_dir_state['global_md5']:
+        if self.md5_of_client_snapshot() != self.local_dir_state['global_md5']:
             return True
         else:
             return False
@@ -621,7 +621,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         if isinstance(last_timestamp, int):
             self.local_dir_state['last_timestamp'] = last_timestamp
-            self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+            self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
             self.save_local_dir_state()
         else:
             self.stop(1, 'Not int value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
@@ -639,7 +639,7 @@ class Daemon(RegexMatchingEventHandler):
         if file doesn't exists it will be created without timestamp
         """
         def _rebuild_local_dir_state():
-            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.calculate_md5_of_dir()}
+            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.md5_of_client_snapshot()}
             json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
@@ -657,7 +657,7 @@ class Daemon(RegexMatchingEventHandler):
             _rebuild_local_dir_state()
 
 
-    def calculate_md5_of_dir(self, verbose=0):
+    def md5_of_client_snapshot(self, verbose=0):
         """
         Calculate the md5 of the entire directory,
         with the md5 in client_snapshot and the md5 of full filepath string.
