@@ -224,6 +224,25 @@ def verify_password(username, password):
     return res
 
 
+class Users(Resource):
+
+    @auth.login_required
+    def delete(self):
+        """
+        Delete all logged user's files and data.
+        The same user won't more log in, but it can be recreated with the signup procedure.
+        """
+        username = auth.username()
+
+        if not username in userdata:
+            abort(HTTP_NOT_FOUND)
+        else:
+            userdata.pop(username)
+            shutil.rmtree(userpath2serverpath(username))
+            # Internal error automatically handled
+            return 'User {} removed.\n'.format(username), HTTP_OK
+
+
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def create_user():
     """
@@ -547,6 +566,7 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
+api.add_resource(Users, '{}/users'.format(URL_PREFIX))
 
 
 def main():
