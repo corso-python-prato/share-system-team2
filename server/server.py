@@ -257,6 +257,25 @@ def create_user():
     return response
 
 
+class Users(Resource):
+
+    @auth.login_required
+    def delete(self, username):
+        """
+        Delete all logged user's files and data.
+        The same user won't more log in, but it can be recreated with the signup procedure.
+        """
+        logged = auth.username()
+
+        if username != logged:
+            # I mustn't delete other users!
+            abort(HTTP_FORBIDDEN)
+
+        userdata.pop(username)
+        shutil.rmtree(userpath2serverpath(username))
+        return 'User "{}" removed.\n'.format(username), HTTP_OK
+
+
 class Actions(Resource):
     @auth.login_required
     def post(self, cmd):
@@ -547,6 +566,7 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
+api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
 
 
 def main():

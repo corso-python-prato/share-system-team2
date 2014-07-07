@@ -179,7 +179,7 @@ class Daemon(RegexMatchingEventHandler):
                         self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
 
     def _is_directory_modified(self):
-        if self.calculate_md5_of_dir() != self.local_dir_state['global_md5']:
+        if self.md5_of_client_snapshot() != self.local_dir_state['global_md5']:
             return True
         else:
             return False
@@ -621,7 +621,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         if isinstance(last_timestamp, int):
             self.local_dir_state['last_timestamp'] = last_timestamp
-            self.local_dir_state['global_md5'] = self.calculate_md5_of_dir()
+            self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
             self.save_local_dir_state()
         else:
             self.stop(1, 'Not int value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
@@ -639,7 +639,7 @@ class Daemon(RegexMatchingEventHandler):
         if file doesn't exists it will be created without timestamp
         """
         def _rebuild_local_dir_state():
-            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.calculate_md5_of_dir()}
+            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.md5_of_client_snapshot()}
             json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
@@ -657,34 +657,20 @@ class Daemon(RegexMatchingEventHandler):
             _rebuild_local_dir_state()
 
 
-    def calculate_md5_of_dir(self, verbose=0):
+    def md5_of_client_snapshot(self, verbose=0):
         """
-        Calculate the md5 of the entire directory,
-        with the md5 in client_snapshot and the md5 of full filepath string.
-        When the filepath isn't in client_snapshot the md5 is calculated on fly
+        Calculate the md5 of the entire directory snapshot,
+        with the md5 in client_snapshot and the md5 of full filepath string.        
         :return is the md5 hash of the directory
         """
         directory = self.cfg['sharing_path']
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
-        if not os.path.exists(directory):
-            self.stop(1, 'Error during calculate md5! Impossible to find "{}" in user folder'.format(directory))
-
-        for root, dirs, files in os.walk(directory, followlinks=False):
-            for names in files:
-                filepath = os.path.join(root, names)
-                rel_path = self.relativize_path(filepath)
-                if rel_path in self.client_snapshot:
-                    md5Hash.update(self.client_snapshot[rel_path][1])
-                    md5Hash.update(hashlib.md5(filepath).hexdigest())
-                else:
-                    hashed_file = self.hash_file(filepath)
-                    if hashed_file:
-                        md5Hash.update(hashed_file)
-                        md5Hash.update(hashlib.md5(filepath).hexdigest())
-                    else:
-                        print "can't hash file: ", filepath
+        for path, time_md5 in self.client_snapshot.items():
+            # extract md5 from tuple. we don't need hexdigest it's already md5
+            md5Hash.update(time_md5[1])
+            md5Hash.update(hashlib.md5(path).hexdigest())        
 
         if verbose:
             stop = time.time()
