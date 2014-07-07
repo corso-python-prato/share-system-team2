@@ -227,13 +227,11 @@ def verify_password(username, password):
 class Users(Resource):
 
     @auth.login_required
-    def delete(self):
+    def delete(self, username):
         """
         Delete all logged user's files and data.
         The same user won't more log in, but it can be recreated with the signup procedure.
         """
-        username = auth.username()
-
         if not username in userdata:
             abort(HTTP_NOT_FOUND)
         else:
