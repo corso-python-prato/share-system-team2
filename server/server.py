@@ -564,7 +564,7 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
-api.add_resource(Users, '{}/users'.format(URL_PREFIX))
+api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
 
 
 def main():
