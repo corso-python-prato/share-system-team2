@@ -265,6 +265,12 @@ class Users(Resource):
         Delete all logged user's files and data.
         The same user won't more log in, but it can be recreated with the signup procedure.
         """
+        logged = auth.username()
+
+        if username != logged:
+            # I mustn't delete other users!
+            abort(HTTP_FORBIDDEN)
+
         if not username in userdata:
             abort(HTTP_NOT_FOUND)
         else:
