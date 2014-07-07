@@ -240,7 +240,7 @@ class Users(Resource):
             userdata.pop(username)
             shutil.rmtree(userpath2serverpath(username))
             # Internal error automatically handled
-            return 'User {} removed.\n'.format(username), HTTP_OK
+            return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
