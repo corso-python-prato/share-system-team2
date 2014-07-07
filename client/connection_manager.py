@@ -29,7 +29,7 @@ class ConnectionManager(object):
                           requests.exceptions.MissingSchema,
                           )
 
-    def __init__(self, cfg, logging_level=logging.INFO):
+    def __init__(self, cfg, logging_level=logging.ERROR):
         self.cfg = cfg
         self.auth = (self.cfg['user'], self.cfg['pass'])
 
