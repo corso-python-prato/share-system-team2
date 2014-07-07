@@ -224,23 +224,6 @@ def verify_password(username, password):
     return res
 
 
-class Users(Resource):
-
-    @auth.login_required
-    def delete(self, username):
-        """
-        Delete all logged user's files and data.
-        The same user won't more log in, but it can be recreated with the signup procedure.
-        """
-        if not username in userdata:
-            abort(HTTP_NOT_FOUND)
-        else:
-            userdata.pop(username)
-            shutil.rmtree(userpath2serverpath(username))
-            # Internal error automatically handled
-            return 'User "{}" removed.\n'.format(username), HTTP_OK
-
-
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def create_user():
     """
@@ -272,6 +255,23 @@ def create_user():
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
+
+
+class Users(Resource):
+
+    @auth.login_required
+    def delete(self, username):
+        """
+        Delete all logged user's files and data.
+        The same user won't more log in, but it can be recreated with the signup procedure.
+        """
+        if not username in userdata:
+            abort(HTTP_NOT_FOUND)
+        else:
+            userdata.pop(username)
+            shutil.rmtree(userpath2serverpath(username))
+            # Internal error automatically handled
+            return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
 class Actions(Resource):
