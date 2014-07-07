@@ -468,6 +468,32 @@ class TestUsers(unittest.TestCase):
                              data={'username': '', 'password': 'pass'})
         self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
 
+    def test_delete_user(self):
+        """
+        Test user deletion.
+        """
+        # Creating user to delete on-the-fly (TODO: pre-load instead)
+        _manually_create_user(USR, PW)
+        user_dirpath = userpath2serverpath(USR)
+        # Really created?
+        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)
+        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)
+
+        # Test FORBIDDEN case (removing other users)
+        url = SERVER_API + 'users/' + 'otheruser'
+        test = self.app.delete(url,
+                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+        # Test OK case
+        url = SERVER_API + 'users/' + USR
+        test = self.app.delete(url,
+                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+
+        self.assertNotIn(USR, server.userdata)
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        self.assertFalse(os.path.exists(user_dirpath))
+
 
 def get_dic_dir_states():
     """
