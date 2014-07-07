@@ -43,7 +43,10 @@ class ConnectionManager(object):
         self.logger.setLevel(level=logging_level)
         
         # create a file handler
-        handler = logging.FileHandler('test_connection_manager.log')
+        if not os.path.isdir('log'):
+            os.makedirs('log')
+
+        handler = logging.FileHandler('log/test_connection_manager.log')
         handler.setLevel(logging_level)
 
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
