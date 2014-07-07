@@ -271,13 +271,9 @@ class Users(Resource):
             # I mustn't delete other users!
             abort(HTTP_FORBIDDEN)
 
-        if not username in userdata:
-            abort(HTTP_NOT_FOUND)
-        else:
-            userdata.pop(username)
-            shutil.rmtree(userpath2serverpath(username))
-            # Internal error automatically handled
-            return 'User "{}" removed.\n'.format(username), HTTP_OK
+        userdata.pop(username)
+        shutil.rmtree(userpath2serverpath(username))
+        return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
 class Actions(Resource):
