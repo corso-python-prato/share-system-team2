@@ -82,7 +82,7 @@ class ConnectionManager(object):
             r = requests.post(url, data=req)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_reguser',url, e))
+            self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
         else:
             return r.text
         return False
