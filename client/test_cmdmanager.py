@@ -1,39 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import struct
 import unittest
+import json
 
 import client_cmdmanager
-
-
-class FakeSocket(object):
-    """
-    Mock for socket:
-    implements sendall and recv methods
-    """
-    def __init__(self):
-        self.json_response = None
-        self.sendall_size = None
-        self.recv_size = None
-
-    def set_response(self, response):
-        self.json_response = ''.join(['{"message": "', response, '" }'])
-
-    def sendall(self, message):
-        if not self.sendall_size:
-            self.sendall_size = int(struct.unpack('!i', message)[0])
-        else:
-            assert self.sendall_size == len(message)
-            self.sendall_size =None
-
-    def recv(self, bytes):
-        if not self.recv_size:
-            self.recv_size = len(self.json_response)
-            return struct.pack('!i', len(self.json_response))
-        else:
-            self.recv_size = None
-            return self.json_response
+import test_utils
 
 
 class TestCmdManagerDaemonConnection(unittest.TestCase):
@@ -42,7 +14,7 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
     """
     def setUp(self):
         self.commandparser = client_cmdmanager.CommandParser()
-        self.commandparser.sock = FakeSocket()
+        self.commandparser.sock = test_utils.FakeSocket()
 
     def test_sent_to_daemon_input(self):
         """
@@ -50,7 +22,7 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         test a long string
         """
         response = 'ciao sono test'
-        self.commandparser.sock.set_response(response)
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
         input_str = 'input'
 
         self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
@@ -63,19 +35,19 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         """
         input_str = 'input'
         response = 'ciao sono test'
-        self.commandparser.sock.set_response(response)
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
 
         self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
 
         response = response * 100000
-        self.commandparser.sock.set_response(response)
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
 
         self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
 
 
 class TestDoQuitDoEOF(unittest.TestCase):
     """
-    Test do_quit method
+    Test do_quit and EOF method
     """
     def setUp(self):
         self.commandparser = client_cmdmanager.CommandParser()
