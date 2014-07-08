@@ -63,9 +63,15 @@ class CommandParser(cmd.Cmd):
             print 'Socket Error: ', ex
 
     def preloop(self):
+        """
+        setup before the looping start
+        """
         self.sock.connect((DAEMON_HOST, DAEMON_PORT))
 
     def postloop(self):
+        """
+        Closures when looping stop
+        """
         self.sock.close()
 
     def do_quit(self, line):
@@ -79,7 +85,6 @@ class CommandParser(cmd.Cmd):
         """ Create new user
             Usage: reguser <username> <password>
         """
-
         try:
             user, password = line.split()
         except ValueError:
@@ -90,6 +95,9 @@ class CommandParser(cmd.Cmd):
             self._send_to_daemon(message)
 
     def do_shutdown(self, line):
+        """
+        Shutdown the daemon
+        """
         message = {'shutdown': ()}
         self._send_to_daemon(message)
 
