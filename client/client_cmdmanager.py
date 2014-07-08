@@ -103,6 +103,21 @@ class CommandParser(cmd.Cmd):
             message = {'register': (mail, password)}
             self._send_to_daemon(message)
 
+    def do_activate(self, line):
+        """
+        Activate the user:
+        Send the token (received by mail) to server for activating the new user
+        Usage: activate <e-mail> <token>
+        """
+        try:
+            mail, token = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: activate <e-mail> <token>'
+        else:
+            message = {'activate': (mail, token)}
+            self._send_to_daemon(message)
+
 
 if __name__ == '__main__':
     CommandParser().cmdloop()

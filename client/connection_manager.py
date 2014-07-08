@@ -87,6 +87,23 @@ class ConnectionManager(object):
             return r.text
         return False
 
+    def do_activate(self, data):
+        """
+        Send activation user request
+        """
+        req = {'activation_code': data[1]}
+        url = ''.join([self.users_url, data[0]])
+        self.logger.info('do_activate: URL: {} - DATA: {} '.format(url, data))
+
+        try:
+            r = requests.put(url, data=req)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_activate: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
     # files
 
     def do_download(self, data):
