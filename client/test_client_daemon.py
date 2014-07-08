@@ -90,6 +90,28 @@ class FileFakeEvent(object):
         self.dest_path = dest_path
 
 
+import test_utils
+
+class TestDaemonCmdManagerConnection(unittest.TestCase):
+    def setUp(self):
+        self.client_daemon = client_daemon.Daemon()
+        self.client_daemon.create_observer()
+        self.socket = test_utils.FakeSocket()
+
+    def test_get_cmdmanager_request(self):
+        command = {'shutdown': ()}
+        json_data = json.dumps(command)
+        self.socket.set_response(json_data)
+
+        self.assertEquals(self.client_daemon._get_cmdmanager_request(self.socket), json.loads(json_data))
+
+
+    def test_set_cmdmanager_response(self):
+        response = 'testtestetst'
+        self.assertEqual(self.client_daemon._set_cmdmanager_response(self.socket, response),
+                         json.dumps({'message': response}))
+
+
 class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
