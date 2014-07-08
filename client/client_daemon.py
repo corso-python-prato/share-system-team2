@@ -38,7 +38,7 @@ class SkipObserver(Observer):
             pass
         else:
             if event.dest_path in self._skip_list:
-                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\nSkipped list:', self._skip_list
                 print '\n\nSkipped event "{}" \non path: {}\n\n'.format(event, event.dest_path)
                 self._skip_list.remove(event.dest_path)
                 skip = True
@@ -48,7 +48,7 @@ class SkipObserver(Observer):
             pass
         else:
             if event.src_path in self._skip_list:
-                print 'Questa e\' _SKIP_LIST: ', self._skip_list, self._skip_list, 'Evento che chiama SKIP_LIST:', event
+                print '\nSkipped list:', self._skip_list
                 print '\nSkipped event "{}" \n on path: {}\n'.format(event, event.src_path)
                 self._skip_list.remove(event.src_path)
                 skip = True
@@ -660,7 +660,7 @@ class Daemon(RegexMatchingEventHandler):
     def md5_of_client_snapshot(self, verbose=0):
         """
         Calculate the md5 of the entire directory snapshot,
-        with the md5 in client_snapshot and the md5 of full filepath string.        
+        with the md5 in client_snapshot and the md5 of full filepath string.
         :return is the md5 hash of the directory
         """
         directory = self.cfg['sharing_path']
@@ -670,7 +670,7 @@ class Daemon(RegexMatchingEventHandler):
         for path, time_md5 in self.client_snapshot.items():
             # extract md5 from tuple. we don't need hexdigest it's already md5
             md5Hash.update(time_md5[1])
-            md5Hash.update(hashlib.md5(path).hexdigest())        
+            md5Hash.update(hashlib.md5(path).hexdigest())
 
         if verbose:
             stop = time.time()
