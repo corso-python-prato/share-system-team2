@@ -660,6 +660,7 @@ class Files(Resource):
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
+        # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -684,6 +685,7 @@ class Files(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
+        # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
