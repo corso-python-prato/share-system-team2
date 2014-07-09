@@ -431,12 +431,14 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.auth = self.cfg['user'], self.cfg['pass']
         self.cfg['server_address'] = "http://localhost:5000"
 
+        # load local_dir_state file for testing
+        self.cfg['local_dir_state_path'] = LOCAL_DIR_STATE_FOR_TEST
+
         # create this auth testing
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass']
         self.base_url = self.cfg['server_address'] + self.cfg['api_suffix']
         self.files_url = self.base_url + 'files/'
         self.actions_url = self.base_url + 'actions/'
-        self.local_dir_state_path = self.cfg['local_dir_state_path']
         self.sharing_path = self.cfg['sharing_path']
 
         # Instantiate the daemon
@@ -450,6 +452,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         ts = timestamp_generator()
 
     def tearDown(self):
+        if os.path.exists(LOCAL_DIR_STATE_FOR_TEST):
+            os.remove(LOCAL_DIR_STATE_FOR_TEST)
         httpretty.disable()
         httpretty.reset()
         # Remove the test directory.
