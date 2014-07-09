@@ -49,6 +49,14 @@ PASSWORD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 
+class ServerError(Exception):
+    pass
+
+
+class ServerConfigurationError(ServerError):
+    pass
+
+
 # Logging configuration
 # =====================
 LOG_FILENAME = 'log/server.log'
@@ -281,6 +289,10 @@ def configure_email():
 
     cfg = ConfigParser.ConfigParser()
     cfg.read(EMAIL_SETTINGS_INI_FILENAME)
+    # cfg.read don't tells anything if the email configuration file is not found,
+    # so I think it's better to explicitly handle this case.
+    if not os.path.exists(EMAIL_SETTINGS_INI_FILENAME):
+        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_INI_FILENAME))
 
     for flask_key, file_key in keys_tuples:
         value = cfg.get('email', file_key)
