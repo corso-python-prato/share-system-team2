@@ -246,10 +246,11 @@ class Daemon(RegexMatchingEventHandler):
             return True
 
         def _check_md5(dir_tree, md5):
+            result = []
             for k, v in dir_tree.items():
                 if md5 == v[1]:
-                    return k
-            return None
+                    result.append(k)
+            return result
 
         local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
@@ -279,18 +280,38 @@ class Daemon(RegexMatchingEventHandler):
             else:  # local_timestamp < server_timestamp
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
-                    timestamp, md5 = server_dir_tree[filepath]
-                    existed_filepath = _check_md5(self.client_snapshot, md5)
+                    file_timestamp, md5 = server_dir_tree[filepath]
+                    existed_filepaths_on_client = _check_md5(self.client_snapshot, md5)
+                    # If i found at least one path in client_snapshot with the same md5 of filepath this mean that in the past
+                    # client_snapshot have stored one or more files with the same md5 but different paths.
 
-                    if existed_filepath:
+                    if existed_filepaths_on_client:
                         # it's a copy or a move
-                        if _check_md5(server_dir_tree, md5):
-                            _make_copy(existed_filepath, filepath)
+                        for path in existed_filepaths_on_client:
+                            if path in server_dir_tree and server_dir_tree[path][1] == md5:
+                                # I have found origin path that is maintained the same in the server.
+                                # We have a copy event!
+                                _make_copy(path, filepath)
+                                break
                         else:
-                            _make_move(existed_filepath, filepath)
-                            tree_diff['new_on_client'].remove(filepath)
+                            # We haven't find a path maintained with the same md5 on the server.
+                            # This can be a move event!
+                            # I do this check because the paths can be deleted on server ('new on client' in tree_diff) or
+                            # modified on server ('modified' in tree_diff)
+                            for path in existed_filepaths_on_client:
+                                if path in tree_diff['new_on_client']:
+                                    _make_move(path, filepath)
+                                    tree_diff['new_on_client'].remove(path)
+                                    break
+                            else:
+                                print "\n\nCaso strano da gestire, forse ho spostato e modificato?\n\n"
+                                # No origin file mantained in server
+                                # I choose the first element of existed_filepaths_on_client because i'm sure that exists
+                                _make_copy(existed_filepaths_on_client[0], filepath)
+
+                    # the daemon don't know filepath, i will search if the file_timestamp is more recent then local_timestamp
                     else:
-                        if timestamp > local_timestamp:
+                        if file_timestamp > local_timestamp:
                             # the files in server is more updated
                             sync_commands.append(('download', filepath))
                             #self.conn_mng.dispatch_request('download', {'filepath': filepath})
@@ -328,15 +349,35 @@ class Daemon(RegexMatchingEventHandler):
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
                     timestamp, md5 = server_dir_tree[filepath]
-                    existed_filepath = _check_md5(self.client_snapshot, md5)
+                    existed_filepaths_on_client = _check_md5(self.client_snapshot, md5)
+                    # If i found at least one path in client_snapshot with the same md5 of filepath this mean that in the past
+                    # client_snapshot have stored one or more files with the same md5 but different paths.
 
-                    if existed_filepath:
+                    if existed_filepaths_on_client:
                         # it's a copy or a move
-                        if _check_md5(server_dir_tree, md5):
-                            _make_copy(existed_filepath, filepath)
+                        for path in existed_filepaths_on_client:
+                            print "server_dir_tree[path]", server_dir_tree[path]
+                            print "md5 trovato", md5
+                            if path in server_dir_tree and server_dir_tree[path][1] == md5:
+                                # I have found origin path that is maintained the same in the server.
+                                # We have a copy event!
+                                _make_copy(path, filepath)
+                                break
                         else:
-                            _make_move(existed_filepath, filepath)
-                            tree_diff['new_on_client'].remove(filepath)
+                            # We haven't find a path maintained with the same md5 on the server.
+                            # This can be a move event!
+                            # I do this check because the paths can be deleted on server ('new on client' in tree_diff) or
+                            # modified on server ('modified' in tree_diff)
+                            for path in existed_filepaths_on_client:
+                                if path in tree_diff['new_on_client']:
+                                    _make_move(path, filepath)
+                                    tree_diff['new_on_client'].remove(path)
+                                    break
+                            else:
+                                print "\n\nCaso strano da gestire, forse ho spostato e modificato?\n\n"
+                                # No origin file mantained in server
+                                # I choose the first element of existed_filepaths_on_client because i'm sure that exists
+                                _make_copy(existed_filepaths_on_client[0], filepath)
                     else:
                         # it's a new file
                         sync_commands.append(('download', filepath))
