@@ -254,11 +254,12 @@ class Daemon(RegexMatchingEventHandler):
 
         local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
-
+        print tree_diff
         sync_commands = []
 
         if self._is_directory_modified():
             if local_timestamp == server_timestamp:
+                print "local_timestamp == server_timestamp and directory IS modified"
                 # simple case: the client has the command
                 # it sends all folder modifications to server
 
@@ -278,6 +279,9 @@ class Daemon(RegexMatchingEventHandler):
                     #self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
             else:  # local_timestamp < server_timestamp
+                print "local_timestamp < server_timestamp and directory IS modified"
+                assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
+                                                            'local_timestamp > di server_timestamp '
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
                     file_timestamp, md5 = server_dir_tree[filepath]
@@ -321,9 +325,9 @@ class Daemon(RegexMatchingEventHandler):
                             #self.conn_mng.dispatch_request('delete', {'filepath': filepath})
 
                 for filepath in tree_diff['modified']:
-                    timestamp, md5 = server_dir_tree[filepath]
+                    file_timestamp, md5 = server_dir_tree[filepath]
 
-                    if timestamp < local_timestamp:
+                    if file_timestamp < local_timestamp:
                         # the client has modified the file, so update it on server
                         sync_commands.append(('modify', filepath))
                         #self.conn_mng.dispatch_request('modify', {'filepath': filepath})
@@ -343,9 +347,13 @@ class Daemon(RegexMatchingEventHandler):
 
         else:  # directory not modified
             if local_timestamp == server_timestamp:
+                print "local_timestamp == server_timestamp and directory IS NOT modified"
                 # it's the best case. Client and server are already synchronized
                 return []
             else:  # local_timestamp < server_timestamp
+                print "local_timestamp < server_timestamp and directory IS NOT modified"
+                assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
+                                                            'local_timestamp > di server_timestamp '
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
                     timestamp, md5 = server_dir_tree[filepath]
