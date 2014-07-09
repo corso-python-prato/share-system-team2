@@ -272,7 +272,7 @@ def create_user(username, password):
 def signup():
     username = request.form.get('username')
     password = request.form.get('password')
-    create_user(username, password)
+    return create_user(username, password)
 
 
 def configure_email():
