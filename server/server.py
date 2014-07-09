@@ -271,16 +271,6 @@ def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place.
     """
-    # Flask Mail configuration
-    # MAIL_SERVER : default ‘localhost’
-    # MAIL_PORT : default 25
-    # MAIL_USE_TLS : default False
-    # MAIL_USE_SSL : default False
-    # MAIL_DEBUG : default app.debug
-    # MAIL_USERNAME : default None
-    # MAIL_PASSWORD : default None
-    # DEFAULT_MAIL_SENDER : default None
-
     # Relations between Flask configuration keys and settings file fields.
     keys_tuples = [
         ('MAIL_SERVER', 'smtp_address'),  # the address of the smtp server
@@ -319,8 +309,6 @@ class Users(Resource):
     def post(self, username):
         """
         A not-logged user is asking to register himself.
-        :param username:
-        :return:
         """
 
         if username in userdata:
@@ -329,11 +317,6 @@ class Users(Resource):
         password = request.form['password']
 
         activation_code = os.urandom(16).encode('hex')
-
-        # Link = ?
-        # /API/V1/users/<username>/<activation-code>
-        # /API/V1/users/<activation-code>
-        # /API/V1/users?activation=<activation-code>
 
         body_msg = 'To activate your account, please execute this command with the command manager:\n'
         body_msg += '\n\t>>> activate {}'.format(activation_code)
@@ -356,9 +339,6 @@ class Users(Resource):
     def put(self, username):
         """
         Create user using activatiion code sent by email.
-        :param username:
-        :param arg:
-        :return:
         """
         activation_code = request.form['activation_code']
         logger.debug('Got activation code: {}'.format(activation_code))
