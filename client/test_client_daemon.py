@@ -513,7 +513,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         global md5 changed, last timestamp correctly updated and local dir state saved.
         """
         # Create arbitrary initial values.
-        ts0 = 1403878699
+        ts0 = timestamp_generator()
         ts1 = ts0 + 1
         src_path = 'dir1/tomove.txt'
         dest_path = 'dir2/tomove.txt'
