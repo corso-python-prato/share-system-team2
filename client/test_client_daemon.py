@@ -443,6 +443,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         # Instantiate the daemon
         self.test_daemon = client_daemon.Daemon()
         self.test_daemon.create_observer()
+
         # Injecting a fake client snapshot
         path = 'dir/file.txt'
         md5 = '50abe822532a06fb733ea3bc089527af'
@@ -478,8 +479,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         """
         Test on_created method of daemon when a new file is created.
         """
-        start_state = self.client_daemon.local_dir_state.copy()
-        ts1 = start_state[LAST_TIMESTAMP]
+        before_local_dir_state = self.test_daemon.local_dir_state.copy()
+        ts1 = before_local_dir_state[LAST_TIMESTAMP]
         ts2 = ts1 + 60  # arbitrary value
 
         # new file I'm going to create in client sharing folder
@@ -526,8 +527,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.test_daemon.local_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
 
         # Create fake event and file.
-        src_abs_path = os.path.join(self.sharing_path, src_path)
-        dest_abs_path = os.path.join(self.sharing_path, dest_path)
+        src_abs_path = os.path.join(self.cfg['sharing_path'], src_path)
+        dest_abs_path = os.path.join(self.cfg['sharing_path'], dest_path)
         event = FileFakeEvent(src_abs_path, content, dest_abs_path)
 
         # Create server response.
@@ -538,8 +539,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
                                content_type="application/json")
 
         # Store some initial values.
-        local_dir_state_ts_start = os.path.getmtime(self.local_dir_state_path)
-        glob_md5_start = self.client_daemon.local_dir_state[GLOBAL_MD5]
+        self.test_daemon.update_local_dir_state(timestamp_generator())
+        local_dir_state_start = self.test_daemon.local_dir_state
 
         # Call method to test.
         self.test_daemon.on_moved(event)
@@ -556,7 +557,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.assertEqual(last_timestamp, ts1)
         # Check that state is saved on disk by checking if current file timestamp
         # is greater than the starting one.
-        self.assertLess(local_dir_state_ts_start, os.path.getmtime(self.local_dir_state_path))
+        self.assertLess(local_dir_state_start[LAST_TIMESTAMP], os.path.getmtime(self.cfg['local_dir_state_path']))
 
 
 if __name__ == '__main__':
