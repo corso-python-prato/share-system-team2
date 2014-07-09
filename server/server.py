@@ -121,16 +121,16 @@ def now_timestamp():
     Return the current server timestamp as an int.
     :return: int
     """
-    return int(time.time())
+    return long(time.time()*10000)
 
 def file_timestamp(filepath):
     """
-    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+    Return the int of last modification timestamp of <filepath> (i.e. long(os.path.getmtime(filepath))).
 
     :param filepath: str
     :return: int
     """
-    return int(os.path.getmtime(filepath))
+    return long(os.path.getmtime(filepath)*10000)
 
 
 def _encrypt_password(password):
@@ -322,7 +322,7 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
 
-        last_server_timestamp = file_timestamp(server_dst)
+        last_server_timestamp = now_timestamp()
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
@@ -350,7 +350,7 @@ class Actions(Resource):
         self._clear_dirs(os.path.dirname(server_src), username)
 
 
-        last_server_timestamp = file_timestamp(server_dst)
+        last_server_timestamp = now_timestamp()
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
@@ -488,7 +488,7 @@ class Files(Resource):
         :return: int
         """
         filepath = userpath2serverpath(username, path)
-        last_server_timestamp = file_timestamp(filepath)
+        last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
         save_userdata()
