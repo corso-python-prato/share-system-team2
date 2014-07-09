@@ -308,14 +308,20 @@ mail = Mail(app)  # Must be called after the configuration
 
 class Users(Resource):
 
-    def get(self, username=None):
-        import pprint
+    def get(self, username):
+        """
+        Show some info about users.
+        """
+        # TODO: require login and only show personal info.
         if username == '__all__':
+            # Easter egg to see a list of registered and pending users.
             response = 'Registered users: ' + ','.join(userdata.keys()) +\
                        '. Pending users: ' + ','.join(pending_users.keys()), HTTP_OK
         else:
-            user_data = userdata[username]
-            response = pprint.pformat(user_data), HTTP_OK
+            if username in userdata:
+                response = '{} is a registered user.\n'.format(username), HTTP_OK
+            else:
+                response = 'User {} does not exist.\n'.format(username), HTTP_NOT_FOUND
         return response
 
     def post(self, username):
