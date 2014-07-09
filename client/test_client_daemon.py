@@ -10,7 +10,10 @@ import client_daemon
 
 start_dir = os.getcwd()
 
+CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 TEST_DIR = 'daemon_test'
+LOCAL_DIR_STATE_FOR_TEST = os.path.join(TEST_DIR, 'test_local_dir_state')
 LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
 SERVER_TIMESTAMP = 1
@@ -411,9 +414,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
     """
     Test the "on_<something>" client daemon, triggered by watchdog.
     """
-    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
-    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'local_dir_state')
+
 
     def setUp(self):
         # Create and go into the test directory
@@ -421,7 +422,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         httpretty.enable()
 
         #self.cm = ConnectionManager()
-        with open(self.CONFIG_FILEPATH) as fo:
+        with open(CONFIG_FILEPATH) as fo:
             self.cfg = json.load(fo)
 
         self.auth = self.cfg['user'], self.cfg['pass']
