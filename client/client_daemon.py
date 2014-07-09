@@ -668,12 +668,12 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
         """
-        if isinstance(last_timestamp, int):
+        if isinstance(last_timestamp, long):
             self.local_dir_state['last_timestamp'] = last_timestamp
             self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
             self.save_local_dir_state()
         else:
-            self.stop(1, 'Not int value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
+            self.stop(1, 'Not long value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
 
     def save_local_dir_state(self):
         """
@@ -688,15 +688,13 @@ class Daemon(RegexMatchingEventHandler):
         if file doesn't exists it will be created without timestamp
         """
         def _rebuild_local_dir_state():
-            self.local_dir_state = {'last_timestamp': 0.0, 'global_md5': self.md5_of_client_snapshot()}
+            self.local_dir_state = {'last_timestamp': 0L, 'global_md5': self.md5_of_client_snapshot()}
             json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
             self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
             if 'last_timestamp' in self.local_dir_state and 'global_md5' in self.local_dir_state \
-                    and isinstance(self.local_dir_state['last_timestamp'], int):
-                print "questo è last_timestamp:", self.local_dir_state['last_timestamp']
-                #self.local_dir_state['last_timestamp'] = int(self.local_dir_state['last_timestamp'])
+                    and isinstance(self.local_dir_state['last_timestamp'], long):
                 print "Loaded local_dir_state"
             else:
                 print "local_dir_state corrupted. Reinitialized new local_dir_state"
