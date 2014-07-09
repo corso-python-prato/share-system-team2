@@ -439,17 +439,16 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.base_url = self.cfg['server_address'] + self.cfg['api_suffix']
         self.files_url = self.base_url + 'files/'
         self.actions_url = self.base_url + 'actions/'
-        self.sharing_path = self.cfg['sharing_path']
 
         # Instantiate the daemon
-        self.client_daemon = client_daemon.Daemon()
-        self.client_daemon.create_observer()
+        self.test_daemon = client_daemon.Daemon()
+        self.test_daemon.create_observer()
         # Injecting a fake client snapshot
-        md5 = '50abe822532a06fb733ea3bc089527af'
         path = 'dir/file.txt'
-        self.client_daemon.client_snapshot = {path: [ts, md5]}
-        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: ts, GLOBAL_MD5: md5}
+        md5 = '50abe822532a06fb733ea3bc089527af'
         ts = timestamp_generator()
+        self.test_daemon.client_snapshot = {path: [ts, md5]}
+        self.test_daemon.local_dir_state = {LAST_TIMESTAMP: ts, GLOBAL_MD5: md5}
 
     def tearDown(self):
         if os.path.exists(LOCAL_DIR_STATE_FOR_TEST):
@@ -464,13 +463,13 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         Test the Daemons function
         """
         md5Hash = hashlib.md5()
-        
-        for path, time_md5 in self.client_daemon.client_snapshot.items():
+
+        for path, time_md5 in self.test_daemon.client_snapshot.items():
             # extract md5 from tuple. we don't need hexdigest it's already md5
             md5Hash.update(time_md5[1])
             md5Hash.update(hashlib.md5(path).hexdigest())
 
-        response_of_function = self.client_daemon.md5_of_client_snapshot()
+        response_of_function = self.test_daemon.md5_of_client_snapshot()
         self.assertNotEqual(response_of_function,'50abe822532a06fb733ea3bc089527af')
         self.assertEqual(response_of_function,md5Hash.hexdigest())
 
@@ -491,21 +490,21 @@ class TestClientDaemonOnEvents(unittest.TestCase):
                                body='{"server_timestamp":%d}' % ts2,
                                content_type="application/json")
 
-        abs_path = os.path.join(self.client_daemon.cfg['sharing_path'], new_path)
+        abs_path = os.path.join(self.test_daemon.cfg['sharing_path'], new_path)
         event = FileFakeEvent(abs_path)
 
-        self.client_daemon.on_created(event)
+        self.test_daemon.on_created(event)
         # test that the new path is in the client_snapshot
-        self.assertIn(new_path, self.client_daemon.client_snapshot)
+        self.assertIn(new_path, self.test_daemon.client_snapshot)
         # simply check that local_dir_state is changed
-        self.assertNotEqual(start_state, self.client_daemon.local_dir_state)
+        self.assertNotEqual(before_local_dir_state, self.test_daemon.local_dir_state)
 
         # # daemon.local_dir_state should be a dict
-        self.assertIsInstance(self.client_daemon.local_dir_state, dict)
-        # last_timestamp should be an int
-        self.assertIsInstance(self.client_daemon.local_dir_state[LAST_TIMESTAMP], int)
+        self.assertIsInstance(self.test_daemon.local_dir_state, dict)
+        # last_timestamp should be an long
+        self.assertIsInstance(self.test_daemon.local_dir_state[LAST_TIMESTAMP], long)
         # test exact value of timestamp
-        self.assertEqual(self.client_daemon.local_dir_state[LAST_TIMESTAMP], ts2)
+        self.assertEqual(self.test_daemon.local_dir_state[LAST_TIMESTAMP], ts2)
 
     @httpretty.activate
     def test_on_moved(self):
@@ -523,8 +522,8 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         global_md5 = 'fake global md5'  # the real value doesn't really matter in this test.
 
         # Create daemon initial state.
-        self.client_daemon.client_snapshot = {src_path: [ts0, md5]}  # the path that will be moved.
-        self.client_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
+        self.test_daemon.client_snapshot = {src_path: [ts0, md5]}  # the path that will be moved.
+        self.test_daemon.local_dir_state = {LAST_TIMESTAMP: ts0, GLOBAL_MD5: global_md5}
 
         # Create fake event and file.
         src_abs_path = os.path.join(self.sharing_path, src_path)
@@ -543,16 +542,16 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         glob_md5_start = self.client_daemon.local_dir_state[GLOBAL_MD5]
 
         # Call method to test.
-        self.client_daemon.on_moved(event)
+        self.test_daemon.on_moved(event)
 
         # Store some final values to be compared.
-        glob_md5_end = self.client_daemon.local_dir_state[GLOBAL_MD5]
-        last_timestamp = self.client_daemon.local_dir_state[LAST_TIMESTAMP]
+        glob_md5_end = self.test_daemon.local_dir_state[GLOBAL_MD5]
+        last_timestamp = self.test_daemon.local_dir_state[LAST_TIMESTAMP]
 
         # Test assertions.
-        self.assertIn(dest_path, self.client_daemon.client_snapshot)
-        self.assertNotIn(src_path, self.client_daemon.client_snapshot)
-        self.assertNotEqual(glob_md5_start, glob_md5_end)  # md5 must be changed.
+        self.assertIn(dest_path, self.test_daemon.client_snapshot)
+        self.assertNotIn(src_path, self.test_daemon.client_snapshot)
+        self.assertNotEqual(local_dir_state_start[GLOBAL_MD5], glob_md5_end)  # md5 must be changed.
         # Last timestamp must be correctly updated with which one received from server.
         self.assertEqual(last_timestamp, ts1)
         # Check that state is saved on disk by checking if current file timestamp
