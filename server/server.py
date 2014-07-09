@@ -270,6 +270,9 @@ def create_user(username, password):
 
 @app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
 def signup():
+    """
+    Old simpler and immediate signup method (no mail) temporarily maintained only for testing purposes.
+    """
     username = request.form.get('username')
     password = request.form.get('password')
     return create_user(username, password)
