@@ -3,6 +3,7 @@ import unittest
 import os
 import shutil
 import json
+import time
 
 import httpretty
 import client_daemon
@@ -28,6 +29,8 @@ base_dir_tree = {
     'carlo.buo':        (14, 'rfhglkr94094580'),
 }
 
+def timestamp_generator():
+    return long(time.time()*10000)
 
 def folder_modified():
     """
@@ -64,7 +67,7 @@ def tear_down_test_dir():
 
 def create_file(file_path, content=''):
     """
-    Write <content> (default: '') into <file_path> and return the float timestamp
+    Write <content> (default: '') into <file_path> and return a long timestamp
     of created file, also creating inner directories if needed.
     :param file_path: str
     :param content: str
@@ -79,7 +82,7 @@ def create_file(file_path, content=''):
 
     with open(file_path, 'w') as fp:
         fp.write(content)
-    return os.path.getmtime(file_path)
+    return timestamp_generator()
 
 
 class FileFakeEvent(object):
@@ -441,10 +444,10 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         self.client_daemon.create_observer()
         # Injecting a fake client snapshot
         md5 = '50abe822532a06fb733ea3bc089527af'
-        ts = 1403878699
         path = 'dir/file.txt'
         self.client_daemon.client_snapshot = {path: [ts, md5]}
         self.client_daemon.local_dir_state = {LAST_TIMESTAMP: ts, GLOBAL_MD5: md5}
+        ts = timestamp_generator()
 
     def tearDown(self):
         httpretty.disable()
