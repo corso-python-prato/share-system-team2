@@ -175,8 +175,7 @@ class Daemon(RegexMatchingEventHandler):
                         break
                 if not unwanted_file:
                     relative_path = self.relativize_path(filepath)
-                    with open(filepath, 'rb') as f:
-                        self.client_snapshot[relative_path] = ['', hashlib.md5(f.read()).hexdigest()]
+                    self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
 
     def _is_directory_modified(self):
         if self.md5_of_client_snapshot() != self.local_dir_state['global_md5']:
