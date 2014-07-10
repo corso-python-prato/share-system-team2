@@ -18,6 +18,12 @@ import logging
 import server
 from server import userpath2serverpath
 
+HTTP_OK = 200
+HTTP_CREATED = 201
+HTTP_NOT_FOUND = 404
+HTTP_CONFLICT = 409
+
+
 start_dir = os.getcwd()
 
 TEST_DIR = 'server_test'
@@ -428,7 +434,7 @@ class TestUsers(unittest.TestCase):
     def tearDown(self):
         tear_down_test_dir()
 
-    def test_signup(self):
+    def test_old_signup(self):
         """
         Test for registration of a new user.
         """
@@ -448,8 +454,10 @@ class TestUsers(unittest.TestCase):
         self.assertTrue(os.path.isdir(user_dirpath))
         # test server response
         self.assertEqual(test.status_code, server.HTTP_CREATED)
+        # remove the user
+        _manually_remove_user(USR)
 
-    def test_signup_if_user_already_exists(self):
+    def test_old_signup_if_user_already_exists(self):
         """
         Test for registration of an already existing username.
         """
@@ -460,13 +468,84 @@ class TestUsers(unittest.TestCase):
                              data={'username': USR, 'password': 'boh'})
         self.assertEqual(test.status_code, server.HTTP_CONFLICT)
 
-    def test_signup_with_empty_username(self):
+    def test_old_signup_with_empty_username(self):
         """
         Test that a signup with empty user return a bad request error.
         """
         test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
                              data={'username': '', 'password': 'pass'})
         self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
+
+    def test_create_user_func(self):
+        """
+        Test the function only, not the api call.
+        """
+        username = 'created_user'
+        pw = 'pass'
+        userdirpath = userpath2serverpath(username)
+
+        assert username not in server.userdata
+        assert not os.path.exists(userdirpath)
+
+        server.create_user(username, pw)
+
+        self.assertIn(username, server.userdata)
+        self.assertTrue(os.path.exists(userdirpath))
+
+    def test_post_put_user(self):
+        """
+        Test Users.post and Users.put (enail signup procedure).
+        """
+        username = 'superpippo@topoliniamail.com'
+        pw = 'superpass'
+        user_dirpath = userpath2serverpath(username)
+
+        assert username not in server.pending_users
+        assert not os.path.exists(user_dirpath)
+
+        for i in range(2):
+            # The Users.post (signup request) is repeatable
+            test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + username),
+                                 data={'password': pw})
+
+            # Test that user is add to <pending_users>
+            self.assertIn(username, server.pending_users.keys())
+            self.assertEqual(test.status_code, HTTP_OK)
+            # TODO: test outbox
+
+        # Retrieve the generated activation code
+        activation_code = server.pending_users[username]['activation_code']
+
+        # Put with unexisting username and an existing activation_code
+        unexisting_user = 'unexisting'
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + unexisting_user),
+                            data={'activation_code': activation_code})
+
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+        self.assertNotIn(unexisting_user, server.userdata.keys())
+        self.assertFalse(os.path.exists(userpath2serverpath(unexisting_user)))
+
+        # Put with wrong activation code
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + username),
+                            data={'activation_code': 'fake activation code'})
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+        self.assertNotIn(username, server.userdata.keys())
+        self.assertFalse(os.path.exists(user_dirpath))
+
+        # Put with correct activation code
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + username),
+                             data={'activation_code': activation_code})
+
+        self.assertIn(username, server.userdata.keys())
+        self.assertTrue(os.path.exists(user_dirpath))
+        self.assertNotIn(username, server.pending_users.keys())
+        self.assertEqual(test.status_code, HTTP_CREATED)
+
+        # Test create user conflict
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + username),
+                             data={'password': pw})
+
+        self.assertEqual(test.status_code, HTTP_CONFLICT)
 
     def test_delete_user(self):
         """
