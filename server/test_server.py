@@ -166,8 +166,6 @@ class TestRequests(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
@@ -323,8 +321,6 @@ class TestGetRequests(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
@@ -426,9 +422,6 @@ class TestUsers(unittest.TestCase):
         setup_test_dir()
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
-
         _manually_remove_user(USR)
 
     def tearDown(self):
@@ -599,8 +592,6 @@ class TestUserdataConsistence(unittest.TestCase):
         setup_test_dir()
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
     def test_consistence_after_actions(self):
         """
