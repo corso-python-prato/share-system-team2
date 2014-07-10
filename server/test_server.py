@@ -496,7 +496,7 @@ class TestUsers(unittest.TestCase):
         """
         Test Users.post and Users.put (enail signup procedure).
         """
-        username = 'superpippo'
+        username = 'superpippo@topoliniamail.com'
         pw = 'superpass'
         user_dirpath = userpath2serverpath(username)
 

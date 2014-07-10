@@ -348,6 +348,7 @@ class Users(Resource):
     def post(self, username):
         """
         A not-logged user is asking to register himself.
+        NB: username must be a valid email address.
         """
 
         if username in userdata:
