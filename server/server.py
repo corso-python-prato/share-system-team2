@@ -311,6 +311,24 @@ mail = Mail(app)  # Must be called after the configuration
 
 class Users(Resource):
 
+    def _clean_pending_users(self):
+        """
+        Remove expired pending users (users whose activation time is expired)
+        and return a list of them.
+        :return: list
+        """
+        removed = []
+        # Remove expired pending users.
+        for pending_user in pending_users.keys():
+            pending_user_data = pending_users[pending_user]
+            reg_timestamp = pending_user_data['timestamp']
+            elapsed = now_timestamp() - reg_timestamp
+            if elapsed > USER_ACTIVATION_TIMEOUT:
+                logger.info('Activation of {} expired'.format(pending_user))
+                pending_users.pop(pending_user)
+                removed.append(pending_users)
+        return removed
+
     def get(self, username):
         """
         Show some info about users.
@@ -364,14 +382,9 @@ class Users(Resource):
         activation_code = request.form['activation_code']
         logger.debug('Got activation code: {}'.format(activation_code))
 
-        # Remove expired pending users.
-        for user_name in pending_users.keys():
-            pending_user_data = pending_users[user_name]
-            reg_timestamp = pending_user_data['timestamp']
-            elapsed = now_timestamp() - reg_timestamp
-            if elapsed > USER_ACTIVATION_TIMEOUT:
-                logger.info('Activation of {} expired'.format(user_name))
-                pending_users.pop(user_name)
+        # Pending users cleanup
+        expired_pending_users = self._clean_pending_users()
+        logging.info('Expired pending users: {}'.format(expired_pending_users))
 
         pending_user_data = pending_users.get(username)
         if pending_user_data:
