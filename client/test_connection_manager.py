@@ -58,7 +58,10 @@ class TestConnectionManager(unittest.TestCase):
     @httpretty.activate
     def test_register_user(self):
         """
-        Test register user api
+        Test register user api:
+        method = POST
+        resource = <user>
+        data = password=<password>
         """
         user = 'mail@mail.it'
         password = 'password'
