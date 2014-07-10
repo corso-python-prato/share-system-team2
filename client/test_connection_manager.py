@@ -50,10 +50,31 @@ class TestConnectionManager(unittest.TestCase):
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
+        self.user_url = ''.join([self.base_url, 'users/'])
 
         self.cm = ConnectionManager(self.cfg)
         self.make_fake_dir()
 
+    @httpretty.activate
+    def test_register_user(self):
+        """
+        Test register user api
+        """
+        user = 'mail@mail.it'
+        password = 'password'
+        data = (user, password)
+        url = ''.join((self.user_url, user))
+
+        httpretty.register_uri(httpretty.POST, url, status=201, body='user activated')
+        response = self.cm.do_register(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        self.assertFalse(self.cm.do_register(data))
+
+        httpretty.register_uri(httpretty.POST, url, status=409)
+        self.assertFalse(self.cm.do_register(data))
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
