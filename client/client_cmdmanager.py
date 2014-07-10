@@ -7,40 +7,72 @@ import struct
 import json
 
 
+DAEMON_HOST = 'localhost'
+DAEMON_PORT = 50001
+
+
 class CommandParser(cmd.Cmd):
     """
     Command line interpreter
     Parse user input
     """
 
-    DAEMON_HOST = 'localhost'
-    DAEMON_PORT = 50001
-
     # Override attribute in cmd.Cmd
     prompt = '(PyBox)>>> '
+
+    def __init__(self):
+        cmd.Cmd.__init__(self)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def _send_to_daemon(self, message=None):
         """
         it sends user input command to the daemon server
         """
         if not message:
-            return
+            raise
 
-        message = json.dumps(message)
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        data_packet = json.dumps(message)
         try:
-            s.connect((self.DAEMON_HOST, self.DAEMON_PORT))
+            # send the command to daemon
+            data_packet_size = struct.pack('!i', len(data_packet))
+            self.sock.sendall(data_packet_size)
+            self.sock.sendall(data_packet)
 
-            lenght = struct.pack('!i', len(message))
-            s.sendall(lenght)
-            s.sendall(message)
-            s.close()
-            return True
-        except socket.error:
+            # receive the information message from daemon
+            response_size = self.sock.recv(struct.calcsize('!i'))
+            if len(response_size) == struct.calcsize('!i'):
+                response_size = int(struct.unpack('!i', response_size)[0])
+                response_packet = ''
+                remaining_size = response_size
+                while len(response_packet) < response_size:
+                    response_buffer = self.sock.recv(remaining_size)
+                    remaining_size -= len(response_buffer)
+                    response_packet = ''.join([response_packet, response_buffer])
+
+                response = json.loads(response_packet)
+
+                print response['message']
+
+                # to improve testing
+                return response['message']
+            else:
+                raise Exception('Error: lost connection with daemon')
+
+        except socket.error as ex:
             # log exception message
-            print 'daemon is not running'
-            return False
+            print 'Socket Error: ', ex
+
+    def preloop(self):
+        """
+        setup before the looping start
+        """
+        self.sock.connect((DAEMON_HOST, DAEMON_PORT))
+
+    def postloop(self):
+        """
+        Closures when looping stop
+        """
+        self.sock.close()
 
     def do_quit(self, line):
         """Exit Command"""
@@ -53,7 +85,6 @@ class CommandParser(cmd.Cmd):
         """ Create new user
             Usage: reguser <username> <password>
         """
-
         try:
             user, password = line.split()
         except ValueError:
@@ -64,6 +95,9 @@ class CommandParser(cmd.Cmd):
             self._send_to_daemon(message)
 
     def do_shutdown(self, line):
+        """
+        Shutdown the daemon
+        """
         message = {'shutdown': ()}
         self._send_to_daemon(message)
 
