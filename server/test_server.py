@@ -521,7 +521,7 @@ class TestUsers(unittest.TestCase):
                             data={'activation_code': activation_code})
 
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
-        self.assertNotIn(username, server.userdata.keys())
+        self.assertNotIn('unexisting', server.userdata.keys())
         self.assertFalse(os.path.exists(user_dirpath))
 
         # Put with wrong activation code
@@ -544,7 +544,7 @@ class TestUsers(unittest.TestCase):
         test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + username),
                              data={'password': pw})
 
-        self.assertEqual(test.status_code, HTTP_OK)
+        self.assertEqual(test.status_code, HTTP_CONFLICT)
 
     def test_delete_user(self):
         """

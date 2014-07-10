@@ -365,24 +365,25 @@ class Users(Resource):
         logger.debug('Got activation code: {}'.format(activation_code))
 
         # Remove expired pending users.
-        for username in pending_users.keys():
-            pending_user_data = pending_users[username]
+        for user_name in pending_users.keys():
+            pending_user_data = pending_users[user_name]
             reg_timestamp = pending_user_data['timestamp']
             elapsed = now_timestamp() - reg_timestamp
             if elapsed > USER_ACTIVATION_TIMEOUT:
-                logger.info('Activation of {} expired'.format(username))
-                pending_users.pop(username)
+                logger.info('Activation of {} expired'.format(user_name))
+                pending_users.pop(user_name)
 
         pending_user_data = pending_users.get(username)
         if pending_user_data:
             logger.debug('Activating user {}'.format(username))
-            if not activation_code == pending_user_data['activation_code']:
-                abort(HTTP_NOT_FOUND)
-            else:
+            if activation_code == pending_user_data['activation_code']:
                 # Actually create user
+                              
                 password = pending_user_data[PASSWORD]
                 pending_users.pop(username)
                 return create_user(username, password)
+            else:
+                abort(HTTP_NOT_FOUND)
         else:
             logger.info('{} is not pending'.format(username))
             abort(HTTP_NOT_FOUND)
