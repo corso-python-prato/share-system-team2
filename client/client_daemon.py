@@ -543,6 +543,38 @@ class Daemon(RegexMatchingEventHandler):
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(e.src_path))
 
+    def _get_cmdmanager_request(self, socket):
+        """
+        Communicate with cmd_manager and get the request
+        Returns the request decoded by json format or None if cmd_manager send connection closure
+        """
+        packet_size = socket.recv(Daemon.INT_SIZE)
+        if len(packet_size) == Daemon.INT_SIZE:
+
+            packet_size = int(struct.unpack('!i', packet_size)[0])
+            packet = ''
+            remaining_size = packet_size
+
+            while len(packet) < packet_size:
+                packet_buffer = socket.recv(remaining_size)
+                remaining_size -= len(packet_buffer)
+                packet = ''.join([packet, packet_buffer])
+
+            req = json.loads(packet)
+            return req
+        else:
+            return None
+
+    def _set_cmdmanager_response(self, socket, message):
+        """
+        Makes cmd_manager response encoding it in json format and send it to cmd_manager
+        """
+        response = {'message': message}
+        response_packet = json.dumps(response)
+        socket.sendall(struct.pack('!i', len(response_packet)))
+        socket.sendall(response_packet)
+        return response_packet
+
     def start(self):
         """
         Starts the communication with the command_manager.
@@ -575,17 +607,24 @@ class Daemon(RegexMatchingEventHandler):
                         r_list.append(client_socket)
                     else:
                         # handle all other sockets
-                        length = s.recv(Daemon.INT_SIZE)
-                        if length:
-                            # i need to do [0] and cast int because the struct.unpack return a tupla like (23234234,)
-                            # with the length as a string
-                            length = int(struct.unpack('!i', length)[0])
-                            message = json.loads(s.recv(length))
-                            for cmd, data in message.items():
+                        req = self._get_cmdmanager_request(s)
+
+                        if req:
+                            for cmd, data in req.items():
                                 if cmd == 'shutdown':
+                                    self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
-                                self.conn_mng.dispatch_request(cmd, data)
-                        else:
+                                else:
+                                    response = self.conn_mng.dispatch_request(cmd, data)
+                                    # for now the protocol is that for request sent by
+                                    # command manager, the server reply with a string
+                                    # so, to maintain the same data structure during
+                                    # daemon and cmdmanager comunications, it rebuild a json
+                                    # to send like response
+                                    # TODO it's advisable to make attention to this assertion or refact the architecture
+                                    self._set_cmdmanager_response(s, response)
+
+                        else:  # it receives the FIN packet that close the connection
                             s.close()
                             r_list.remove(s)
 
@@ -594,8 +633,8 @@ class Daemon(RegexMatchingEventHandler):
                 # maybe optimizable but now functional
                 polling_counter += 1
                 if polling_counter == 6:
-                    self.sync_with_server()
                     polling_counter = 0
+                    self.sync_with_server()
 
         except KeyboardInterrupt:
             self.stop(0)
