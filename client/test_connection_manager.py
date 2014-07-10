@@ -78,6 +78,31 @@ class TestConnectionManager(unittest.TestCase):
 
         httpretty.register_uri(httpretty.POST, url, status=409)
         self.assertFalse(self.cm.do_register(data))
+
+    @httpretty.activate
+    def test_activate_user(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = '6c9fb345c317ad1d31ab9d6445d1a820'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
+
+        httpretty.register_uri(httpretty.PUT, url, status=201, body='user activated')
+        response = self.cm.do_activate(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.PUT, url, status=404)
+        self.assertFalse(self.cm.do_activate(data))
+
+        httpretty.register_uri(httpretty.PUT, url, status=409)
+        self.assertFalse(self.cm.do_activate(data))
+
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
