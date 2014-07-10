@@ -516,13 +516,14 @@ class TestUsers(unittest.TestCase):
         # Retrieve the generated activation code
         activation_code = server.pending_users[username]['activation_code']
 
-        # Put with unexisting username
-        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + 'unexisting'),
+        # Put with unexisting username and an existing activation_code
+        unexisting_user = 'unexisting'
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + unexisting_user),
                             data={'activation_code': activation_code})
 
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
-        self.assertNotIn('unexisting', server.userdata.keys())
-        self.assertFalse(os.path.exists(user_dirpath))
+        self.assertNotIn(unexisting_user, server.userdata.keys())
+        self.assertFalse(os.path.exists(userpath2serverpath(unexisting_user)))
 
         # Put with wrong activation code
         test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + username),
