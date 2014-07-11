@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 import time
+import random
 
 import httpretty
 import client_daemon
@@ -12,6 +13,7 @@ import client_daemon
 start_dir = os.getcwd()
 
 CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+TEST_SHARING_FOLDER = os.path.join(os.environ['HOME'], 'test_sharing_folder')
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 TEST_DIR = 'daemon_test'
 LOCAL_DIR_STATE_FOR_TEST = os.path.join(TEST_DIR, 'test_local_dir_state')
@@ -29,8 +31,28 @@ base_dir_tree = {
     'carlo.buo':        (14, 'rfhglkr94094580'),
 }
 
+LIST_OF_TEST_FILES = [
+    'ciao.txt',
+    'carlo.txt',
+    './Pytt/diaco.txt',
+    'pasquale.cat',
+    'carlo.buo',
+    'folder/carlo.buo'
+]
+
 def timestamp_generator():
     return long(time.time()*10000)
+def create_test_sharing_folder():
+    assert not os.path.exists(TEST_SHARING_FOLDER)
+    os.makedirs(TEST_SHARING_FOLDER)
+
+    for path in LIST_OF_TEST_FILES:
+        abs_path = os.path.join(TEST_SHARING_FOLDER, path)
+        time_stamp = create_file(abs_path, 'a' * random.randint(1, 50000))
+
+        md5 = hashlib.md5().update(hashlib.md5(abs_path).hexdigest())
+        base_dir_tree.update({path:(time_stamp, md5)})
+
 
 def folder_modified():
     """
@@ -98,6 +120,7 @@ class FileFakeEvent(object):
 
 class TestClientDaemon(unittest.TestCase):
     def setUp(self):
+        create_test_sharing_folder()
         self.test_daemon = client_daemon.Daemon()
         self.test_daemon.create_observer()
 
