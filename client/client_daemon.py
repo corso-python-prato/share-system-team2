@@ -99,6 +99,8 @@ class Daemon(RegexMatchingEventHandler):
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
+        self.INTERNAL_COMMANDS = {'daemon_config': self._daemon_config}
+
     def load_cfg(self, config_path):
         """
         Load config, if impossible to find it or config file is corrupted restore it and load default configuration
@@ -611,10 +613,15 @@ class Daemon(RegexMatchingEventHandler):
 
                         if req:
                             for cmd, data in req.items():
+                                # TODO is required to refact/reingeneering stop/shutdown for a clean closure
+                                # now used an expedient (raise KeyboardInterrupt) to make it runnable
                                 if cmd == 'shutdown':
-                                    self._set_cmdmanager_response(s, 'Deamon is shuting down')
+                                    response = 'Deamon is shuting down'
+                                    self._set_cmdmanager_response(s, response)
                                     raise KeyboardInterrupt
-                                else:
+                                try:
+                                    response = self.INTERNAL_COMMANDS[cmd](data)
+                                except KeyError:
                                     response = self.conn_mng.dispatch_request(cmd, data)
                                     # for now the protocol is that for request sent by
                                     # command manager, the server reply with a string
@@ -622,7 +629,8 @@ class Daemon(RegexMatchingEventHandler):
                                     # daemon and cmdmanager comunications, it rebuild a json
                                     # to send like response
                                     # TODO it's advisable to make attention to this assertion or refact the architecture
-                                    self._set_cmdmanager_response(s, response)
+
+                                self._set_cmdmanager_response(s, response)
 
                         else:  # it receives the FIN packet that close the connection
                             s.close()

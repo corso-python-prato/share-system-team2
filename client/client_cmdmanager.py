@@ -24,7 +24,7 @@ class CommandParser(cmd.Cmd):
         cmd.Cmd.__init__(self)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def _send_to_daemon(self, message=None):
+    def _send_to_daemon(self, message=None, show=True):
         """
         it sends user input command to the daemon server
         """
@@ -51,7 +51,8 @@ class CommandParser(cmd.Cmd):
 
                 response = json.loads(response_packet)
 
-                print response['message']
+                if show:
+                    print response['message']
 
                 # to improve testing
                 return response['message']
