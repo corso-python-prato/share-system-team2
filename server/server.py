@@ -325,7 +325,7 @@ class Users(Resource):
         """
         removed = []
         # Remove expired pending users.
-        for pending_user in pending_users.keys():
+        for pending_user in pending_users:
             pending_user_data = pending_users[pending_user]
             reg_timestamp = pending_user_data['timestamp']
             elapsed = now_timestamp() - reg_timestamp
