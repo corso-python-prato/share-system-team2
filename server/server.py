@@ -310,10 +310,7 @@ def configure_email():
         for flask_key, file_key in keys_tuples:
             value = cfg.get('email', file_key)
             if flask_key == 'MAIL_PORT':
-                if value:
-                    value = int(value)
-                else:
-                    value = 0
+                value = int(value)
 
             app.config[flask_key] = value
 
