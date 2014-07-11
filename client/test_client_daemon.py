@@ -158,6 +158,39 @@ class TestClientDaemon(unittest.TestCase):
         )
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
 
+    def test_sync_process_move(self):
+        """
+        Test the case: file moved on server
+        Client Directory NOT modified,
+        timestamp client < timestamp server        
+        """
+        same_md5 = '135617975431aytdxeva'
+
+        server_timestamp = timestamp_generator()
+        
+        # created new file there will be moved
+        tmp_base_dir_tree = base_dir_tree.copy()        
+        tmp_base_dir_tree.update({'file_that_will_be_moved.txt': (server_timestamp, same_md5)})
+
+
+        # server tree and client tree are the same
+        server_dir_tree = tmp_base_dir_tree.copy()        
+        self.test_daemon.client_snapshot = tmp_base_dir_tree.copy()        
+
+        # the local_dir_state is updated to the last operation on server
+        self.test_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp, 
+                                            GLOBAL_MD5: self.test_daemon.md5_of_client_snapshot()}
+
+        # moved/renamed file on server
+        moved_timestamp = timestamp_generator()
+        server_dir_tree.pop('file_that_will_be_moved.txt')
+        server_dir_tree.update({'file_moved.txt': (server_timestamp, same_md5)})
+        
+        self.assertEqual(
+            self.test_daemon._sync_process(moved_timestamp, server_dir_tree),
+            []
+        )    
+
     def test_sync_process_directory_not_modified1(self):
         """
         Test the case: (it must do nothing)
