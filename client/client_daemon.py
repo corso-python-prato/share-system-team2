@@ -665,7 +665,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
         """ 
-        assert isinstance(last_timestamp, int)
+        assert isinstance(last_timestamp, long)
         self.local_dir_state['last_timestamp'] = last_timestamp
         self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
         self.save_local_dir_state()
