@@ -124,6 +124,36 @@ class TestClientDaemon(unittest.TestCase):
         self.test_daemon = client_daemon.Daemon()
         self.test_daemon.create_observer()
 
+    def test_sync_process_new_on_server_new_on_client(self):
+        """
+        Test the case: (it must copy or move the file)
+        Directory modified,
+        timestamp client < timestamp server
+        new file on server and new on client
+        """
+        
+        server_timestamp = timestamp_generator()
+        
+        # server tree and client tree are the same
+        server_dir_tree = base_dir_tree.copy()
+        self.test_daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.test_daemon.md5_of_client_snapshot()
+        self.test_daemon.local_dir_state = {LAST_TIMESTAMP: server_timestamp - 1, 
+                                            GLOBAL_MD5: old_global_md5_client}
+        
+        # changed client_snapshot and server_dir_tree        
+        self.test_daemon.client_snapshot.update({'new_file_on_client.txt': ('', '135687975431asdqweva')})        
+        server_dir_tree.update({'new_file_on_server.txt': (server_timestamp, '135617975431aytdxeva')})
+
+        new_global_md5_client = self.test_daemon.md5_of_client_snapshot()       
+
+        self.assertEqual(
+            self.test_daemon._sync_process(server_timestamp, server_dir_tree),
+            [('download', 'new_file_on_server.txt'), ('upload', 'new_file_on_client.txt')]
+        )
+        self.assertNotEqual(new_global_md5_client, old_global_md5_client)
+
     def test_sync_process_directory_not_modified1(self):
         """
         Test the case: (it must do nothing)
@@ -347,28 +377,8 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(
             self.test_daemon._sync_process(server_timestamp, files),
             [('delete', 'new')]
-        )
-
-    def test_sync_process_directory_modified7(self):
-        """
-        Test the case: (it must copy or move the file)
-        Directory modified,
-        timestamp client < timestamp server
-        new file on server and in client
-        """
-        self.client_daemon._is_directory_modified = folder_modified
-
-        server_timestamp = 18
-        self.client_daemon.local_dir_state = {LAST_TIMESTAMP: 17, GLOBAL_MD5: ''}
-
-        files = base_dir_tree.copy()
-        self.client_daemon.client_snapshot = base_dir_tree.copy()
-        files.update({'new': (16, 'md5md6')})
-
-        self.assertEqual(
-            self.client_daemon._sync_process(server_timestamp, files),
-            []
-        )
+        )   
+    
 
     def test_sync_process_directory_modified8(self):
         """
