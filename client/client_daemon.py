@@ -253,7 +253,7 @@ class Daemon(RegexMatchingEventHandler):
 
         local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
-
+        print tree_diffprint tree_diff
         sync_commands = []
 
         if self._is_directory_modified():
@@ -268,7 +268,7 @@ class Daemon(RegexMatchingEventHandler):
 
                 # files modified in client: send modified files to server
                 for filepath in tree_diff['modified']:
-                    sync_commands.append(('modified', filepath))
+                    sync_commandsypend(('modified', filepath))
                     #self.conn_mng.dispatch_request('modified', {'filepath': filepath})
 
                 # files in client but not in server: upload them to server
