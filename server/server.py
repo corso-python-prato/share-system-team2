@@ -384,7 +384,7 @@ class Users(Resource):
 
     def put(self, username):
         """
-        Create user using activatiion code sent by email.
+        Create user using activation code sent by email.
         """
         activation_code = request.form['activation_code']
         logger.debug('Got activation code: {}'.format(activation_code))
