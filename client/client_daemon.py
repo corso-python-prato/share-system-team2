@@ -9,6 +9,7 @@ import os
 import hashlib
 import re
 import time
+import argparse
 
 from sys import exit as exit
 from collections import OrderedDict
@@ -85,7 +86,7 @@ class Daemon(RegexMatchingEventHandler):
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
-    def __init__(self):
+    def __init__(self, cfg_path = None ):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
 
         # Just Initialize variable the Daemon.start() do the other things
@@ -95,7 +96,12 @@ class Daemon(RegexMatchingEventHandler):
         self.local_dir_state = {} # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
+
+        if cfg_path:
+            self.cfg = self.load_cfg(cfg_path)
+        else:
+            self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
+
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
@@ -178,6 +184,7 @@ class Daemon(RegexMatchingEventHandler):
                     self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
 
     def _is_directory_modified(self):
+
         if self.md5_of_client_snapshot() != self.local_dir_state['global_md5']:
             return True
         else:
@@ -741,5 +748,10 @@ class Daemon(RegexMatchingEventHandler):
             # You can't open the file for some reason
 
 if __name__ == '__main__':
-    daemon = Daemon()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-cfg", help="the configuration file filepath", type=str)
+    
+    args = parser.parse_args()
+    
+    daemon = Daemon(args.cfg)
     daemon.start()
