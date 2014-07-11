@@ -687,7 +687,7 @@ class Daemon(RegexMatchingEventHandler):
         if file doesn't exists it will be created without timestamp
         """
         def _rebuild_local_dir_state():
-            self.local_dir_state = {'last_timestamp': 0L, 'global_md5': self.md5_of_client_snapshot()}
+            self.local_dir_state = {'last_timestamp': 0, 'global_md5': self.md5_of_client_snapshot()}
             json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
