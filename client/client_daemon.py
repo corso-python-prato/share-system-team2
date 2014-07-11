@@ -363,8 +363,6 @@ class Daemon(RegexMatchingEventHandler):
                     if existed_filepaths_on_client:
                         # it's a copy or a move
                         for path in existed_filepaths_on_client:
-                            print "server_dir_tree[path]", server_dir_tree[path]
-                            print "md5 trovato", md5
                             if path in server_dir_tree and server_dir_tree[path][1] == md5:
                                 # I have found origin path that is maintained the same in the server.
                                 # We have a copy event!
