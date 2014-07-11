@@ -428,13 +428,39 @@ class Shares(Resource):
     Folder sharing handling class.
     """
     @auth.login_required
-    def post(self):
-        resp.status_code = HTTP_CREATED
-        return resp
+    def post(self, root_path, username):
+        return HTTP_OK
 
-    def  delete(self):
-        respt.status_code = HTTP_DELETED
-        return resp
+    def  delete(self, root_path, username=''):
+        return HTTP_DELETED
+    
+    @auth.login_required
+    def get(self, root_path, username=''):
+        owner = auth.username()
+
+        if not check_path(root_path, owner):
+            abort(HTTP_FORBIDDEN)
+
+        path = os.path.abspath(join(FILE_ROOT, owner, root_path))
+       
+        print self._is_sharable(root_path, owner)
+        # print root_path
+        # print owner
+        # print username
+        if not os.path.exists(path):
+            abort(HTTP_NOT_FOUND)
+        return HTTP_OK
+
+    def _is_sharable(self, path, username):
+        root_path = os.path.abspath(join(FILE_ROOT, username))
+        sharing_path = os.path.abspath(join(FILE_ROOT, username, path))
+        # print root_path
+        # print sharing_path
+        # print os.path.split(sharing_path)[0]
+        if os.path.split(sharing_path)[0] == root_path:
+           return True
+        return False
+
 
 
 class Files(Resource):
@@ -563,7 +589,7 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
-
+api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<path:root_path>'.format(URL_PREFIX))
 
 def main():
     parser = argparse.ArgumentParser()
