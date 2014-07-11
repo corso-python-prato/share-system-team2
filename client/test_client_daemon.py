@@ -21,6 +21,8 @@ LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
 SERVER_TIMESTAMP = 1
 
+def timestamp_generator():
+    return long(time.time()*10000)
 
 base_dir_tree = {
     # <filepath>: (<timestamp>, <md5>)
@@ -40,8 +42,6 @@ LIST_OF_TEST_FILES = [
     'folder/carlo.buo'
 ]
 
-def timestamp_generator():
-    return long(time.time()*10000)
 def create_test_sharing_folder():
     assert not os.path.exists(TEST_SHARING_FOLDER)
     os.makedirs(TEST_SHARING_FOLDER)
