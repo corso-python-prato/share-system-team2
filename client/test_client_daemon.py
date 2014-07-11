@@ -44,7 +44,7 @@ def create_test_sharing_folder():
 
     for path in LIST_OF_TEST_FILES:
         abs_path = os.path.join(TEST_SHARING_FOLDER, path)
-        time_stamp = create_file(abs_path, 'a' * random.randint(1, 50000))
+        time_stamp = create_file(abs_path, 'a' * random.randint(1, 500000))
 
         md5 = hashlib.md5().update(hashlib.md5(abs_path).hexdigest())
         base_dir_tree.update({path:(time_stamp, md5)})
