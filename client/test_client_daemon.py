@@ -121,8 +121,12 @@ class FileFakeEvent(object):
 class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         create_test_sharing_folder()
+        setup_test_dir()
         self.test_daemon = client_daemon.Daemon()
         self.test_daemon.create_observer()
+
+    def tearDown(self):
+        tear_down_test_dir()
 
     def test_sync_process_new_on_server_new_on_client(self):
         """
