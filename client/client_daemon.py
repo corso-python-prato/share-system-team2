@@ -269,7 +269,7 @@ class Daemon(RegexMatchingEventHandler):
 
                 # files modified in client: send modified files to server
                 for filepath in tree_diff['modified']:
-                    sync_commands.append(('modified', filepath))
+                    sync_commands.append(('modify', filepath))
                     #self.conn_mng.dispatch_request('modified', {'filepath': filepath})
 
                 # files in client but not in server: upload them to server
@@ -435,7 +435,7 @@ class Daemon(RegexMatchingEventHandler):
                 else:
                     self.stop(1, 'Error during connection with the server. Server fail to "delete" this file: {}'.format(path))
 
-            elif command == 'modified' or command == 'upload':
+            elif command == 'modify' or command == 'upload':
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if event_timestamp:
                     print 'event_timestamp di "{}" INTO SYNC: {}'.format(command, event_timestamp)
@@ -696,7 +696,7 @@ class Daemon(RegexMatchingEventHandler):
             print "local_dir_state not found. Initialize new local_dir_state"
             _rebuild_local_dir_state()
 
-
+ 
     def md5_of_client_snapshot(self, verbose=0):
         """
         Calculate the md5 of the entire directory snapshot,
