@@ -667,12 +667,10 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
         """
-        if isinstance(last_timestamp, long):
-            self.local_dir_state['last_timestamp'] = last_timestamp
-            self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
-            self.save_local_dir_state()
-        else:
-            self.stop(1, 'Not long value assigned to local_dir_state[\'last_timestamp\']!\nIncorrect value: {}'.format(last_timestamp))
+        assertIsInstance(last_timestamp, long)
+        self.local_dir_state['last_timestamp'] = last_timestamp
+        self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
+        self.save_local_dir_state()
 
     def save_local_dir_state(self):
         """
@@ -692,12 +690,10 @@ class Daemon(RegexMatchingEventHandler):
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
             self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
-            if 'last_timestamp' in self.local_dir_state and 'global_md5' in self.local_dir_state \
-                    and isinstance(self.local_dir_state['last_timestamp'], long):
-                print "Loaded local_dir_state"
-            else:
-                print "local_dir_state corrupted. Reinitialized new local_dir_state"
-                _rebuild_local_dir_state()
+            
+            assert isinstance(self.local_dir_state['global_md5'], unicode)
+            assert isinstance(self.local_dir_state['last_timestamp'], (int, long))
+            print "Loaded local_dir_state"
         else:
             print "local_dir_state not found. Initialize new local_dir_state"
             _rebuild_local_dir_state()
