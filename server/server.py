@@ -300,18 +300,16 @@ def configure_email():
             ('MAIL_PASSWORD', 'smtp_password'),  # the password of the smtp server (if required)
         ]
 
-        cfg = ConfigParser.ConfigParser()
-        cfg.read(EMAIL_SETTINGS_INI_FILENAME)
-        # cfg.read don't tells anything if the email configuration file is not found,
-        # so I think it's better to explicitly handle this case.
+        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         if not os.path.exists(EMAIL_SETTINGS_INI_FILENAME):
             raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_INI_FILENAME))
 
+        cfg = ConfigParser.ConfigParser()
+        cfg.read(EMAIL_SETTINGS_INI_FILENAME)
         for flask_key, file_key in keys_tuples:
             value = cfg.get('email', file_key)
             if flask_key == 'MAIL_PORT':
                 value = int(value)
-
             app.config[flask_key] = value
 
     return Mail(app)
