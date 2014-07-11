@@ -417,7 +417,6 @@ class Daemon(RegexMatchingEventHandler):
         files = response['files']
 
         sync_commands = self._sync_process(server_timestamp, files)
-        self.update_local_dir_state(server_timestamp)
 
         # Initialize the variable where we put the timestamp of the last operation we did
         last_operation_timestamp = None
@@ -448,7 +447,9 @@ class Daemon(RegexMatchingEventHandler):
                 self.observer.skip(self.absolutize_path(path))
                 connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if connection_result:
-                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
+                    if not last_operation_timestamp:
+                        last_operation_timestamp = server_timestamp
+                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)                    
                     self.client_snapshot[path] = files[path]
                 else:
                     self.stop(1, 'Error during connection with the server. Client fail to "download" this file: {}'.format(path))
