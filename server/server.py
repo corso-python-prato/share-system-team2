@@ -30,6 +30,9 @@ HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
+#HTTP 204 No Content: The server successfully processed the request, but is not
+#returning any content. Usually used as a response to a successful delete request.
+HTTP_DELETED = 204 
 
 FILE_ROOT = 'filestorage'
 
@@ -419,6 +422,19 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
+
+class Shares(Resource):
+    """
+    Folder sharing handling class.
+    """
+    @auth.login_required
+    def post(self):
+        resp.status_code = HTTP_CREATED
+        return resp
+
+    def  delete(self):
+        respt.status_code = HTTP_DELETED
+        return resp
 
 
 class Files(Resource):
