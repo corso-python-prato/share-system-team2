@@ -26,11 +26,7 @@ def timestamp_generator():
 
 base_dir_tree = {
     # <filepath>: (<timestamp>, <md5>)
-    'ciao.txt':         (3, 'md5md6'),
-    'carlo.txt':        (2, 'md6md6'),
-    './Pytt/diaco.txt': (12, '7645jghkjhdfk'),
-    'pasquale.cat':     (12, 'khgraiuy8qu4l'),
-    'carlo.buo':        (14, 'rfhglkr94094580'),
+   
 }
 
 LIST_OF_TEST_FILES = [
