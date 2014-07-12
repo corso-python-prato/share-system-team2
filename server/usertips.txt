@@ -36,9 +36,17 @@ Move (POST):
     curl --data "src=<sourcepath>&dst=<dstpath>" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/actions/move -X POST
 
 
-## Actions
+## Users
 
-Creating new user (signup):
+User signup (POST):
+
+    curl -X post localhost:5000/API/V1/users/<youremail> --data "password=<yourpassword>"
+
+User activation (PUT):
+
+    curl -X put localhost:5000/API/V1/users/<youremail> --data "activation_code=<yourcode>"
+
+User signup shortcut (GET):
 
     curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
-  
+
