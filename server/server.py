@@ -8,11 +8,11 @@ import logging
 import datetime
 import argparse
 import hashlib
+import time
+import string
 join = os.path.join
 normpath = os.path.normpath
 abspath = os.path.abspath
-
-import time
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
@@ -359,13 +359,28 @@ class Users(Resource):
         activation_code = os.urandom(16).encode('hex')
 
         # Composing email
-        subject = 'Confirm your {} account'.format(__title__)
-        sender = '{}.no-reply@email.com'.format(__title__)
+        subject = '[{}] Confirm your email address'.format(__title__)
+        sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
-        text_body = 'Here is your user activation code:\n'
-        text_body += '\n\t{}'.format(activation_code)
-        text_body += '\n\nNB: this token will expire in {:.1f} hours'.format(USER_ACTIVATION_TIMEOUT / 3600.0)
+        text_body_template = string.Template("""
+Thanks for signing up for $appname!
 
+As a final step of the $appname account creation process, please confirm the email address $email.
+Copy and paste the activation code below into the desktop application:
+
+    $code
+
+If you don't know what this is about, then someone has probably entered your email address by mistake.
+Sorry about that. You don't need to do anything further. Just delete this message.
+
+Cheers,
+the $appname Team
+""")
+        values = dict(code=activation_code,
+                      email=username,
+                      appname=__title__,
+                      timeout='{:.0f}'.format(USER_ACTIVATION_TIMEOUT / 3600.0))
+        text_body = text_body_template.substitute(values)
         send_email(subject, sender, recipients, text_body)
 
         pending_users[username] = {
@@ -373,7 +388,7 @@ class Users(Resource):
             'activation_code': activation_code,
             PASSWORD: password,
         }
-        return 'Mail sent to {}'.format(username), HTTP_OK
+        return 'User activation email sent to {}'.format(username), HTTP_OK
 
     def put(self, username):
         """
