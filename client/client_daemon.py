@@ -710,7 +710,7 @@ class Daemon(RegexMatchingEventHandler):
         for path, time_md5 in self.client_snapshot.items():
             # extract md5 from tuple. we don't need hexdigest it's already md5
             md5Hash.update(time_md5[1])
-            md5Hash.update(hashlib.md5(path).hexdigest())        
+            md5Hash.update(path)
 
         if verbose:
             stop = time.time()
@@ -730,7 +730,7 @@ class Daemon(RegexMatchingEventHandler):
                     buf = f1.read(chunk_size)
                     if not buf:
                         break
-                    md5Hash.update(hashlib.md5(buf).hexdigest())
+                    md5Hash.update(buf)
             f1.close()
             return md5Hash.hexdigest()
         except (OSError, IOError) as e:
