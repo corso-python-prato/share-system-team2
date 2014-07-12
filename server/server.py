@@ -303,6 +303,12 @@ def configure_email():
     return Mail(app)
 
 
+def send_email(subject, sender, recipients, text_body):
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    mail.send(msg)
+
+
 class Users(Resource):
 
     def _clean_pending_users(self):
@@ -352,16 +358,15 @@ class Users(Resource):
 
         activation_code = os.urandom(16).encode('hex')
 
-        body_msg = 'Here is your user activation code:\n'
-        body_msg += '\n\t{}'.format(activation_code)
-        body_msg += '\n\nNB: this token will expire in {:.1f} hours'.format(USER_ACTIVATION_TIMEOUT / 3600.0)
+        # Composing email
+        subject = 'Confirm your {} account'.format(__title__)
+        sender = '{}.no-reply@email.com'.format(__title__)
+        recipients = [username]
+        text_body = 'Here is your user activation code:\n'
+        text_body += '\n\t{}'.format(activation_code)
+        text_body += '\n\nNB: this token will expire in {:.1f} hours'.format(USER_ACTIVATION_TIMEOUT / 3600.0)
 
-        # Send email
-        msg = Message('Confirm your {} account'.format(username, __title__),
-                      body=body_msg,
-                      sender='{}.no-reply@email.com'.format(__title__),
-                      recipients=[username])
-        mail.send(msg)
+        send_email(subject, sender, recipients, text_body)
 
         pending_users[username] = {
             'timestamp': now_timestamp(),
