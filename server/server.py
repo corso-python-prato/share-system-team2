@@ -166,7 +166,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     os.makedirs(dirpath)
 
     welcome_file = join(dirpath, 'WELCOME')
-    with open(welcome_file, 'w') as fp:
+    with open(welcome_file, 'wb') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
 
     for dirname in default_dirs:
@@ -175,7 +175,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         os.mkdir(subdirpath)
         # Create a default file for each default directory
         # beacuse wee need files to see the directories.
-        with open(filepath, 'w') as fp:
+        with open(filepath, 'wb') as fp:
             fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
     return compute_dir_state(dirpath)
@@ -490,7 +490,7 @@ class Files(Resource):
         filepath = userpath2serverpath(username, path)
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
         save_userdata()
         return last_server_timestamp
 
