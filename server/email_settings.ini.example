@@ -1,13 +1,13 @@
 [email]
 
 # the address of the smtp server
-smtp_address =
+smtp_address = smtp.company.com
 
 # the port of the smtp server
-smtp_port =
+smtp_port = 12345
 
 # the username of the smtp server (if required)
-smtp_username =
+smtp_username = superpippo@company.com
 
 # the password of the smtp server (if required)
-smtp_password =
+smtp_password = superpassword

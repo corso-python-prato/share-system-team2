@@ -48,10 +48,6 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PASSWORD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
-# Are we launched? If NOT, we assume we are testing the server (at least for now):
-TESTING = __name__ != '__main__'
-
-
 class ServerError(Exception):
     pass
 
@@ -92,7 +88,8 @@ userdata = {}
 pending_users = {}
 
 app = Flask(__name__)
-app.config['TESTING'] = TESTING  # if True, you can see the exception tracebacks, suppress the sending of emails, etc.
+app.config['TESTING'] = __name__ != '__main__'  # Reasonable assumption?
+# if True, you can see the exception traceback, suppress the sending of emails, etc.
 
 api = Api(app)
 auth = HTTPBasicAuth()
@@ -287,30 +284,21 @@ def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
     """
-    if TESTING:
-        # If we are in testing mode, no parameters are set.
-        pass
+    # Relations between Flask configuration keys and settings file fields.
+    keys_tuples = [
+        ('MAIL_SERVER', 'smtp_address'),  # the address of the smtp server
+        ('MAIL_PORT', 'smtp_port'),  # the port of the smtp server
+        ('MAIL_USERNAME', 'smtp_username'),  # the username of the smtp server (if required)
+        ('MAIL_PASSWORD', 'smtp_password'),  # the password of the smtp server (if required)
+    ]
 
-    else:
-        # Relations between Flask configuration keys and settings file fields.
-        keys_tuples = [
-            ('MAIL_SERVER', 'smtp_address'),  # the address of the smtp server
-            ('MAIL_PORT', 'smtp_port'),  # the port of the smtp server
-            ('MAIL_USERNAME', 'smtp_username'),  # the username of the smtp server (if required)
-            ('MAIL_PASSWORD', 'smtp_password'),  # the password of the smtp server (if required)
-        ]
-
-        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
-        if not os.path.exists(EMAIL_SETTINGS_INI_FILENAME):
-            raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_INI_FILENAME))
-
-        cfg = ConfigParser.ConfigParser()
-        cfg.read(EMAIL_SETTINGS_INI_FILENAME)
-        for flask_key, file_key in keys_tuples:
-            value = cfg.get('email', file_key)
-            if flask_key == 'MAIL_PORT':
-                value = int(value)
-            app.config[flask_key] = value
+    cfg = ConfigParser.ConfigParser()
+    cfg.read(EMAIL_SETTINGS_INI_FILENAME)
+    for flask_key, file_key in keys_tuples:
+        value = cfg.get('email', file_key)
+        if flask_key == 'MAIL_PORT':
+            value = int(value)
+        app.config[flask_key] = value
 
     return Mail(app)
 
@@ -747,6 +735,10 @@ def main():
         console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
+
+    if not os.path.exists(EMAIL_SETTINGS_INI_FILENAME):
+        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
+        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_INI_FILENAME))
 
     userdata.update(load_userdata())
     init_root_structure()
