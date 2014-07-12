@@ -352,8 +352,8 @@ class Users(Resource):
 
         activation_code = os.urandom(16).encode('hex')
 
-        body_msg = 'To activate your account, please execute this command with the command manager:\n'
-        body_msg += '\n\t>>> activate {}'.format(activation_code)
+        body_msg = 'Here is your user activation code:\n'
+        body_msg += '\n\t{}'.format(activation_code)
         body_msg += '\n\nNB: this token will expire in {:.1f} hours'.format(USER_ACTIVATION_TIMEOUT / 3600.0)
 
         # Send email
