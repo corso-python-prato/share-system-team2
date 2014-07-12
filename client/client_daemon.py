@@ -389,8 +389,9 @@ class Daemon(RegexMatchingEventHandler):
                 else:
                     self.stop(1, 'Error during connection with the server. Server fail to "delete" this file: {}'.format(path))
 
-            elif command == 'modified' or command == 'upload':
-                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
+            elif command == 'modify' or command == 'upload':
+                new_md5 = self.hash_file(self.relativize_path(path))
+                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if event_timestamp:
                     print 'event_timestamp di "{}" INTO SYNC: {}'.format(command, event_timestamp)
                     last_operation_timestamp = event_timestamp['server_timestamp']

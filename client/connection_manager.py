@@ -111,7 +111,7 @@ class ConnectionManager(object):
         _file = {'file': (open(filepath, 'rb'))}
         
         try:
-            r = requests.post(url, auth=self.auth, files=_file)
+            r = requests.post(url, auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_upload',url, e))
@@ -129,7 +129,7 @@ class ConnectionManager(object):
 
         _file = {'file': (open(filepath, 'rb'))}
         try:
-            r = requests.put(url, auth=self.auth, files=_file)
+            r = requests.put(url, auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
            self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_modify',url, e))
