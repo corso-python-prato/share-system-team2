@@ -268,8 +268,8 @@ class Daemon(RegexMatchingEventHandler):
 
                 # files modified in client: send modified files to server
                 for filepath in tree_diff['modified']:
-                    sync_commandsypend(('modified', filepath))
-                    #self.conn_mng.dispatch_request('modified', {'filepath': filepath})
+                    sync_commands.append(('modify', filepath))
+                    #self.conn_mng.dispatch_request('modify', {'filepath': filepath})
 
                 # files in client but not in server: upload them to server
                 for filepath in tree_diff['new_on_client']:
