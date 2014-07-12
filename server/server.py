@@ -494,6 +494,21 @@ class Files(Resource):
         save_userdata()
         return last_server_timestamp
 
+    def _match_md5(self, md5, upload_file, filename):
+        """
+        Create temporary file where i save received file.
+        If md5 of received file match the received md5 return the path of file else return None and delete temporary file.
+        """
+        tmp_filename = ''.join(('tmp', filename))
+        while os.path.exists(tmp_filename):
+            tmp_filename = ''.join(('tmp', tmp_filename))
+        upload_file.save(tmp_filename)
+        if calculate_file_md5(open(tmp_filename, 'rb')) == md5:
+            return tmp_filename
+        else:
+            os.remove(tmp_filename)
+            return None
+
     @auth.login_required
     def post(self, path):
         """
