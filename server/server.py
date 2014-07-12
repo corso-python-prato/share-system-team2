@@ -519,15 +519,21 @@ class Files(Resource):
         """
         username = auth.username()
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
+
+        tmp_file = self._match_md5(md5, upload_file, filename)
+        if not tmp_file:
+            abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
             if os.path.isfile(join(dirname, filename)):
+                os.remove(tmp_file)
                 abort(HTTP_FORBIDDEN)
         filepath = join(dirname, filename)
-        upload_file.save(filepath)
+        shutil.move(tmp_file, filepath)
 
         last_server_timestamp = self._update_user_path(username, path)
 
@@ -545,12 +551,19 @@ class Files(Resource):
         """
         username = auth.username()
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
+
+        tmp_file = self._match_md5(md5, upload_file, filename)
+        if not tmp_file:
+            abort(HTTP_CONFLICT)
+
         filepath = join(dirname, filename)
 
         if os.path.isfile(filepath):
-            upload_file.save(filepath)
+            shutil.move(tmp_file, filepath)
         else:
+            os.remove(tmp_file)
             abort(HTTP_NOT_FOUND)
 
         last_server_timestamp = self._update_user_path(username, path)
