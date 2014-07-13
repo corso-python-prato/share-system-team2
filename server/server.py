@@ -425,6 +425,7 @@ the $appname Team
         """
         activation_code = request.form['activation_code']
         logger.debug('Got activation code: {}'.format(activation_code))
+        logger.debug('Pending users: {}'.format(pending_users.keys()))
 
         # Pending users cleanup
         expired_pending_users = self._clean_pending_users()
