@@ -436,7 +436,6 @@ the $appname Team
             logger.debug('Activating user {}'.format(username))
             if activation_code == pending_user_data['activation_code']:
                 # Actually create user
-                              
                 password = pending_user_data[PWD]
                 pending_users.pop(username)
                 return create_user(username, password)
