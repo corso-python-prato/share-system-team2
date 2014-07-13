@@ -48,6 +48,7 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
+
 class ServerError(Exception):
     pass
 
@@ -328,7 +329,6 @@ def send_email(subject, sender, recipients, text_body):
 
 
 class Users(Resource):
-
     def _clean_pending_users(self):
         """
         Remove expired pending users (users whose activation time is expired)
@@ -362,7 +362,6 @@ class Users(Resource):
         A not-logged user is asking to register himself.
         NB: username must be a valid email address.
         """
-
         if username in userdata:
             abort(HTTP_CONFLICT)
 
@@ -393,6 +392,7 @@ the $appname Team
                       appname=__title__,
                       timeout='{:.0f}'.format(USER_ACTIVATION_TIMEOUT / 3600.0))
         text_body = text_body_template.substitute(values)
+
         send_email(subject, sender, recipients, text_body)
 
         pending_users[username] = {
