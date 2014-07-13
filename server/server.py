@@ -325,17 +325,11 @@ class Users(Resource):
         and return a list of them.
         :return: list
         """
-        removed = []
         # Remove expired pending users.
-        for pending_user in pending_users:
-            pending_user_data = pending_users[pending_user]
-            reg_timestamp = pending_user_data['timestamp']
-            elapsed = now_timestamp() - reg_timestamp
-            if elapsed > USER_ACTIVATION_TIMEOUT:
-                logger.info('Activation of {} expired'.format(pending_user))
-                pending_users.pop(pending_user)
-                removed.append(pending_users)
-        return removed
+        to_remove = [username for (username, data) in pending_users.iteritems()
+                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
+        [pending_users.pop(username) for username in to_remove]
+        return to_remove
 
     def get(self, username):
         """
