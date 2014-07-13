@@ -312,9 +312,19 @@ def configure_email():
 
 
 def send_email(subject, sender, recipients, text_body):
+    """
+    Sent an email and return the Message instance of sent email.
+
+    :param subject: str
+    :param sender: str
+    :param recipients: list
+    :param text_body: str
+    :return: Message
+    """
     msg = Message(subject, sender=sender, recipients=recipients)
     msg.body = text_body
     mail.send(msg)
+    return msg
 
 
 class Users(Resource):
