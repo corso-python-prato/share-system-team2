@@ -376,7 +376,7 @@ Thanks for signing up for $appname!
 As a final step of the $appname account creation process, please confirm the email address $email.
 Copy and paste the activation code below into the desktop application:
 
-    $code
+$code
 
 If you don't know what this is about, then someone has probably entered your email address by mistake.
 Sorry about that. You don't need to do anything further. Just delete this message.

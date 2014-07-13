@@ -508,6 +508,22 @@ class TestUsersPost(unittest.TestCase):
                              data={'password': self.password})
         self.assertEqual(test.status_code, HTTP_CONFLICT)
 
+    def test_activation_email(self):
+        """
+        Activation mail must be sent to the right recipient and *a line* of its body must be the activation code.
+        """
+        with server.mail.record_messages() as outbox:
+            resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                                 data={'password': self.password})
+        # Retrieve the generated activation code
+        activation_code = server.pending_users[self.username]['activation_code']
+
+        self.assertEqual(len(outbox), 1)
+        body = outbox[0].body
+        recipients = outbox[0].recipients
+        self.assertEqual(recipients, [self.username])
+        self.assertIn(activation_code, body.splitlines())
+
 
 class TestUsersPut(unittest.TestCase):
     def setUp(self):
