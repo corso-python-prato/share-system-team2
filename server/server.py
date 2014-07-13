@@ -46,6 +46,7 @@ USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 SNAPSHOT = 'files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
+USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 
@@ -267,9 +268,11 @@ def create_user(username, password):
             temp = init_user_directory(username)
             last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
 
-            single_user_data = {PWD: enc_pass,
+            single_user_data = {USER_CREATION_TIME: now_timestamp(),
+                                PWD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: dir_snapshot}
+                                SNAPSHOT: dir_snapshot,
+                                }
             userdata[username] = single_user_data
             save_userdata()
             response = 'User "{}" created.\n'.format(username), HTTP_CREATED
@@ -348,13 +351,27 @@ class Users(Resource):
         # TODO: require login and only show personal info.
         if username == '__all__':
             # Easter egg to see a list of registered and pending users.
-            response = 'Registered users: ' + ','.join(userdata.keys()) +\
-                       '. Pending users: ' + ','.join(pending_users.keys()), HTTP_OK
+            if userdata:
+                reg_users_listr = ', '.join(userdata.keys())
+            else:
+                reg_users_listr = 'no registered users'
+            if pending_users:
+                pending_users_listr = ', '.join(pending_users.keys())
+            else:
+                pending_users_listr = 'no pending users'
+            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr),\
+                       HTTP_OK
         else:
             if username in userdata:
-                response = '{} is a registered user.\n'.format(username), HTTP_OK
+                user_data = userdata[username]
+                creation_timestamp = user_data.get(USER_CREATION_TIME)
+                if creation_timestamp:
+                    time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                else:
+                    time_str = '<unknown time>'
+                response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
             else:
-                response = 'User {} does not exist.\n'.format(username), HTTP_NOT_FOUND
+                response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
         return response
 
     def post(self, username):
