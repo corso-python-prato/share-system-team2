@@ -417,59 +417,6 @@ class TestGetRequests(unittest.TestCase):
         self.assertEqual(obj, target)
 
 
-class TestShortcutSignup(unittest.TestCase):
-    def setUp(self):
-        setup_test_dir()
-        self.app = server.app.test_client()
-        self.app.testing = True
-        _manually_remove_user(USR)
-
-    def tearDown(self):
-        tear_down_test_dir()
-
-    def test_quick_signup(self):
-        """
-        Test for registration of a new user.
-        """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': USR, 'password': PW})
-        # test that userdata is actually updated
-        single_user_data = server.userdata[USR]
-        self.assertIn(USR, server.userdata)
-        # test single user data structure (as currently defined)
-        self.assertIsInstance(single_user_data, dict)
-        self.assertIn(server.LAST_SERVER_TIMESTAMP, single_user_data)
-        self.assertIn(server.SNAPSHOT, single_user_data)
-        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
-        self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
-        # test that the user directory is created
-        user_dirpath = userpath2serverpath(USR)
-        self.assertTrue(os.path.isdir(user_dirpath))
-        # test server response
-        self.assertEqual(test.status_code, server.HTTP_CREATED)
-        # remove the user
-        _manually_remove_user(USR)
-
-    def test_quick_signup_if_user_already_exists(self):
-        """
-        Test for registration of an already existing username.
-        """
-        # First create the user
-        _manually_create_user(USR, PW)
-        # Then try to create a new user with the same username
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': USR, 'password': 'boh'})
-        self.assertEqual(test.status_code, server.HTTP_CONFLICT)
-
-    def test_quick_signup_with_empty_username(self):
-        """
-        Test that a signup with empty user return a bad request error.
-        """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': '', 'password': 'pass'})
-        self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
-
-
 class TestUsersPost(unittest.TestCase):
     def setUp(self):
         setup_test_dir()
