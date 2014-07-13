@@ -221,6 +221,14 @@ def save_userdata():
     logger.info('Saved {:,} users'.format(len(userdata)))
 
 
+def reset_userdata():
+    """
+    Clear userdata and pending_users dictionaries.
+    """
+    userdata.clear()
+    pending_users.clear()
+
+
 @auth.verify_password
 def verify_password(username, password):
     """
