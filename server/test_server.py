@@ -117,7 +117,7 @@ def _manually_create_user(username, pw):
     # Create user direvtory with default structure (use the server function)
     user_dir_state = server.init_user_directory(username)
     single_user_data = user_dir_state
-    single_user_data[server.PASSWORD] = enc_pass
+    single_user_data[server.PWD] = enc_pass
     server.userdata[username] = single_user_data
     return single_user_data
 
@@ -580,7 +580,7 @@ def get_dic_dir_states():
     dir_state = {}
     for username in server.userdata:
         single_user_data = server.userdata[username].copy()
-        single_user_data.pop(server.PASSWORD)  # not very beautiful
+        single_user_data.pop(server.PWD)  # not very beautiful
         dic_state[username] = single_user_data
         dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
     return dic_state, dir_state

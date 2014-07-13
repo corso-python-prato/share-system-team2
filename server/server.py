@@ -45,7 +45,7 @@ USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
-PASSWORD = 'password'
+PWD = 'password'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
 class ServerError(Exception):
@@ -239,7 +239,7 @@ def verify_password(username, password):
         return False
     single_user_data = userdata.get(username)
     if single_user_data:
-        stored_pw = single_user_data.get(PASSWORD)
+        stored_pw = single_user_data.get(PWD)
         assert stored_pw is not None, 'Server error: user data must contain a password!'
         res = sha256_crypt.verify(password, stored_pw)
     else:
@@ -266,7 +266,7 @@ def create_user(username, password):
             temp = init_user_directory(username)
             last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
 
-            single_user_data = {PASSWORD: enc_pass,
+            single_user_data = {PWD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot}
             userdata[username] = single_user_data
@@ -398,7 +398,7 @@ the $appname Team
         pending_users[username] = {
             'timestamp': now_timestamp(),
             'activation_code': activation_code,
-            PASSWORD: password,
+            PWD: password,
         }
         return 'User activation email sent to {}'.format(username), HTTP_OK
 
@@ -419,7 +419,7 @@ the $appname Team
             if activation_code == pending_user_data['activation_code']:
                 # Actually create user
                               
-                password = pending_user_data[PASSWORD]
+                password = pending_user_data[PWD]
                 pending_users.pop(username)
                 return create_user(username, password)
             else:
