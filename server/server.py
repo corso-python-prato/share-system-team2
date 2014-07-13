@@ -88,7 +88,7 @@ userdata = {}
 pending_users = {}
 
 app = Flask(__name__)
-app.config['TESTING'] = __name__ != '__main__'  # Reasonable assumption?
+app.testing = __name__ != '__main__'  # Reasonable assumption?
 # if True, you can see the exception traceback, suppress the sending of emails, etc.
 
 api = Api(app)
