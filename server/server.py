@@ -407,7 +407,7 @@ the $appname Team
         values = dict(code=activation_code,
                       email=username,
                       appname=__title__,
-                      timeout='{:.0f}'.format(USER_ACTIVATION_TIMEOUT / 3600.0))
+                      )
         text_body = text_body_template.substitute(values)
 
         send_email(subject, sender, recipients, text_body)
