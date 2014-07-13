@@ -441,7 +441,7 @@ class TestUsersPost(unittest.TestCase):
             test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                                  data={'password': self.password})
 
-            # Test that user is add to <pending_users>
+            # Test that user is added to <pending_users>
             self.assertIn(self.username, server.pending_users.keys())
             self.assertEqual(test.status_code, HTTP_OK)
 
