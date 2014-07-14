@@ -14,6 +14,7 @@ import shutil
 import urlparse
 import json
 import logging
+import hashlib
 
 import server
 from server import userpath2serverpath
@@ -178,10 +179,11 @@ class TestRequests(unittest.TestCase):
         upload_test_url = SERVER_FILES_API + user_relative_upload_filepath
         uploaded_filepath = userpath2serverpath(USR, user_relative_upload_filepath)
         assert not os.path.exists(uploaded_filepath), '"{}" file is existing'.format(uploaded_filepath)
-
+        test_file = io.BytesIO(b'this is a test')
+        test_md5 = hashlib.md5(io.BytesIO(b'this is a test').read()).hexdigest()
         test = self.app.post(upload_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),),
+                             data={'file': test_file, 'md5': test_md5},
                              follow_redirects=True)
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
