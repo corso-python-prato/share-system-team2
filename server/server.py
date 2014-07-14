@@ -518,8 +518,12 @@ class Files(Resource):
         :param path: str
         """
         username = auth.username()
+
         upload_file = request.files['file']
+        print "questo e' upload_file:", upload_file
         md5 = request.form['md5']
+        print "questo e' md5", md5
+
         dirname, filename = self._get_dirname_filename(path)
 
         tmp_file = self._match_md5(md5, upload_file, filename)

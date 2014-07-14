@@ -253,7 +253,7 @@ class Daemon(RegexMatchingEventHandler):
 
         local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
-        print tree_diffprint tree_diff
+        print tree_diff
         sync_commands = []
 
         if self._is_directory_modified():
