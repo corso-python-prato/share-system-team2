@@ -39,7 +39,7 @@ URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
-EMAIL_SETTINGS_INI_FILENAME = 'email_settings.ini'
+
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 
 # json key to access to the user directory snapshot:
@@ -92,6 +92,7 @@ pending_users = {}
 app = Flask(__name__)
 app.testing = __name__ != '__main__'  # Reasonable assumption?
 # if True, you can see the exception traceback, suppress the sending of emails, etc.
+EMAIL_SETTINGS_INI_FILENAME = ('email_settings.ini', 'email_settings.ini.example')[app.testing]
 
 api = Api(app)
 auth = HTTPBasicAuth()
