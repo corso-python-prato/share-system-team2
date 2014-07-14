@@ -1,6 +1,5 @@
-"Testing" the server with the curl library
-==========================================
-
+Manual "Testing" the server with the curl library
+=================================================
 
 ## Files
 
@@ -38,15 +37,28 @@ Move (POST):
 
 ## Users
 
+NB: To create an user, <youruser> has to be a valid email address.
+
 User signup (POST):
 
-    curl -X post localhost:5000/API/V1/users/<youremail> --data "password=<yourpassword>"
+    curl -X post localhost:5000/API/V1/users/<youruser> --data "password=<yourpassword>"
 
 User activation (PUT):
 
-    curl -X put localhost:5000/API/V1/users/<youremail> --data "activation_code=<yourcode>"
+    curl -X put localhost:5000/API/V1/users/<youruser> --data "activation_code=<yourcode>"
 
-User signup shortcut (GET):
+User info (GET):
+
+    curl localhost:5000/API/V1/users/<youruser>
+
+
+User signup shortcut:
 
     curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
+
+
+Automated testing with nose and coverage
+========================================
+
+$ nosetests --with-coverage --cover-erase --cover-html --cover-package (modulename|directory)
 
