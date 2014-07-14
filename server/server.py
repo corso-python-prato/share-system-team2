@@ -331,24 +331,14 @@ def send_email(subject, sender, recipients, text_body):
     return msg
 
 
-class Users(Resource):
-    def _clean_pending_users(self):
-        """
-        Remove expired pending users (users whose activation time is expired)
-        and return a list of them.
-        :return: list
-        """
-        # Remove expired pending users.
-        to_remove = [username for (username, data) in pending_users.iteritems()
-                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
-        [pending_users.pop(username) for username in to_remove]
-        return to_remove
-
+class UsersFacility(Resource):
+    """
+    Debug facility/backdoor to get all users (and pending users) info and without authentication.
+    """
     def get(self, username):
         """
         Show some info about users.
         """
-        # TODO: require login and only show personal info.
         if username == '__all__':
             # Easter egg to see a list of registered and pending users.
             if userdata:
@@ -373,6 +363,39 @@ class Users(Resource):
             else:
                 response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
         return response
+
+
+class Users(Resource):
+    def _clean_pending_users(self):
+        """
+        Remove expired pending users (users whose activation time is expired)
+        and return a list of them.
+        :return: list
+        """
+        # Remove expired pending users.
+        to_remove = [username for (username, data) in pending_users.iteritems()
+                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
+        [pending_users.pop(username) for username in to_remove]
+        return to_remove
+
+    @auth.login_required
+    def get(self, username):
+        """
+        Show logged user details.
+        """
+        logged = auth.username()
+        if username == logged:
+            user_data = userdata[username]
+            creation_timestamp = user_data.get(USER_CREATION_TIME)
+            if creation_timestamp:
+                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+            else:
+                time_str = '<unknown time>'
+            # TODO: return json?
+            response = 'You joined on {}.'.format(time_str), HTTP_OK
+            return response
+        else:
+            abort(HTTP_FORBIDDEN)
 
     def post(self, username):
         """
@@ -755,6 +778,7 @@ class Files(Resource):
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
+api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()

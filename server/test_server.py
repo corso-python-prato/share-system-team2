@@ -14,12 +14,15 @@ import shutil
 import urlparse
 import json
 import logging
+import random
+import string
 
 import server
 from server import userpath2serverpath
 
 HTTP_OK = 200
 HTTP_CREATED = 201
+HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
 
@@ -41,6 +44,24 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
+
+
+def pick_rand_str(length, possible_chars=string.ascii_lowercase):
+    return ''.join([random.choice(possible_chars) for _ in xrange(length)])
+
+
+def pick_rand_pw(length=8):
+    possible_chars = string.letters + string.punctuation + string.digits
+    return pick_rand_str(length, possible_chars)
+
+
+def pick_rand_email():
+    res = '{}@{}.{}'.format(pick_rand_str(random.randrange(3, 12)),
+                            pick_rand_str(random.randrange(3, 8)),
+                            pick_rand_str(random.randrange(2, 4)))
+    return res
+    #\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b
+
 
 def make_basicauth_headers(user, pwd):
     return {'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pwd))}    
@@ -569,6 +590,34 @@ class TestUsersDelete(unittest.TestCase):
         self.assertNotIn(USR, server.userdata)
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.exists(user_dirpath))
+
+
+class TestUsersGet(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+    def tearDown(self):
+        tear_down_test_dir()
+
+    def test_get_self(self):
+        username = 'pippo@topolinia.com'
+        pw = pick_rand_pw()
+        _manually_create_user(username, pw)
+        url = SERVER_API + 'users/' + username
+        test = self.app.get(url, headers=make_basicauth_headers(username, pw))
+        self.assertEqual(test.status_code, HTTP_OK)
+
+    def test_get_other(self):
+        username = 'pippo@topolinia.com'
+        other_username = 'a' + username
+        pw = pick_rand_pw()
+        _manually_create_user(username, pw)
+        url = SERVER_API + 'users/' + other_username
+        test = self.app.get(url, headers=make_basicauth_headers(username, pw))
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
 
 
 def get_dic_dir_states():
