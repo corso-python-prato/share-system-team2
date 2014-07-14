@@ -135,7 +135,7 @@ def _manually_create_user(username, pw):
     :return: dict
     """
     enc_pass = server._encrypt_password(pw)
-    # Create user direvtory with default structure (use the server function)
+    # Create user directory with default structure (use the server function)
     user_dir_state = server.init_user_directory(username)
     single_user_data = user_dir_state
     single_user_data[server.PWD] = enc_pass
