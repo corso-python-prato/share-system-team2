@@ -274,7 +274,7 @@ class TestClientDaemon(unittest.TestCase):
 
         self.assertEqual(
             self.client_daemon._sync_process(server_timestamp, files),
-            [('modified', 'carlo.txt')]
+            [('modify', 'carlo.txt')]
         )
 
     def test_sync_process_directory_modified4(self):
@@ -478,11 +478,11 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         Test the Daemons function
         """
         md5Hash = hashlib.md5()
-        
+
         for path, time_md5 in self.client_daemon.client_snapshot.items():
             # extract md5 from tuple. we don't need hexdigest it's already md5
             md5Hash.update(time_md5[1])
-            md5Hash.update(hashlib.md5(path).hexdigest())
+            md5Hash.update(path)
 
         response_of_function = self.client_daemon.md5_of_client_snapshot()
         self.assertNotEqual(response_of_function,'50abe822532a06fb733ea3bc089527af')
