@@ -7,7 +7,6 @@ Every TestCase class should use the <TEST_DIR> directory. To do it, just call 's
 'tear_down_test_dir()' in the tearDown one.
 """
 import unittest
-import io
 import os
 import base64
 import shutil
@@ -15,6 +14,7 @@ import urlparse
 import json
 import logging
 import hashlib
+import tempfile
 
 import server
 from server import userpath2serverpath
@@ -151,6 +151,17 @@ def tear_down_test_dir():
     os.chdir(start_dir)
     shutil.rmtree(TEST_DIR)
 
+def _make_temp_file():
+    """
+    Create temporary file for testing
+    NB: the file sent with test_client() must be with name
+    :return: First value is a FileObject and second value the relative md5
+    """
+    temp_file = tempfile.NamedTemporaryFile()
+    temp_file.write('this is a test')
+    temp_file.seek(0)
+    test_md5 = hashlib.md5('this is a test').hexdigest()
+    return temp_file, test_md5
 
 class TestRequests(unittest.TestCase):
     def setUp(self):
@@ -179,12 +190,15 @@ class TestRequests(unittest.TestCase):
         upload_test_url = SERVER_FILES_API + user_relative_upload_filepath
         uploaded_filepath = userpath2serverpath(USR, user_relative_upload_filepath)
         assert not os.path.exists(uploaded_filepath), '"{}" file is existing'.format(uploaded_filepath)
-        test_file = io.BytesIO(b'this is a test')
-        test_md5 = hashlib.md5(io.BytesIO(b'this is a test').read()).hexdigest()
-        test = self.app.post(upload_test_url,
+        # Create temporary file for test
+        test_file, test_md5 = _make_temp_file()
+        try:
+            test = self.app.post(upload_test_url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
                              data={'file': test_file, 'md5': test_md5},
                              follow_redirects=True)
+        finally:
+            test_file.close()
         self.assertEqual(test.status_code, server.HTTP_CREATED)
         self.assertTrue(os.path.isfile(uploaded_filepath))
         # check that uploaded path exists in username files dict
@@ -198,9 +212,15 @@ class TestRequests(unittest.TestCase):
         """
         user_filepath = '../../../test/myfile2.dat'  # path forbidden
         url = SERVER_FILES_API + user_filepath
-        test = self.app.post(url,
+        # Create temporary file for test
+        test_file, test_md5 = _make_temp_file()
+        try:
+            test = self.app.post(url,
                              headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data=dict(file=(io.BytesIO(b'this is a test'), 'test.pdf'),), follow_redirects=True)
+                             data={'file': test_file, 'md5': test_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
 
