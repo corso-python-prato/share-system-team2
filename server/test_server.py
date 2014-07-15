@@ -308,6 +308,27 @@ class TestRequests(unittest.TestCase):
         self.assertEqual(old_md5, new_md5)
         self.assertEqual(test.status_code, server.HTTP_CONFLICT)
 
+    def test_files_put_of_not_existing_file(self):
+        """
+        Test modify of not existing file..
+        """
+        path = 'test_put/file_not_existent.txt' # not existent path
+        to_modify_filepath = userpath2serverpath(USR, path)
+
+        url = SERVER_FILES_API + path
+        # Create temporary file for test
+        test_file, test_md5 = _make_temp_file()
+        try:
+            test = self.app.put(url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'file': test_file, 'md5': test_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
+
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+        self.assertNotIn(to_modify_filepath, server.userdata[USR][server.SNAPSHOT])
+
     def test_files_put_with_bad_md5(self):
         """
         Test modify with bad md5.
