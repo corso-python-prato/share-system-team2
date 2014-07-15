@@ -715,11 +715,13 @@ class Daemon(RegexMatchingEventHandler):
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
-        sorted(self.client_snapshot)
+        
         for path, time_md5 in sorted(self.client_snapshot.items()):            
             # extract md5 from tuple. we don't need hexdigest it's already md5
+            if verbose:
+                print path
             md5Hash.update(time_md5[1])
-            md5Hash.update(hashlib.md5(path).hexdigest())
+            md5Hash.update(path)
 
         if verbose:
             stop = time.time()
