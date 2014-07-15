@@ -92,7 +92,8 @@ pending_users = {}
 app = Flask(__name__)
 app.testing = __name__ != '__main__'  # Reasonable assumption?
 # if True, you can see the exception traceback, suppress the sending of emails, etc.
-EMAIL_SETTINGS_INI_FILENAME = ('email_settings.ini', 'email_settings.ini.example')[app.testing]
+EMAIL_SETTINGS_INI_FILENAME = join(os.path.dirname(__file__),
+                                   ('email_settings.ini', 'email_settings.ini.example')[app.testing])
 
 api = Api(app)
 auth = HTTPBasicAuth()
