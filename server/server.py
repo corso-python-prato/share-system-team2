@@ -18,6 +18,7 @@ from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, Api
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+from tempfile import NamedTemporaryFile
 
 __title__ = 'PyBOX'
 
@@ -496,17 +497,17 @@ class Files(Resource):
 
     def _match_md5(self, md5, upload_file, filename):
         """
-        Create temporary file where i save received file.
+        Create temporary file where i can save the received file.
         If md5 of received file match the received md5 return the path of file else return None and delete temporary file.
+        NB: NamedTemporaryFile() will be deleted when closed by garbage collector
         """
-        tmp_filename = ''.join(('tmp', filename))
-        while os.path.exists(tmp_filename):
-            tmp_filename = ''.join(('tmp', tmp_filename))
-        upload_file.save(tmp_filename)
-        if calculate_file_md5(open(tmp_filename, 'rb')) == md5:
-            return tmp_filename
+        temp_file = NamedTemporaryFile()
+        temp_file_name = temp_file.name
+        upload_file.save(temp_file_name)
+        if calculate_file_md5(temp_file) == md5:
+            temp_file.seek(0)
+            return temp_file
         else:
-            os.remove(tmp_filename)
             return None
 
     @auth.login_required
@@ -520,25 +521,22 @@ class Files(Resource):
         username = auth.username()
 
         upload_file = request.files['file']
-        print "questo e' upload_file:", upload_file
         md5 = request.form['md5']
-        print "questo e' md5", md5
-
         dirname, filename = self._get_dirname_filename(path)
+        temp_file = self._match_md5(md5, upload_file, filename)
 
-        tmp_file = self._match_md5(md5, upload_file, filename)
-        if not tmp_file:
+        if not temp_file:
             abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
             if os.path.isfile(join(dirname, filename)):
-                os.remove(tmp_file)
                 abort(HTTP_FORBIDDEN)
-        filepath = join(dirname, filename)
-        shutil.move(tmp_file, filepath)
 
+        filepath = join(dirname, filename)
+        with open(filepath,'wb') as fdst:
+            shutil.copyfileobj(temp_file, fdst)
         last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -557,17 +555,17 @@ class Files(Resource):
         upload_file = request.files['file']
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
+        temp_file = self._match_md5(md5, upload_file, filename)
 
-        tmp_file = self._match_md5(md5, upload_file, filename)
-        if not tmp_file:
+        if not temp_file:
             abort(HTTP_CONFLICT)
 
         filepath = join(dirname, filename)
 
         if os.path.isfile(filepath):
-            shutil.move(tmp_file, filepath)
+            with open(filepath,'wb') as fdst:
+                shutil.copyfileobj(temp_file, fdst)
         else:
-            os.remove(tmp_file)
             abort(HTTP_NOT_FOUND)
 
         last_server_timestamp = self._update_user_path(username, path)
