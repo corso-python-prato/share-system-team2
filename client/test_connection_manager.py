@@ -85,7 +85,7 @@ class TestConnectionManager(unittest.TestCase):
                                content_type="application/json")
 
         # call api
-        response = self.cm.do_upload({'filepath': 'foo.txt'})
+        response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     # actions:
@@ -124,7 +124,7 @@ class TestConnectionManager(unittest.TestCase):
                                body=js,
                                content_type="application/json")
 
-        response = self.cm.do_modify({'filepath': 'foo.txt'})
+        response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     @httpretty.activate
