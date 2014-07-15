@@ -226,6 +226,33 @@ class TestRequests(unittest.TestCase):
         # check that uploaded path NOT exists in username files dict
         self.assertNotIn(user_filepath, server.userdata[USR][server.SNAPSHOT])
 
+    def test_files_post_with_existent_path(self):
+        """
+        Test the creation of file that already exists.
+        """
+        path = 'test_put/file_to_change.txt' #path already existent
+        _create_file(USR, path, 'I already exist! Don\'t erase me!')
+        to_created_filepath = userpath2serverpath(USR, path)
+        old_content = open(to_created_filepath).read()
+        old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+
+        url = SERVER_FILES_API + path
+
+        # Create temporary file for test
+        test_file, test_md5 = _make_temp_file()
+        try:
+            test = self.app.post(url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'file': test_file, 'md5': test_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+        new_content = open(to_created_filepath).read()
+        self.assertEqual(old_content, new_content)
+        new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+        self.assertEqual(old_md5, new_md5)
+
     def test_files_post_with_bad_md5(self):
         """
         Test upload with bad md5.
