@@ -739,7 +739,7 @@ class Daemon(RegexMatchingEventHandler):
                     buf = f1.read(chunk_size)
                     if not buf:
                         break
-                    md5Hash.update(hashlib.md5(buf).hexdigest())
+                    md5Hash.update(buf)
             f1.close()
             return md5Hash.hexdigest()
         except (OSError, IOError) as e:
