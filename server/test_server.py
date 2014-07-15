@@ -223,6 +223,34 @@ class TestRequests(unittest.TestCase):
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
         self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_filepath)))
+        # check that uploaded path NOT exists in username files dict
+        self.assertNotIn(user_filepath, server.userdata[USR][server.SNAPSHOT])
+
+    def test_files_post_with_bad_md5(self):
+        """
+        Test upload with bad md5.
+        """
+        user_relative_upload_filepath = 'testupload/testfile.txt'
+        upload_test_url = SERVER_FILES_API + user_relative_upload_filepath
+        uploaded_filepath = userpath2serverpath(USR, user_relative_upload_filepath)
+        assert not os.path.exists(uploaded_filepath), '"{}" file is existing'.format(uploaded_filepath)
+        # Create temporary file for test
+        test_file, not_used_md5 = _make_temp_file()
+
+        # Create fake md5 and send it instead the right md5
+        fake_md5 = 'sent_bad_md5'
+        try:
+            test = self.app.post(upload_test_url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'file': test_file, 'md5': fake_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
+        self.assertEqual(test.status_code, server.HTTP_CONFLICT)
+        self.assertFalse(os.path.isfile(userpath2serverpath(USR, user_relative_upload_filepath)))
+
+        # check that uploaded path NOT exists in username files dict
+        self.assertNotIn(user_relative_upload_filepath, server.userdata[USR][server.SNAPSHOT])
 
     def test_files_put_with_auth(self):
         """
@@ -235,10 +263,44 @@ class TestRequests(unittest.TestCase):
         old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
 
         url = SERVER_FILES_API + path
-        test = self.app.put(url,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                            data=dict(file=(io.BytesIO(b'I have changed'), 'foo.foo')), follow_redirects=True)
+        # Create temporary file for test
+        test_file, not_used_md5 = _make_temp_file()
 
+        # Create fake md5 and send it instead the right md5
+        fake_md5 = 'sent_bad_md5'
+        try:
+            test = self.app.put(url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'file': test_file, 'md5': fake_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
+        new_content = open(to_modify_filepath).read()
+        self.assertEqual(old_content, new_content)
+        new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+        self.assertEqual(old_md5, new_md5)
+        self.assertEqual(test.status_code, server.HTTP_CONFLICT)
+
+    def test_files_put_with_bad_md5(self):
+        """
+        Test modify with bad md5.
+        """
+        path = 'test_put/file_to_change.txt'
+        _create_file(USR, path, 'I will NOT change')
+        to_modify_filepath = userpath2serverpath(USR, path)
+        old_content = open(to_modify_filepath).read()
+        old_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
+
+        url = SERVER_FILES_API + path
+        # Create temporary file for test
+        test_file, test_md5 = _make_temp_file()
+        try:
+            test = self.app.put(url,
+                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
+                             data={'file': test_file, 'md5': test_md5},
+                             follow_redirects=True)
+        finally:
+            test_file.close()
         new_content = open(to_modify_filepath).read()
         self.assertNotEqual(old_content, new_content)
         new_md5 = server.userdata[USR][server.SNAPSHOT][path][1]
