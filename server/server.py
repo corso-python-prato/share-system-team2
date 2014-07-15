@@ -92,8 +92,8 @@ pending_users = {}
 app = Flask(__name__)
 app.testing = __name__ != '__main__'  # Reasonable assumption?
 # if True, you can see the exception traceback, suppress the sending of emails, etc.
-EMAIL_SETTINGS_INI_FILENAME = join(os.path.dirname(__file__),
-                                   ('email_settings.ini', 'email_settings.ini.example')[app.testing])
+EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
+                               ('email_settings.ini', 'email_settings.ini.example')[app.testing])
 
 api = Api(app)
 auth = HTTPBasicAuth()
@@ -307,7 +307,7 @@ def configure_email():
     ]
 
     cfg = ConfigParser.ConfigParser()
-    cfg.read(EMAIL_SETTINGS_INI_FILENAME)
+    cfg.read(EMAIL_SETTINGS_FILEPATH)
     for flask_key, file_key in keys_tuples:
         value = cfg.get('email', file_key)
         if flask_key == 'MAIL_PORT':
@@ -811,9 +811,9 @@ def main():
 
     logger.debug('File logging level: {}'.format(file_handler.level))
 
-    if not os.path.exists(EMAIL_SETTINGS_INI_FILENAME):
+    if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
-        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_INI_FILENAME))
+        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
     userdata.update(load_userdata())
     init_root_structure()
