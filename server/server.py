@@ -725,21 +725,6 @@ class Files(Resource):
         save_userdata()
         return last_server_timestamp
 
-    def _match_md5(self, md5, upload_file, filename):
-        """
-        Create temporary file where i can save the received file.
-        If md5 of received file match the received md5 return the path of file else return None and delete temporary file.
-        NB: NamedTemporaryFile() will be deleted when closed by garbage collector
-        """
-        temp_file = NamedTemporaryFile()
-        temp_file_name = temp_file.name
-        upload_file.save(temp_file_name)
-        if calculate_file_md5(temp_file) == md5:
-            temp_file.seek(0)
-            return temp_file
-        else:
-            return None
-
     @auth.login_required
     def post(self, path):
         """
@@ -753,9 +738,13 @@ class Files(Resource):
         upload_file = request.files['file']
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
-        temp_file = self._match_md5(md5, upload_file, filename)
 
-        if not temp_file:
+        temp_file = NamedTemporaryFile()
+        temp_file_name = temp_file.name
+        upload_file.save(temp_file_name)
+        if calculate_file_md5(temp_file) == md5:
+            temp_file.seek(0)
+        else:
             abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
@@ -767,7 +756,7 @@ class Files(Resource):
         filepath = join(dirname, filename)
         with open(filepath,'wb') as fdst:
             shutil.copyfileobj(temp_file, fdst)
-            
+
         # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
 
@@ -787,9 +776,12 @@ class Files(Resource):
         upload_file = request.files['file']
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
-        temp_file = self._match_md5(md5, upload_file, filename)
-
-        if not temp_file:
+        temp_file = NamedTemporaryFile()
+        temp_file_name = temp_file.name
+        upload_file.save(temp_file_name)
+        if calculate_file_md5(temp_file) == md5:
+            temp_file.seek(0)
+        else:
             abort(HTTP_CONFLICT)
 
         filepath = join(dirname, filename)
