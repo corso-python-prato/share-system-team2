@@ -742,9 +742,7 @@ class Files(Resource):
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
 
-        if calculate_file_md5(upload_file) == md5:
-            upload_file.seek(0)
-        else:
+        if calculate_file_md5(upload_file) != md5:
             abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
@@ -776,9 +774,7 @@ class Files(Resource):
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
 
-        if calculate_file_md5(upload_file) == md5:
-            upload_file.seek(0)
-        else:
+        if calculate_file_md5(upload_file) != md5:
             abort(HTTP_CONFLICT)
 
         filepath = join(dirname, filename)
