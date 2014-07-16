@@ -220,9 +220,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(upload_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': test_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': test_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_CREATED)
@@ -242,9 +242,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': test_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': test_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
@@ -268,9 +268,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': test_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': test_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
@@ -294,9 +294,9 @@ class TestRequests(unittest.TestCase):
         fake_md5 = 'sent_bad_md5'
         try:
             test = self.app.post(upload_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': fake_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': fake_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_CONFLICT)
@@ -323,9 +323,9 @@ class TestRequests(unittest.TestCase):
         fake_md5 = 'sent_bad_md5'
         try:
             test = self.app.put(url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': fake_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': fake_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         new_content = open(to_modify_filepath).read()
@@ -346,9 +346,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.put(url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': test_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': test_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
 
@@ -370,9 +370,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.put(url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'file': test_file, 'md5': test_md5},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'file': test_file, 'md5': test_md5},
+                            follow_redirects=True)
         finally:
             test_file.close()
         new_content = open(to_modify_filepath).read()
@@ -393,8 +393,8 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, delete_test_file_path, 'this is the file to be deleted')
 
         test = self.app.post(delete_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'filepath': delete_test_file_path}, follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'filepath': delete_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
@@ -416,8 +416,8 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, dst_copy_test_file_path, 'different other content')
 
         test = self.app.post(copy_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path}, follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
@@ -436,8 +436,8 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
 
         test = self.app.post(move_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
+                            headers=make_basicauth_headers(USR,PW),
+                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
@@ -493,7 +493,7 @@ class TestGetRequests(unittest.TestCase):
         to download an existing file.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+                            headers=make_basicauth_headers(USR,PW))
         self.assertEqual(test.status_code, server.HTTP_OK)
 
     def test_files_get_existing_file_with_wrong_password(self):
@@ -503,8 +503,7 @@ class TestGetRequests(unittest.TestCase):
         """
         wrong_password = PW + 'a'
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR,
-                                                                                                 wrong_password))})
+                            headers=make_basicauth_headers(USR,wrong_password))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_empty_password(self):
@@ -513,7 +512,7 @@ class TestGetRequests(unittest.TestCase):
         the user exists but the password is an empty string.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, ''))})
+                            headers=make_basicauth_headers(USR,''))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_empty_username(self):
@@ -522,7 +521,7 @@ class TestGetRequests(unittest.TestCase):
         the given user is an empty string and the password is not empty.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format('', PW))})
+                            headers=make_basicauth_headers('',PW))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_unexisting_user(self):
@@ -533,7 +532,7 @@ class TestGetRequests(unittest.TestCase):
         user = 'UnExIsTiNgUsEr'
         assert user not in server.userdata
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, PW))})
+                            headers=make_basicauth_headers(user,PW))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_without_auth(self):
@@ -550,7 +549,7 @@ class TestGetRequests(unittest.TestCase):
         a file that does not exist.
         """
         test = self.app.get(SERVER_FILES_API + 'testdownload/unexisting.txt',
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+                            headers=make_basicauth_headers(USR,PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
     def test_files_get_snapshot(self):
@@ -564,8 +563,7 @@ class TestGetRequests(unittest.TestCase):
         target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
                   server.SNAPSHOT: expected_snapshot}
         test = self.app.get(SERVER_FILES_API,
-                            headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))},
-                            )
+                            headers=make_basicauth_headers(USR,PW))
         self.assertEqual(test.status_code, server.HTTP_OK)
         obj = json.loads(test.data)
         self.assertEqual(obj, target)
@@ -711,13 +709,13 @@ class TestUsersDelete(unittest.TestCase):
         # Test FORBIDDEN case (removing other users)
         url = SERVER_API + 'users/' + 'otheruser'
         test = self.app.delete(url,
-                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+                            headers=make_basicauth_headers(USR,PW))
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
 
         # Test OK case
         url = SERVER_API + 'users/' + USR
         test = self.app.delete(url,
-                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+                            headers=make_basicauth_headers(USR,PW))
 
         self.assertNotIn(USR, server.userdata)
         self.assertEqual(test.status_code, server.HTTP_OK)
@@ -790,7 +788,7 @@ class TestUserdataConsistence(unittest.TestCase):
         # post
         _create_file(user, 'new_file', 'ciao!!!')
         url = SERVER_FILES_API + 'new_file'
-        self.app.post(url, headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+        self.app.post(url, headers=make_basicauth_headers(USR,PW))
 
         # move
         move_test_url = SERVER_ACTIONS_API + 'move'
@@ -799,16 +797,16 @@ class TestUserdataConsistence(unittest.TestCase):
         #create source file to be moved and its destination
         _create_file(user, src_move_test_file_path, 'this is the file to be moved')
         test = self.app.post(move_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
-                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(user,'pass'),
+                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                            follow_redirects=True)
 
         # copy
         copy_test_url = SERVER_FILES_API + 'copy'
         test = self.app.post(copy_test_url,
-                             headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, 'pass'))},
-                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
-                             follow_redirects=True)
+                            headers=make_basicauth_headers(user,'pass'),
+                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                            follow_redirects=True)
 
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
@@ -821,12 +819,12 @@ class TestUserdataConsistence(unittest.TestCase):
         path = 'dir/dirfile.txt'
         _create_file(user, path, 'dirfile content...')
         self.app.post(SERVER_FILES_API + path,
-                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))})
+                            headers=make_basicauth_headers(user,pw))
 
         # delete it
         self.app.post(SERVER_FILES_API + 'delete',
-                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
-                      data={'filepath': path})
+                            headers=make_basicauth_headers(user,pw),
+                            data={'filepath': path})
 
         # final check
         dic_state, dir_state = get_dic_dir_states()
