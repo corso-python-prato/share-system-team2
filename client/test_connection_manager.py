@@ -50,9 +50,58 @@ class TestConnectionManager(unittest.TestCase):
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
+        self.user_url = ''.join([self.base_url, 'users/'])
 
         self.cm = ConnectionManager(self.cfg)
         self.make_fake_dir()
+
+    @httpretty.activate
+    def test_register_user(self):
+        """
+        Test register user api:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        user = 'mail@mail.it'
+        password = 'password'
+        data = (user, password)
+        url = ''.join((self.user_url, user))
+
+        httpretty.register_uri(httpretty.POST, url, status=201, body='user activated')
+        response = self.cm.do_register(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        self.assertFalse(self.cm.do_register(data))
+
+        httpretty.register_uri(httpretty.POST, url, status=409)
+        self.assertFalse(self.cm.do_register(data))
+
+    @httpretty.activate
+    def test_activate_user(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = '6c9fb345c317ad1d31ab9d6445d1a820'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
+
+        httpretty.register_uri(httpretty.PUT, url, status=201, body='user activated')
+        response = self.cm.do_activate(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.PUT, url, status=404)
+        self.assertFalse(self.cm.do_activate(data))
+
+        httpretty.register_uri(httpretty.PUT, url, status=409)
+        self.assertFalse(self.cm.do_activate(data))
 
     # files:
     @httpretty.activate

@@ -81,19 +81,6 @@ class CommandParser(cmd.Cmd):
     def do_EOF(self, line):
         return True
 
-    def do_reguser(self, line):
-        """ Create new user
-            Usage: reguser <username> <password>
-        """
-        try:
-            user, password = line.split()
-        except ValueError:
-            print 'usage: newUser <username> <password>'
-        else:
-            message = {'reguser': (user, password)}
-            print message
-            self._send_to_daemon(message)
-
     def do_shutdown(self, line):
         """
         Shutdown the daemon
@@ -101,6 +88,38 @@ class CommandParser(cmd.Cmd):
         message = {'shutdown': ()}
         self._send_to_daemon(message)
 
+    def do_register(self, line):
+        """
+        Create new user:
+        Send a request to server for creating a new user
+        Usage: register <e-mail> <password>
+        """
+        try:
+            mail, password = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: register <e-mail> <password>'
+        else:
+            message = {'register': (mail, password)}
+            self._send_to_daemon(message)
+
+    def do_activate(self, line):
+        """
+        Activate the user:
+        Send the token (received by mail) to server for activating the new user
+        Usage: activate <e-mail> <token>
+        """
+        try:
+            mail, token = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: activate <e-mail> <token>'
+        else:
+            message = {'activate': (mail, token)}
+            self._send_to_daemon(message)
+
 
 if __name__ == '__main__':
     CommandParser().cmdloop()
+
+

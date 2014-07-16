@@ -38,6 +38,7 @@ class ConnectionManager(object):
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
         self.shares_url = ''.join([self.base_url, 'shares/'])
+        self.users_url = ''.join([self.base_url, 'users/'])
         
         self.logger = logging.getLogger("ConMng")
         self.logger.setLevel(level=logging_level)
@@ -69,16 +70,36 @@ class ConnectionManager(object):
         except AttributeError:
             self._default(method_name)
 
-    def do_reguser(self, data):
-        data = {'username': data[0], 'password': data[1]}
-        url = ''.join([self.base_url, 'signup'])
-        self.logger.info('{}: URL: {} - DATA: {} '.format('do_reguser',url, data))
+    def do_register(self, data):
+        """
+        Send registration user request
+        """
+        req = {'password': data[1]}
+        url = ''.join([self.users_url, data[0]])
+        self.logger.info('do_register: URL: {} - DATA: {} '.format(url, data))
 
         try:
-            r = requests.post(url, data=data)
+            r = requests.post(url, data=req)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_reguser',url, e))
+            self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
+    def do_activate(self, data):
+        """
+        Send activation user request
+        """
+        req = {'activation_code': data[1]}
+        url = ''.join([self.users_url, data[0]])
+        self.logger.info('do_activate: URL: {} - DATA: {} '.format(url, data))
+
+        try:
+            r = requests.put(url, data=req)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_activate: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
         else:
             return r.text
         return False
