@@ -20,7 +20,6 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
-from tempfile import NamedTemporaryFile
 
 __title__ = 'PyBOX'
 
@@ -739,11 +738,8 @@ class Files(Resource):
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
 
-        temp_file = NamedTemporaryFile()
-        temp_file_name = temp_file.name
-        upload_file.save(temp_file_name)
-        if calculate_file_md5(temp_file) == md5:
-            temp_file.seek(0)
+        if calculate_file_md5(upload_file) == md5:
+            upload_file.seek(0)
         else:
             abort(HTTP_CONFLICT)
 
@@ -754,8 +750,7 @@ class Files(Resource):
                 abort(HTTP_FORBIDDEN)
 
         filepath = join(dirname, filename)
-        with open(filepath,'wb') as fdst:
-            shutil.copyfileobj(temp_file, fdst)
+        upload_file.save(filepath)
 
         # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
@@ -776,19 +771,15 @@ class Files(Resource):
         upload_file = request.files['file']
         md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
-        temp_file = NamedTemporaryFile()
-        temp_file_name = temp_file.name
-        upload_file.save(temp_file_name)
-        if calculate_file_md5(temp_file) == md5:
-            temp_file.seek(0)
+
+        if calculate_file_md5(upload_file) == md5:
+            upload_file.seek(0)
         else:
             abort(HTTP_CONFLICT)
 
         filepath = join(dirname, filename)
-
         if os.path.isfile(filepath):
-            with open(filepath,'wb') as fdst:
-                shutil.copyfileobj(temp_file, fdst)
+            upload_file.save(filepath)
         else:
             abort(HTTP_NOT_FOUND)
 
