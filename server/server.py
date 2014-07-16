@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import time
 import string
+
 join = os.path.join
 normpath = os.path.normpath
 abspath = os.path.abspath
@@ -107,6 +108,7 @@ def _read_file(filename):
         content = f.read()
     return content
 
+
 def check_path(path, username):
     """
     Check that a path don't fall in other user directories or upper.
@@ -142,6 +144,7 @@ def now_timestamp():
     :return: int
     """
     return int(time.time())
+
 
 def file_timestamp(filepath):
     """
@@ -186,7 +189,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     os.makedirs(dirpath)
 
     welcome_file = join(dirpath, 'WELCOME')
-    with open(welcome_file, 'w') as fp:
+    with open(welcome_file, 'wb') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
 
     for dirname in default_dirs:
@@ -195,7 +198,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         os.mkdir(subdirpath)
         # Create a default file for each default directory
         # beacuse wee need files to see the directories.
-        with open(filepath, 'w') as fp:
+        with open(filepath, 'wb') as fp:
             fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
     return compute_dir_state(dirpath)
@@ -258,7 +261,7 @@ def create_user(username, password):
     """
     # Example of creation using requests:
     # requests.post('http://127.0.0.1:5000/API/V1/signup',
-    #               data={'username': 'Pippo', 'password': 'ciao'})
+    # data={'username': 'Pippo', 'password': 'ciao'})
     logger.debug('Creating user...')
     if username and password:
         if username in userdata:
@@ -268,7 +271,7 @@ def create_user(username, password):
             enc_pass = _encrypt_password(password)
 
             temp = init_user_directory(username)
-            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
+            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
 
             single_user_data = {USER_CREATION_TIME: now_timestamp(),
                                 PWD: enc_pass,
@@ -337,6 +340,7 @@ class UsersFacility(Resource):
     """
     Debug facility/backdoor to get all users (and pending users) info and without authentication.
     """
+
     def get(self, username):
         """
         Show some info about users.
@@ -351,7 +355,7 @@ class UsersFacility(Resource):
                 pending_users_listr = ', '.join(pending_users.keys())
             else:
                 pending_users_listr = 'no pending users'
-            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr),\
+            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
                        HTTP_OK
         else:
             if username in userdata:
@@ -579,7 +583,6 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
 
-
         last_server_timestamp = file_timestamp(server_dst)
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
@@ -655,6 +658,7 @@ class Files(Resource):
     """
     Class that handle files as web resources.
     """
+
     @auth.login_required
     def get(self, path=''):
         """
@@ -720,7 +724,7 @@ class Files(Resource):
         filepath = userpath2serverpath(username, path)
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
         save_userdata()
         return last_server_timestamp
 
@@ -733,14 +737,20 @@ class Files(Resource):
         :param path: str
         """
         username = auth.username()
+
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
+
+        if calculate_file_md5(upload_file) != md5:
+            abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
             if os.path.isfile(join(dirname, filename)):
                 abort(HTTP_FORBIDDEN)
+
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
@@ -761,9 +771,13 @@ class Files(Resource):
         """
         username = auth.username()
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
-        filepath = join(dirname, filename)
 
+        if calculate_file_md5(upload_file) != md5:
+            abort(HTTP_CONFLICT)
+
+        filepath = join(dirname, filename)
         if os.path.isfile(filepath):
             upload_file.save(filepath)
         else:
@@ -796,7 +810,8 @@ def main():
     parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
-    parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
+    parser.add_argument('-H', '--host', default='0.0.0.0',
+                        help='set host address to run the server. [default: %(default)s].')
     args = parser.parse_args()
 
     if args.debug:
@@ -818,6 +833,7 @@ def main():
     userdata.update(load_userdata())
     init_root_structure()
     app.run(host=args.host, debug=args.debug)
+
 
 if __name__ == '__main__':
     main()
