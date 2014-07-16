@@ -14,9 +14,18 @@ import shutil
 import urlparse
 import json
 import logging
+import random
+import string
 
 import server
 from server import userpath2serverpath
+
+HTTP_OK = 200
+HTTP_CREATED = 201
+HTTP_FORBIDDEN = 403
+HTTP_NOT_FOUND = 404
+HTTP_CONFLICT = 409
+
 
 start_dir = os.getcwd()
 
@@ -35,6 +44,24 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
+
+
+def pick_rand_str(length, possible_chars=string.ascii_lowercase):
+    return ''.join([random.choice(possible_chars) for _ in xrange(length)])
+
+
+def pick_rand_pw(length=8):
+    possible_chars = string.letters + string.punctuation + string.digits
+    return pick_rand_str(length, possible_chars)
+
+
+def pick_rand_email():
+    res = '{}@{}.{}'.format(pick_rand_str(random.randrange(3, 12)),
+                            pick_rand_str(random.randrange(3, 8)),
+                            pick_rand_str(random.randrange(2, 4)))
+    return res
+    #\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b
+
 
 def make_basicauth_headers(user, pwd):
     return {'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pwd))}    
@@ -108,10 +135,11 @@ def _manually_create_user(username, pw):
     :return: dict
     """
     enc_pass = server._encrypt_password(pw)
-    # Create user direvtory with default structure (use the server function)
+    # Create user directory with default structure (use the server function)
     user_dir_state = server.init_user_directory(username)
     single_user_data = user_dir_state
-    single_user_data[server.PASSWORD] = enc_pass
+    single_user_data[server.PWD] = enc_pass
+    single_user_data[server.USER_CREATION_TIME] = server.now_timestamp()
     server.userdata[username] = single_user_data
     return single_user_data
 
@@ -160,8 +188,6 @@ class TestRequests(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
@@ -317,8 +343,6 @@ class TestGetRequests(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
         _manually_remove_user(USR)
         _manually_create_user(USR, PW)
@@ -415,58 +439,185 @@ class TestGetRequests(unittest.TestCase):
         self.assertEqual(obj, target)
 
 
-class TestUsers(unittest.TestCase):
+class TestUsersPost(unittest.TestCase):
     def setUp(self):
         setup_test_dir()
+        server.reset_userdata()
+
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
-        _manually_remove_user(USR)
+        self.username = 'superpippo@topoliniamail.com'
+        self.password = 'superpass'
+        self.user_dirpath = userpath2serverpath(self.username)
 
     def tearDown(self):
         tear_down_test_dir()
 
-    def test_signup(self):
+    def test_repeated_post(self):
         """
-        Test for registration of a new user.
+        Post a new user creation 3 times --> permitted.
         """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': USR, 'password': PW})
-        # test that userdata is actually updated
-        single_user_data = server.userdata[USR]
-        self.assertIn(USR, server.userdata)
-        # test single user data structure (as currently defined)
-        self.assertIsInstance(single_user_data, dict)
-        self.assertIn(server.LAST_SERVER_TIMESTAMP, single_user_data)
-        self.assertIn(server.SNAPSHOT, single_user_data)
-        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
-        self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
-        # test that the user directory is created
-        user_dirpath = userpath2serverpath(USR)
-        self.assertTrue(os.path.isdir(user_dirpath))
-        # test server response
-        self.assertEqual(test.status_code, server.HTTP_CREATED)
+        for i in range(3):
+            # The Users.post (signup request) is repeatable
+            test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                                 data={'password': self.password})
 
-    def test_signup_if_user_already_exists(self):
+            # Test that user is added to <pending_users>
+            self.assertIn(self.username, server.pending_users.keys())
+            self.assertEqual(test.status_code, HTTP_OK)
+
+    def test_user_already_existing(self):
         """
-        Test for registration of an already existing username.
+        Existing user --> 409.
         """
-        # First create the user
+        _manually_create_user(self.username, self.password)
+
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                             data={'password': self.password})
+        self.assertEqual(test.status_code, HTTP_CONFLICT)
+
+    def test_activation_email(self):
+        """
+        Activation mail must be sent to the right recipient and *a line* of its body must be the activation code.
+        """
+        with server.mail.record_messages() as outbox:
+            resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                                 data={'password': self.password})
+        # Retrieve the generated activation code
+        activation_code = server.pending_users[self.username]['activation_code']
+
+        self.assertEqual(len(outbox), 1)
+        body = outbox[0].body
+        recipients = outbox[0].recipients
+        self.assertEqual(recipients, [self.username])
+        self.assertIn(activation_code, body.splitlines())
+
+
+class TestUsersPut(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+        self.username = 'superpippo@topoliniamail.com'
+        self.password = 'superpass'
+        self.user_dirpath = userpath2serverpath(self.username)
+        assert self.username not in server.pending_users
+        assert not os.path.exists(self.user_dirpath)
+
+        # The Users.post (signup request) is repeatable
+        resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                             data={'password': self.password})
+
+        # Retrieve the generated activation code
+        self.activation_code = server.pending_users[self.username]['activation_code']
+
+    def tearDown(self):
+        tear_down_test_dir()
+
+    def test_unexisting_username(self):
+        """
+        Not existing username and existing activation_code.
+        """
+        unexisting_user = 'unexisting'
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + unexisting_user),
+                            data={'activation_code': self.activation_code})
+
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+        self.assertNotIn(unexisting_user, server.userdata.keys())
+        self.assertFalse(os.path.exists(userpath2serverpath(unexisting_user)))
+
+    def test_wrong_activation_code(self):
+        """
+        Wrong activation code
+        """
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                            data={'activation_code': 'fake activation code'})
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+        self.assertNotIn(self.username, server.userdata.keys())
+        self.assertFalse(os.path.exists(self.user_dirpath))
+
+    def test_ok(self):
+        """
+        Right activation code --> success.
+        """
+        # Put with correct activation code
+        test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                            data={'activation_code': self.activation_code})
+
+        self.assertIn(self.username, server.userdata.keys())
+        self.assertTrue(os.path.exists(self.user_dirpath))
+        self.assertNotIn(self.username, server.pending_users.keys())
+        self.assertEqual(test.status_code, HTTP_CREATED)
+
+
+class TestUsersDelete(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+    def tearDown(self):
+        tear_down_test_dir()
+
+    def test_delete_user(self):
+        """
+        User deletion.
+        """
+        # Creating user to delete on-the-fly (TODO: pre-load instead)
         _manually_create_user(USR, PW)
-        # Then try to create a new user with the same username
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': USR, 'password': 'boh'})
-        self.assertEqual(test.status_code, server.HTTP_CONFLICT)
+        user_dirpath = userpath2serverpath(USR)
+        # Really created?
+        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)
+        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)
 
-    def test_signup_with_empty_username(self):
-        """
-        Test that a signup with empty user return a bad request error.
-        """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'signup'),
-                             data={'username': '', 'password': 'pass'})
-        self.assertEqual(test.status_code, server.HTTP_BAD_REQUEST)
+        # Test FORBIDDEN case (removing other users)
+        url = SERVER_API + 'users/' + 'otheruser'
+        test = self.app.delete(url,
+                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+        # Test OK case
+        url = SERVER_API + 'users/' + USR
+        test = self.app.delete(url,
+                               headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(USR, PW))})
+
+        self.assertNotIn(USR, server.userdata)
+        self.assertEqual(test.status_code, server.HTTP_OK)
+        self.assertFalse(os.path.exists(user_dirpath))
+
+
+class TestUsersGet(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+    def tearDown(self):
+        tear_down_test_dir()
+
+    def test_get_self(self):
+        username = 'pippo@topolinia.com'
+        pw = pick_rand_pw()
+        _manually_create_user(username, pw)
+        url = SERVER_API + 'users/' + username
+        test = self.app.get(url, headers=make_basicauth_headers(username, pw))
+        self.assertEqual(test.status_code, HTTP_OK)
+
+    def test_get_other(self):
+        username = 'pippo@topolinia.com'
+        other_username = 'a' + username
+        pw = pick_rand_pw()
+        _manually_create_user(username, pw)
+        url = SERVER_API + 'users/' + other_username
+        test = self.app.get(url, headers=make_basicauth_headers(username, pw))
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
 
 
 def get_dic_dir_states():
@@ -479,7 +630,8 @@ def get_dic_dir_states():
     dir_state = {}
     for username in server.userdata:
         single_user_data = server.userdata[username].copy()
-        single_user_data.pop(server.PASSWORD)  # not very beautiful
+        single_user_data.pop(server.PWD)  # not very beautiful
+        single_user_data.pop(server.USER_CREATION_TIME)  # not very beautiful
         dic_state[username] = single_user_data
         dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
     return dic_state, dir_state
@@ -494,8 +646,6 @@ class TestUserdataConsistence(unittest.TestCase):
         setup_test_dir()
         self.app = server.app.test_client()
         self.app.testing = True
-        # To see the tracebacks in case of 500 server error!
-        server.app.config.update(TESTING=True)
 
     def test_consistence_after_actions(self):
         """
