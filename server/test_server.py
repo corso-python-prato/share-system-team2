@@ -27,7 +27,6 @@ HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
 
-
 start_dir = os.getcwd()
 
 TEST_DIR = 'server_test'
@@ -61,7 +60,7 @@ def pick_rand_email():
                             pick_rand_str(random.randrange(3, 8)),
                             pick_rand_str(random.randrange(2, 4)))
     return res
-    #\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b
+    # \b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b
 
 
 def make_basicauth_headers(user, pwd):
@@ -179,6 +178,7 @@ def tear_down_test_dir():
     os.chdir(start_dir)
     shutil.rmtree(TEST_DIR)
 
+
 def _make_temp_file():
     """
     Create temporary file for testing
@@ -190,6 +190,7 @@ def _make_temp_file():
     temp_file.seek(0)
     test_md5 = hashlib.md5('this is a test').hexdigest()
     return temp_file, test_md5
+
 
 class TestRequests(unittest.TestCase):
     def setUp(self):
@@ -220,9 +221,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(upload_test_url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': test_md5},
-                            follow_redirects=True)
+                                 headers=make_basicauth_headers(USR, PW),
+                                 data={'file': test_file, 'md5': test_md5},
+                                 follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_CREATED)
@@ -242,9 +243,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': test_md5},
-                            follow_redirects=True)
+                                 headers=make_basicauth_headers(USR, PW),
+                                 data={'file': test_file, 'md5': test_md5},
+                                 follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
@@ -256,7 +257,7 @@ class TestRequests(unittest.TestCase):
         """
         Test the creation of file that already exists.
         """
-        path = 'test_put/file_to_change.txt' #path already existent
+        path = 'test_put/file_to_change.txt'  # path already existent
         _create_file(USR, path, 'I already exist! Don\'t erase me!')
         to_created_filepath = userpath2serverpath(USR, path)
         old_content = open(to_created_filepath).read()
@@ -268,9 +269,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.post(url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': test_md5},
-                            follow_redirects=True)
+                                 headers=make_basicauth_headers(USR, PW),
+                                 data={'file': test_file, 'md5': test_md5},
+                                 follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
@@ -294,9 +295,9 @@ class TestRequests(unittest.TestCase):
         fake_md5 = 'sent_bad_md5'
         try:
             test = self.app.post(upload_test_url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': fake_md5},
-                            follow_redirects=True)
+                                 headers=make_basicauth_headers(USR, PW),
+                                 data={'file': test_file, 'md5': fake_md5},
+                                 follow_redirects=True)
         finally:
             test_file.close()
         self.assertEqual(test.status_code, server.HTTP_CONFLICT)
@@ -323,9 +324,9 @@ class TestRequests(unittest.TestCase):
         fake_md5 = 'sent_bad_md5'
         try:
             test = self.app.put(url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': fake_md5},
-                            follow_redirects=True)
+                                headers=make_basicauth_headers(USR, PW),
+                                data={'file': test_file, 'md5': fake_md5},
+                                follow_redirects=True)
         finally:
             test_file.close()
         new_content = open(to_modify_filepath).read()
@@ -338,7 +339,7 @@ class TestRequests(unittest.TestCase):
         """
         Test modify of not existing file..
         """
-        path = 'test_put/file_not_existent.txt' # not existent path
+        path = 'test_put/file_not_existent.txt'  # not existent path
         to_modify_filepath = userpath2serverpath(USR, path)
 
         url = SERVER_FILES_API + path
@@ -346,9 +347,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.put(url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': test_md5},
-                            follow_redirects=True)
+                                headers=make_basicauth_headers(USR, PW),
+                                data={'file': test_file, 'md5': test_md5},
+                                follow_redirects=True)
         finally:
             test_file.close()
 
@@ -370,9 +371,9 @@ class TestRequests(unittest.TestCase):
         test_file, test_md5 = _make_temp_file()
         try:
             test = self.app.put(url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'file': test_file, 'md5': test_md5},
-                            follow_redirects=True)
+                                headers=make_basicauth_headers(USR, PW),
+                                data={'file': test_file, 'md5': test_md5},
+                                follow_redirects=True)
         finally:
             test_file.close()
         new_content = open(to_modify_filepath).read()
@@ -393,13 +394,12 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, delete_test_file_path, 'this is the file to be deleted')
 
         test = self.app.post(delete_test_url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'filepath': delete_test_file_path}, follow_redirects=True)
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'filepath': delete_test_file_path}, follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(to_delete_filepath))
         self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
-
 
     def test_copy_file_path(self):
         """
@@ -416,8 +416,9 @@ class TestRequests(unittest.TestCase):
         _create_file(USR, dst_copy_test_file_path, 'different other content')
 
         test = self.app.post(copy_test_url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path}, follow_redirects=True)
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path},
+                             follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
@@ -430,14 +431,15 @@ class TestRequests(unittest.TestCase):
         move_test_url = SERVER_ACTIONS_API + 'move'
         src_move_test_file_path = 'test_move_src/testmovesrc.txt'
         dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
-        #create source file to be moved and its destination
+        # create source file to be moved and its destination
         src_move_filepath = userpath2serverpath(USR, src_move_test_file_path)
 
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
 
         test = self.app.post(move_test_url,
-                            headers=make_basicauth_headers(USR,PW),
-                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertFalse(os.path.isfile(src_move_filepath))
@@ -449,15 +451,15 @@ class TestRequests(unittest.TestCase):
         move_test_url = SERVER_ACTIONS_API + 'wrong_cmd'
         src_move_test_file_path = 'test_move_src/testmovesrc.txt'
         dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
-        #create source file to be moved and its destination
+        # create source file to be moved and its destination
         _create_file(USR, src_move_test_file_path, 'this is the file to be moved')
 
         test = self.app.post(move_test_url,
                              headers=make_basicauth_headers(USR, PW),
-                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path}, follow_redirects=True)
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
-
 
 
 class TestGetRequests(unittest.TestCase):
@@ -493,7 +495,7 @@ class TestGetRequests(unittest.TestCase):
         to download an existing file.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers=make_basicauth_headers(USR,PW))
+                            headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_OK)
 
     def test_files_get_existing_file_with_wrong_password(self):
@@ -503,7 +505,7 @@ class TestGetRequests(unittest.TestCase):
         """
         wrong_password = PW + 'a'
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers=make_basicauth_headers(USR,wrong_password))
+                            headers=make_basicauth_headers(USR, wrong_password))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_empty_password(self):
@@ -512,7 +514,7 @@ class TestGetRequests(unittest.TestCase):
         the user exists but the password is an empty string.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers=make_basicauth_headers(USR,''))
+                            headers=make_basicauth_headers(USR, ''))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_empty_username(self):
@@ -521,7 +523,7 @@ class TestGetRequests(unittest.TestCase):
         the given user is an empty string and the password is not empty.
         """
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers=make_basicauth_headers('',PW))
+                            headers=make_basicauth_headers('', PW))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_existing_file_with_unexisting_user(self):
@@ -532,7 +534,7 @@ class TestGetRequests(unittest.TestCase):
         user = 'UnExIsTiNgUsEr'
         assert user not in server.userdata
         test = self.app.get(self.DOWNLOAD_TEST_URL,
-                            headers=make_basicauth_headers(user,PW))
+                            headers=make_basicauth_headers(user, PW))
         self.assertEqual(test.status_code, server.HTTP_UNAUTHORIZED)
 
     def test_files_get_without_auth(self):
@@ -549,12 +551,12 @@ class TestGetRequests(unittest.TestCase):
         a file that does not exist.
         """
         test = self.app.get(SERVER_FILES_API + 'testdownload/unexisting.txt',
-                            headers=make_basicauth_headers(USR,PW))
+                            headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
     def test_files_get_snapshot(self):
         """
-        Test lato-server user files snapshot.
+        Test server-side user files snapshot.
         """
         # The test user is created in setUp
 
@@ -563,7 +565,7 @@ class TestGetRequests(unittest.TestCase):
         target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
                   server.SNAPSHOT: expected_snapshot}
         test = self.app.get(SERVER_FILES_API,
-                            headers=make_basicauth_headers(USR,PW))
+                            headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_OK)
         obj = json.loads(test.data)
         self.assertEqual(obj, target)
@@ -709,13 +711,13 @@ class TestUsersDelete(unittest.TestCase):
         # Test FORBIDDEN case (removing other users)
         url = SERVER_API + 'users/' + 'otheruser'
         test = self.app.delete(url,
-                            headers=make_basicauth_headers(USR,PW))
+                               headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
 
         # Test OK case
         url = SERVER_API + 'users/' + USR
         test = self.app.delete(url,
-                            headers=make_basicauth_headers(USR,PW))
+                               headers=make_basicauth_headers(USR, PW))
 
         self.assertNotIn(USR, server.userdata)
         self.assertEqual(test.status_code, server.HTTP_OK)
@@ -788,25 +790,25 @@ class TestUserdataConsistence(unittest.TestCase):
         # post
         _create_file(user, 'new_file', 'ciao!!!')
         url = SERVER_FILES_API + 'new_file'
-        self.app.post(url, headers=make_basicauth_headers(USR,PW))
+        self.app.post(url, headers=make_basicauth_headers(USR, PW))
 
         # move
         move_test_url = SERVER_ACTIONS_API + 'move'
         src_move_test_file_path = 'test_move_src/testmovesrc.txt'
         dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
-        #create source file to be moved and its destination
+        # create source file to be moved and its destination
         _create_file(user, src_move_test_file_path, 'this is the file to be moved')
         test = self.app.post(move_test_url,
-                            headers=make_basicauth_headers(user,'pass'),
-                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
-                            follow_redirects=True)
+                             headers=make_basicauth_headers(user, 'pass'),
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
 
         # copy
         copy_test_url = SERVER_FILES_API + 'copy'
         test = self.app.post(copy_test_url,
-                            headers=make_basicauth_headers(user,'pass'),
-                            data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
-                            follow_redirects=True)
+                             headers=make_basicauth_headers(user, 'pass'),
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
 
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
@@ -819,12 +821,12 @@ class TestUserdataConsistence(unittest.TestCase):
         path = 'dir/dirfile.txt'
         _create_file(user, path, 'dirfile content...')
         self.app.post(SERVER_FILES_API + path,
-                            headers=make_basicauth_headers(user,pw))
+                      headers=make_basicauth_headers(user, pw))
 
         # delete it
         self.app.post(SERVER_FILES_API + 'delete',
-                            headers=make_basicauth_headers(user,pw),
-                            data={'filepath': path})
+                      headers=make_basicauth_headers(user, pw),
+                      data={'filepath': path})
 
         # final check
         dic_state, dir_state = get_dic_dir_states()
@@ -842,6 +844,7 @@ class TestLoggingConfiguration(unittest.TestCase):
     """
     Testing log directory creation if it doesn't exists
     """
+
     def setUp(self):
         if os.path.isdir('log'):
             shutil.rmtree('log')
@@ -850,6 +853,7 @@ class TestLoggingConfiguration(unittest.TestCase):
         self.assertFalse(os.path.exists('log') and os.path.isdir('log'))
         reload(server)
         self.assertTrue(os.path.exists('log') and os.path.isdir('log'))
+
 
 if __name__ == '__main__':
     unittest.main()

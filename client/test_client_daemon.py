@@ -15,14 +15,13 @@ LAST_TIMESTAMP = 'last_timestamp'
 GLOBAL_MD5 = 'global_md5'
 SERVER_TIMESTAMP = 1
 
-
 base_dir_tree = {
     # <filepath>: (<timestamp>, <md5>)
-    'ciao.txt':         (3, 'md5md6'),
-    'carlo.txt':        (2, 'md6md6'),
+    'ciao.txt': (3, 'md5md6'),
+    'carlo.txt': (2, 'md6md6'),
     './Pytt/diaco.txt': (12, '7645jghkjhdfk'),
-    'pasquale.cat':     (12, 'khgraiuy8qu4l'),
-    'carlo.buo':        (14, 'rfhglkr94094580'),
+    'pasquale.cat': (12, 'khgraiuy8qu4l'),
+    'carlo.buo': (14, 'rfhglkr94094580'),
 }
 
 
@@ -31,6 +30,7 @@ def folder_modified():
     Return True to indicate that sharing folder is modified during daemon is down
     """
     return True
+
 
 def folder_not_modified():
     """
@@ -84,6 +84,7 @@ class FileFakeEvent(object):
     Class that simulates a file related event sent from watchdog.
     Actually create <src_path> and <dest_path> attributes and the file in disk.
     """
+
     def __init__(self, src_path, content='', dest_path=None):
         self.src_path = src_path
         create_file(self.src_path, content=content)
@@ -91,6 +92,7 @@ class FileFakeEvent(object):
 
 
 import test_utils
+
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
@@ -104,7 +106,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.socket.set_response(json_data)
 
         self.assertEquals(self.client_daemon._get_cmdmanager_request(self.socket), json.loads(json_data))
-
 
     def test_set_cmdmanager_response(self):
         response = 'testtestetst'
@@ -442,7 +443,7 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         setup_test_dir()
         httpretty.enable()
 
-        #self.cm = ConnectionManager()
+        # self.cm = ConnectionManager()
         with open(self.CONFIG_FILEPATH) as fo:
             self.cfg = json.load(fo)
 
@@ -473,20 +474,20 @@ class TestClientDaemonOnEvents(unittest.TestCase):
         # Remove the test directory.
         tear_down_test_dir()
 
-    def test_md5_of_client_snapshot(self, verbose = 1):
+    def test_md5_of_client_snapshot(self, verbose=1):
         """
         Test the Daemons function
         """
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
 
         for path, time_md5 in self.client_daemon.client_snapshot.items():
             # extract md5 from tuple. we don't need hexdigest it's already md5
-            md5Hash.update(time_md5[1])
-            md5Hash.update(path)
+            md5hash.update(time_md5[1])
+            md5hash.update(path)
 
         response_of_function = self.client_daemon.md5_of_client_snapshot()
-        self.assertNotEqual(response_of_function,'50abe822532a06fb733ea3bc089527af')
-        self.assertEqual(response_of_function,md5Hash.hexdigest())
+        self.assertNotEqual(response_of_function, '50abe822532a06fb733ea3bc089527af')
+        self.assertEqual(response_of_function, md5hash.hexdigest())
 
     @httpretty.activate
     def test_on_created(self):

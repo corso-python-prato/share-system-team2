@@ -12,9 +12,9 @@ import shutil
 # - GET /diffs, con parametro timestamp
 #
 # files:
-#  - GET /files/<path> - scarica un file
-#  - POST /files/<path> - crea un file
-#  - PUT /files/<path> - modifica un file
+# - GET /files/<path> - scarica un file
+# - POST /files/<path> - crea un file
+# - PUT /files/<path> - modifica un file
 # actions:
 #  - POST /actions/copy - parametri src, dest
 #  - POST /actions/delete - parametro path
@@ -41,7 +41,6 @@ class TestConnectionManager(unittest.TestCase):
         # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
         self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-
 
         # create this auth testing
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass'] + "@www.pyboxtest.com"
