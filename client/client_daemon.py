@@ -432,7 +432,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         response = self.conn_mng.dispatch_request('get_server_snapshot', '')
         if response is None:
-            self.stop(1, '\nReceived bad snapshot. Server down?\n')
+            self.stop(1, '\nReceived None snapshot. Server down?\n')
 
         server_timestamp = response['server_timestamp']
         files = response['files']
@@ -745,6 +745,7 @@ class Daemon(RegexMatchingEventHandler):
         :accept an absolute file path
         :return the md5 hash of received file
         """
+
         md5Hash = hashlib.md5()
         try:
             f1 = open(file_path, 'rb')
