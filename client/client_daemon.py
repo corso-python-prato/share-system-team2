@@ -201,6 +201,61 @@ class Daemon(RegexMatchingEventHandler):
         else:
             return None
 
+    def _make_copy_on_client(self, src, dst, server_timestamp):
+        """
+        Copy the file from src to dst if the dst already exists will be overwritten
+        :param src: the relative path of source file to copy
+        :param dst: the relative path of destination file to copy
+        :return: True or False
+        """
+
+        abs_src = self.absolutize_path(src)
+        if not os.path.isfile(abs_src): return False
+
+        abs_dst = self.absolutize_path(dst)
+        dst_dir = os.path.dirname(abs_dst)
+
+        if not os.path.isdir(dst_dir):
+            os.makedirs(dst_dir)
+
+        self.observer.skip(abs_dst)
+        try:
+            copy2(abs_src, abs_dst)
+        except IOError as e:
+            return False
+
+        self.client_snapshot[dst] = self.client_snapshot[src]
+        self.update_local_dir_state(server_timestamp)
+        return True
+
+    def _make_move_on_client(self, src, dst, server_timestamp):
+        """
+        Move the file from src to dst. if the dst already exists will be overwritten
+        :param src: the relative path of source file to move
+        :param dst: the relative path of destination file to move
+        :return: True or False
+        """
+
+        abs_src = self.absolutize_path(src)
+        if not os.path.isfile(abs_src): return False
+
+        abs_dst = self.absolutize_path(dst)
+        dst_dir = os.path.dirname(abs_dst)
+
+        if not os.path.isdir(dst_dir):
+            os.makedirs(dst_dir)
+
+        self.observer.skip(abs_dst)
+        try:
+            move(abs_src, abs_dst)
+        except IOError as e:
+            return False
+
+        self.client_snapshot[dst] = self.client_snapshot[src]
+        self.client_snapshot.pop(src)
+        self.update_local_dir_state(server_timestamp)
+        return True
+
     def _sync_process(self, server_timestamp, server_dir_tree):
         # Makes the synchronization logic and return a list of commands to launch
         # for server synchronization
@@ -227,30 +282,7 @@ class Daemon(RegexMatchingEventHandler):
 
             return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
 
-        def _make_copy(src, dst):
-            abs_src = self.absolutize_path(src)
-            abs_dst = self.absolutize_path(dst)
-            self.observer.skip(abs_dst)
-            try:
-                copy2(abs_src, abs_dst)
-            except IOError:
-                return False
 
-            self.client_snapshot[dst] = self.client_snapshot[src]
-            return True
-
-        def _make_move(src, dst):
-            abs_src = self.absolutize_path(src)
-            abs_dst = self.absolutize_path(dst)
-            self.observer.skip(abs_dst)
-            try:
-                move(abs_src, abs_dst)
-            except IOError:
-                return False
-
-            self.client_snapshot[dst] = self.client_snapshot[src]
-            self.client_snapshot.pop(src)
-            return True
 
         def _check_md5(dir_tree, md5):
             result = []
@@ -299,26 +331,16 @@ class Daemon(RegexMatchingEventHandler):
                     if existed_filepaths_on_client:
                         # it's a copy or a move
                         for path in existed_filepaths_on_client:
-                            if path in server_dir_tree and server_dir_tree[path][1] == md5:
-                                # I have found origin path that is maintained the same in the server.
-                                # We have a copy event!
-                                _make_copy(path, filepath)
-                                break
-                        else:
-                            # We haven't find a path maintained with the same md5 on the server.
-                            # This can be a move event!
-                            # I do this check because the paths can be deleted on server ('new on client' in tree_diff) or
-                            # modified on server ('modified' in tree_diff)
-                            for path in existed_filepaths_on_client:
-                                if path in tree_diff['new_on_client']:
-                                    _make_move(path, filepath)
+                            if path in tree_diff['new_on_client']:
+                                if self._make_move_on_client(path, filepath, server_timestamp):
                                     tree_diff['new_on_client'].remove(path)
                                     break
-                            else:
-                                print "\n\nCaso strano da gestire, forse ho spostato e modificato?\n\n"
-                                # No origin file mantained in server
-                                # I choose the first element of existed_filepaths_on_client because i'm sure that exists
-                                _make_copy(existed_filepaths_on_client[0], filepath)
+                                else:
+                                    self.stop(0, "move failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
+                        # we haven't found files deleted on server so it's a copy
+                        else:
+                            if not self._make_copy_on_client(path, filepath, server_timestamp):
+                                self.stop(0, "copy failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
 
                     # the daemon don't know filepath, i will search if the file_timestamp is more recent then local_timestamp
                     else:
@@ -344,7 +366,7 @@ class Daemon(RegexMatchingEventHandler):
                         # someone has modified files while daemon was down and someone else has modified
                         # the same file on server
                         conflicted_path = ''.join([filepath, '.conflicted'])
-                        _make_copy(filepath, conflicted_path)
+                        self._make_copy_on_client(filepath, conflicted_path, server_timestamp)
                         sync_commands.append(('upload', conflicted_path))
                         #self.conn_mng.dispatch_request('upload', {'filepath': conflicted_path})
 
@@ -371,26 +393,16 @@ class Daemon(RegexMatchingEventHandler):
                     if existed_filepaths_on_client:
                         # it's a copy or a move
                         for path in existed_filepaths_on_client:
-                            if path in server_dir_tree and server_dir_tree[path][1] == md5:
-                                # I have found origin path that is maintained the same in the server.
-                                # We have a copy event!
-                                _make_copy(path, filepath)
-                                break
-                        else:
-                            # We haven't find a path maintained with the same md5 on the server.
-                            # This can be a move event!
-                            # I do this check because the paths can be deleted on server ('new on client' in tree_diff) or
-                            # modified on server ('modified' in tree_diff)
-                            for path in existed_filepaths_on_client:
-                                if path in tree_diff['new_on_client']:
-                                    _make_move(path, filepath)
+                            if path in tree_diff['new_on_client']:
+                                if self._make_move_on_client(path, filepath, server_timestamp):
                                     tree_diff['new_on_client'].remove(path)
                                     break
-                            else:
-                                print "\n\nCaso strano da gestire, forse ho spostato e modificato?\n\n"
-                                # No origin file mantained in server
-                                # I choose the first element of existed_filepaths_on_client because i'm sure that exists
-                                _make_copy(existed_filepaths_on_client[0], filepath)
+                                else:
+                                    self.stop(0, "move failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
+                        # we haven't found files deleted on server so it's a copy
+                        else:
+                            if not self._make_copy_on_client(path, filepath, server_timestamp):
+                                self.stop(0, "copy failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
                     else:
                         # it's a new file
                         sync_commands.append(('download', filepath))
@@ -406,10 +418,11 @@ class Daemon(RegexMatchingEventHandler):
                     self.observer.skip(abs_filepath)
                     try:
                         os.remove(abs_filepath)
-                    except OSError:
-                        # it should raise an exceptions
-                        pass
+                    except OSError as e:
+                        print "Delete EXEPTION INTO SYNC : {}".format(e)
+
                     self.client_snapshot.pop(filepath)
+                    self.update_local_dir_state(server_timestamp)
 
         return sync_commands
 
