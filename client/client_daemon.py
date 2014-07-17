@@ -277,6 +277,7 @@ class Daemon(RegexMatchingEventHandler):
 
             for filepath in server_files.intersection(client_files):
                 # check files md5
+
                 if server_dir_tree[filepath][1] != self.client_snapshot[filepath][1]:
                     modified.append(filepath)
 
@@ -293,7 +294,6 @@ class Daemon(RegexMatchingEventHandler):
 
         local_timestamp = self.local_dir_state['last_timestamp']
         tree_diff = _filter_tree_difference(server_dir_tree)
-        print tree_diff
         sync_commands = []
 
         if self._is_directory_modified():
@@ -447,7 +447,7 @@ class Daemon(RegexMatchingEventHandler):
             if command == 'delete':
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if event_timestamp:
-                    print 'event_timestamp di "delete" INTO SYNC:', event_timestamp
+
                     last_operation_timestamp = event_timestamp['server_timestamp']
                     # If i can't find path inside client_snapshot there is inconsistent problem in client_snapshot!
                     if self.client_snapshot.pop(path, 'ERROR') == 'ERROR':
@@ -458,7 +458,6 @@ class Daemon(RegexMatchingEventHandler):
             elif command == 'modify' or command == 'upload':
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if event_timestamp:
-                    print 'event_timestamp di "{}" INTO SYNC: {}'.format(command, event_timestamp)
                     last_operation_timestamp = event_timestamp['server_timestamp']
                 else:
                     self.stop(1, 'Error during connection with the server. Server fail to "{}" this file: {}'.format(command, path))
@@ -657,6 +656,7 @@ class Daemon(RegexMatchingEventHandler):
                 # synchronization polling
                 # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
                 # maybe optimizable but now functional
+
                 polling_counter += 1
                 if polling_counter == 6:
                     self.sync_with_server()
@@ -683,11 +683,10 @@ class Daemon(RegexMatchingEventHandler):
     def update_local_dir_state(self, last_timestamp):
         """
         Update the local_dir_state with last_timestamp operation and save it on disk
-        """ 
-        assert isinstance(last_timestamp, long)
         self.local_dir_state['last_timestamp'] = last_timestamp
         self.local_dir_state['global_md5'] = self.md5_of_client_snapshot()
         self.save_local_dir_state()
+
 
     def save_local_dir_state(self):
         """
@@ -708,8 +707,6 @@ class Daemon(RegexMatchingEventHandler):
         if os.path.isfile(self.cfg['local_dir_state_path']):
             self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
             
-            assert isinstance(self.local_dir_state['global_md5'], unicode)
-            assert isinstance(self.local_dir_state['last_timestamp'], (int, long))
             print "Loaded local_dir_state"
         else:
             print "local_dir_state not found. Initialize new local_dir_state"
@@ -722,7 +719,6 @@ class Daemon(RegexMatchingEventHandler):
         with the md5 in client_snapshot and the md5 of full filepath string.
         :return is the md5 hash of the directory
         """
-
 
         if verbose:
             start = time.time()
@@ -760,7 +756,6 @@ class Daemon(RegexMatchingEventHandler):
         except (OSError, IOError) as e:
             print e
             return None
-            # You can't open the file for some reason
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
