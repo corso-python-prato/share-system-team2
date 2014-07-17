@@ -618,7 +618,6 @@ class Daemon(RegexMatchingEventHandler):
         # Operations necessary to start the daemon
         self.create_observer()
         self.observer.start()
-        self.sync_with_server()
 
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -628,6 +627,7 @@ class Daemon(RegexMatchingEventHandler):
         self.daemon_state = 'started'
         self.running = 1
         polling_counter = 0
+        self.sync_with_server()
         try:
             while self.running:
                 r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
