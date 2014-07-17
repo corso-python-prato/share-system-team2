@@ -39,18 +39,14 @@ class SkipObserver(Observer):
             pass
         else:
             if event.dest_path in self._skip_list:
-                print '\nSkipped list:', self._skip_list
-                print '\n\nSkipped event "{}" \non path: {}\n\n'.format(event, event.dest_path)
                 self._skip_list.remove(event.dest_path)
                 skip = True
         try:
             event.src_path
-        except AttributeError:
-            pass
+        except AttributeError as e:
+            print e
         else:
             if event.src_path in self._skip_list:
-                print '\nSkipped list:', self._skip_list
-                print '\nSkipped event "{}" \n on path: {}\n'.format(event, event.src_path)
                 self._skip_list.remove(event.src_path)
                 skip = True
 
