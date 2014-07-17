@@ -712,7 +712,8 @@ class Daemon(RegexMatchingEventHandler):
         with the md5 in client_snapshot and the md5 of full filepath string.
         :return is the md5 hash of the directory
         """
-        directory = self.cfg['sharing_path']
+
+
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
