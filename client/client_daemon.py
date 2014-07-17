@@ -180,6 +180,11 @@ class Daemon(RegexMatchingEventHandler):
                     self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
 
     def _is_directory_modified(self):
+        """
+        The function check if the shared folder has been modified.
+        It recalculate the md5 from client_snapshot and compares it with the global md5 stored in local_dir_state
+        :return: True or False
+        """
 
         if self.md5_of_client_snapshot() != self.local_dir_state['global_md5']:
             return True
