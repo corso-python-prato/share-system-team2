@@ -192,7 +192,7 @@ class Daemon(RegexMatchingEventHandler):
 
     def search_md5(self, searched_md5):
         """
-        Recive as parameter the md5 of a file and return the first knowed path with the same md5
+        Receive as parameter the md5 of a file and return the first knowed path with the same md5
         """
         for path, tupla in self.client_snapshot.iteritems():
             if searched_md5 in tupla[1]:
