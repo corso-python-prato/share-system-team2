@@ -21,6 +21,7 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+import pwtools
 
 __title__ = 'PyBOX'
 
@@ -798,6 +799,8 @@ api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFI
 
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()
+# Define the pwchecker, it receive a list of words contained in the words file
+pwcheck = pwtools.PasswordChecker('words')
 
 
 def main():
