@@ -125,6 +125,30 @@ class TestConnectionManager(unittest.TestCase):
 
         httpretty.register_uri(httpretty.POST, url, status=409)
         self.assertFalse(self.cm.do_addshare(data))
+
+    @httpretty.activate
+    def test_removeshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        shared_folder = 'folder'
+        data = (shared_folder, )
+        url = ''.join([self.shares_url, shared_folder])
+
+        httpretty.register_uri(httpretty.DELETE, url, status=200, body='share removed')
+        response = self.cm.do_removeshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.DELETE, url, status=404)
+        self.assertFalse(self.cm.do_removeshare(data))
+
+        httpretty.register_uri(httpretty.DELETE, url, status=409)
+        self.assertFalse(self.cm.do_removeshare(data))
+
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
