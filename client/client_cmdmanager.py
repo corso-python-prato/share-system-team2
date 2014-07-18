@@ -27,6 +27,7 @@ class CommandParser(cmd.Cmd):
     def _send_to_daemon(self, message=None, show=True):
         """
         it sends user input command to the daemon server
+        if show = True then print response message, otherwise it get message response without printing it
         """
         if not message:
             raise
