@@ -102,7 +102,10 @@ class Daemon(RegexMatchingEventHandler):
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
-        self.INTERNAL_COMMANDS = {'daemon_config': self._daemon_config}
+        self.INTERNAL_COMMANDS = {
+            'daemon_config': self._daemon_config,
+            'activate': self._activate_user,
+        }
 
     def load_cfg(self, config_path):
         """
@@ -678,6 +681,18 @@ class Daemon(RegexMatchingEventHandler):
         # now it manages only sharing folder path
         return self.cfg[data]
 
+    def _activate_user(self, data):
+        """
+        Makes user activation and update internal data structure
+        """
+        cmd = 'activate'
+        response = self.conn_mng.dispatch_request(cmd, data)
+
+        if response:
+            # (WIP) it update internal data structure
+            pass
+
+        return response
 
     def stop(self, exit_status, exit_message=None):
         """
