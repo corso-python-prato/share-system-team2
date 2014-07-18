@@ -528,11 +528,14 @@ class Actions(Resource):
         except OSError:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # file deleted, last_server_timestamp is set to current timestamp
 
+
+        userdata[username]['files'].pop(normpath(filepath))
+
+        # file deleted, last_server_timestamp is set to current timestamp
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'].pop(normpath(filepath))
+
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
