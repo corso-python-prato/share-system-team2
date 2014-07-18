@@ -109,7 +109,7 @@ class ConnectionManager(object):
 
     def do_addshare(self, data):
         """
-        share a new folder with a user
+        send the request to add a new user to a shared folder
         """
         share_folder, user = data
         url = ''.join([self.shares_url, share_folder, '/', user])
