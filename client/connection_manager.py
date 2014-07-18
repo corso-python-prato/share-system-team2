@@ -124,6 +124,23 @@ class ConnectionManager(object):
             return r.text
         return False
 
+    def do_removeshare(self, data):
+        """
+        send the request to remove the sharing on a folder
+        """
+        share_folder = data[0]
+        url = ''.join([self.shares_url, share_folder])
+        self.logger.info('do_removeshare: URL: {}'.format(url))
+
+        try:
+            r = requests.delete(url)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_removeshare: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
     # files
 
     def do_download(self, data):
