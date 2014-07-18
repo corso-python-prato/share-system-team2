@@ -104,6 +104,25 @@ class ConnectionManager(object):
             return r.text
         return False
 
+    # shares
+
+    def do_addshare(self, data):
+        """
+        share a new folder with a user
+        """
+        share_folder, user = data
+        url = ''.join([self.shares_url, share_folder, '/', user])
+        self.logger.info('do_addshare: URL: {}'.format(url))
+
+        try:
+            r = requests.post(url)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_addshare: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
     # files
 
     def do_download(self, data):

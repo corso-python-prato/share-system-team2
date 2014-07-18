@@ -120,6 +120,24 @@ class CommandParser(cmd.Cmd):
             message = {'activate': (mail, token)}
             self._send_to_daemon(message)
 
+    def do_addshare(self, line):
+        """
+        Share a folder with a new user
+        Usage: addshare <shared_folder> <user>
+        """
+        try:
+            shared_folder, user = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: share <share_folder> <user>'
+        else:
+            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
+            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
+                print '"%s" not exists' % shared_folder
+            else:
+                message = {'addshare': (shared_folder, user)}
+                self._send_to_daemon(message)
+
 
 if __name__ == '__main__':
     CommandParser().cmdloop()
