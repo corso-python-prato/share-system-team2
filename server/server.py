@@ -519,15 +519,13 @@ class Actions(Resource):
 
         abspath = os.path.abspath(join(FILE_ROOT, username, filepath))
 
-        if not os.path.isfile(abspath):
-            abort(HTTP_NOT_FOUND)
-
         try:
             os.remove(abspath)
         except OSError:
+            # This error raises when the file is missing
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # file deleted, last_server_timestamp is set to current timestamp
+        # File deleted, last_server_timestamp is set to current timestamp
 
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
