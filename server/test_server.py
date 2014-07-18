@@ -804,11 +804,11 @@ class TestUserdataConsistence(unittest.TestCase):
                              follow_redirects=True)
 
         # copy
-        # copy_test_url = SERVER_FILES_API + 'copy'
-        # test = self.app.post(copy_test_url,
-        #                      headers=make_basicauth_headers(user, 'pass'),
-        #                      data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
-        #                      follow_redirects=True)
+        copy_test_url = SERVER_FILES_API + 'copy'
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(user, 'pass'),
+                             data={'src': src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
 
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
