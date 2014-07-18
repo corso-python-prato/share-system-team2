@@ -25,8 +25,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.commandparser.sock.set_response(json.dumps({'message': response}))
         input_str = 'input'
 
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
-        self.assertEquals(self.commandparser._send_to_daemon(input_str * 100000), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str * 100000, False), response)
 
     def test_send_to_daemon_output(self):
         """
@@ -37,12 +37,12 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         response = 'ciao sono test'
         self.commandparser.sock.set_response(json.dumps({'message': response}))
 
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response)
 
         response = response * 100000
         self.commandparser.sock.set_response(json.dumps({'message': response}))
 
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response)
 
 
 class TestDoQuitDoEOF(unittest.TestCase):
