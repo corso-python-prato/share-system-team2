@@ -85,6 +85,8 @@ class Daemon(RegexMatchingEventHandler):
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
+
+
     def __init__(self):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
 
@@ -649,6 +651,15 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.stop()
         self.observer.join()
         self.listener_socket.close()
+
+    def _daemon_config(self, data):
+        """
+        get daemon configuration informations like sharing folder path etc.
+        Used by cmd manager to get daemon configuration informations
+        """
+        # now it manages only sharing folder path
+        return self.cfg[data]
+
 
     def stop(self, exit_status, exit_message=None):
         """
