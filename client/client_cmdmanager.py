@@ -5,6 +5,7 @@ import cmd
 import socket
 import struct
 import json
+import os.path
 
 
 DAEMON_HOST = 'localhost'
