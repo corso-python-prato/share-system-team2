@@ -102,6 +102,29 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.PUT, url, status=409)
         self.assertFalse(self.cm.do_activate(data))
 
+    @httpretty.activate
+    def test_addshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        shared_folder = 'folder'
+        data = (shared_folder, user)
+        url = ''.join([self.shares_url, shared_folder, '/', user])
+
+        httpretty.register_uri(httpretty.POST, url, status=200, body='added shared folder')
+        response = self.cm.do_addshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        self.assertFalse(self.cm.do_addshare(data))
+
+        httpretty.register_uri(httpretty.POST, url, status=409)
+        self.assertFalse(self.cm.do_addshare(data))
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
