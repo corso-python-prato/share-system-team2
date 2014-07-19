@@ -481,7 +481,8 @@ def get_dic_dir_states():
         single_user_data = server.userdata[username].copy()
         single_user_data.pop(server.PASSWORD)  # not very beautiful
         dic_state[username] = single_user_data
-        dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
+        dir_state = json.load(open('userdata.json', "rb"))
+        dir_state[username].pop(server.PASSWORD)
     return dic_state, dir_state
 
 
@@ -504,6 +505,9 @@ class TestUserdataConsistence(unittest.TestCase):
         # create user
         user = 'pippo'
         _manually_create_user(user, 'pass')
+
+        # i need to create the userdata.json to check consistency
+        server.save_userdata()
 
         # post
         _create_file(user, 'new_file', 'ciao!!!')
@@ -532,29 +536,18 @@ class TestUserdataConsistence(unittest.TestCase):
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
 
-        # create other user
-        user, pw = 'pluto', 'pw'
-        _manually_create_user(user, pw)
-        # post a file
-        path = 'dir/dirfile.txt'
-        _create_file(user, path, 'dirfile content...')
-        self.app.post(SERVER_FILES_API + path,
-                      headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))})
+        # post a file again
+        user, pw = 'pippo', 'pass'
 
         # delete it
-        self.app.post(SERVER_FILES_API + 'delete',
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        self.app.post(delete_test_url,
                       headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
-                      data={'filepath': path})
-
-        # final check
+                      data={'filepath': "new_file"})
+        #
+        # check consistency
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
-
-        # Now I manually delete a file in the server and must be NOT synchronized!
-        os.remove(userpath2serverpath(user, 'WELCOME'))
-        dic_state, dir_state = get_dic_dir_states()
-        self.assertNotEqual(dic_state, dir_state)  # NOT EQUAL
-
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
