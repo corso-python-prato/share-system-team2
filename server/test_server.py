@@ -441,7 +441,7 @@ class TestUsers(unittest.TestCase):
         self.assertIsInstance(single_user_data, dict)
         self.assertIn(server.LAST_SERVER_TIMESTAMP, single_user_data)
         self.assertIn(server.SNAPSHOT, single_user_data)
-        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], int)
+        self.assertIsInstance(single_user_data[server.LAST_SERVER_TIMESTAMP], long)
         self.assertIsInstance(single_user_data[server.SNAPSHOT], dict)
         # test that the user directory is created
         user_dirpath = userpath2serverpath(USR)
