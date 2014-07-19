@@ -119,7 +119,7 @@ def userpath2serverpath(username, path=''):
 def now_timestamp():
     """
     Return the current server timestamp as an int.
-    :return: int
+    :return: long
     """
     return long(time.time()*10000)
 
