@@ -55,9 +55,9 @@ def _create_file(username, user_relpath, content, update_userdata=True):
         os.makedirs(dirpath)
     with open(filepath, 'wb') as fp:
         fp.write(content)
-    mtime = os.path.getmtime(filepath)
+    mtime = server.now_timestamp()
     if update_userdata:
-        server.userdata[username][server.SNAPSHOT][user_relpath] = [int(mtime),
+        server.userdata[username][server.SNAPSHOT][user_relpath] = [mtime,
                                                                     server.calculate_file_md5(open(filepath, 'rb'))]
     return mtime
 
