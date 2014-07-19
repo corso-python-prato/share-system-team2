@@ -400,7 +400,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     :return: dict.
     """
     snapshot = {}
-    last_timestamp = 0
+    last_timestamp = now_timestamp()
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -412,10 +412,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = file_timestamp(filepath)
-                if timestamp > last_timestamp:
-                    last_timestamp = timestamp
-                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+                snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
