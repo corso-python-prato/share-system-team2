@@ -23,6 +23,7 @@ from server import userpath2serverpath
 
 HTTP_OK = 200
 HTTP_CREATED = 201
+HTTP_ACCEPTED = 202
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
@@ -750,6 +751,66 @@ class TestUsersGet(unittest.TestCase):
         url = SERVER_API + 'users/' + other_username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+
+
+class TestUsersResetPassword(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+        self.active_user = 'Attivo'
+        _manually_create_user(self.active_user, pick_rand_pw(8))
+        self.pending_user = 'Pendente'
+        server.pending_users[self.pending_user] = {'timestamp': server.now_timestamp(),
+                                                   'activation_code': 'fake-activation-code'}
+
+    def test_active_user(self):
+        url = SERVER_API + 'users/{}/reset'.format(self.active_user)
+        new_password = pick_rand_pw(10)
+        test = self.app.post(url,
+                             data={'password': new_password})
+        self.assertEqual(test.status_code, HTTP_ACCEPTED)
+        self.assertIsNotNone(server.userdata[self.active_user].get('reset_code'))
+
+    def test_pending_user(self):
+        url = SERVER_API + 'users/{}/reset'.format(self.pending_user)
+        new_password = pick_rand_pw(10)
+        previous_pending_activation = server.pending_users[self.pending_user]['activation_code']
+        previous_pending_timestamp = server.pending_users[self.pending_user]['timestamp']
+
+        # TODO: remove this block of sleep when timestamp is multiplied by 10,000 and converted to integer
+        # Wait at least 1 second (temporary! because of 'now_timestamp' "1-second-level truncation")
+        import time
+        time.sleep(1.1)
+        # end of sleep block
+
+        test = self.app.post(url,
+                             data={'password': new_password})
+        self.assertEqual(test.status_code, HTTP_ACCEPTED)
+        self.assertNotEqual(previous_pending_activation,
+                            server.pending_users[self.pending_user]['activation_code'])
+        self.assertLess(previous_pending_timestamp,
+                        server.pending_users[self.pending_user]['timestamp'])
+
+    def test_unknow_user(self):
+        url = SERVER_API + 'users/{}/reset'.format('unknown@pippo.it')
+        test = self.app.post(url,
+                             data={'password': 'okokokoko'})
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+
+    def test_put(self):
+        old_password = server.userdata[self.active_user]['password']
+        # first request a new password with post
+        self.app.post(SERVER_API + 'users/{}/reset'.format(self.active_user))
+        reset_code = server.userdata[self.active_user]['reset_code']
+        # then, put with given code and new password
+        test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                            data={'reset_code': reset_code,
+                                  'password': pick_rand_pw(10)})
+        self.assertEqual(test.status_code, HTTP_OK)
+        self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
 
 
 def get_dic_dir_states():

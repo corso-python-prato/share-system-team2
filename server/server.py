@@ -450,29 +450,54 @@ the $appname Team
 
     def put(self, username):
         """
-        Create user using activation code sent by email.
+        Create user using activation code sent by email, or reset its password.
         """
-        activation_code = request.form['activation_code']
-        logger.debug('Got activation code: {}'.format(activation_code))
         logger.debug('Pending users: {}'.format(pending_users.keys()))
 
         # Pending users cleanup
         expired_pending_users = self._clean_pending_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
-        pending_user_data = pending_users.get(username)
-        if pending_user_data:
-            logger.debug('Activating user {}'.format(username))
-            if activation_code == pending_user_data['activation_code']:
-                # Actually create user
-                password = pending_user_data[PWD]
-                pending_users.pop(username)
-                return create_user(username, password)
+        if username in userdata:
+            # The user is already active, so it should be a request of password resetting.
+            if username in pending_users:
+                raise RuntimeError('Programming error: user {} must\'n t be both pending and active'.format(username))
+            try:
+                new_password = request.form[PWD]
+            except KeyError:
+                abort(HTTP_BAD_REQUEST)
             else:
-                abort(HTTP_NOT_FOUND)
+                request_reset_code = request.form['reset_code']
+                reset_code = userdata[username].get('reset_code')
+                if request_reset_code == reset_code:
+                    userdata[PWD] = new_password
+                    #print('Updating password with "{}"'.format(new_password))
+                    enc_pass = _encrypt_password(new_password)
+                    userdata[username][PWD] = enc_pass
+                    userdata[username].pop('reset_code')
+                    response = 'Password changed succesfully', HTTP_OK
+                else:
+                    # reset code not corresponding
+                    response = 'Code not corrisponding: {} vs {}'.format(reset_code,
+                                                                         request_reset_code), HTTP_NOT_FOUND
+                return response
         else:
-            logger.info('{} is not pending'.format(username))
-            abort(HTTP_NOT_FOUND)
+            activation_code = request.form['activation_code']
+            logger.debug('Got activation code: {}'.format(activation_code))
+            print('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
+            pending_user_data = pending_users.get(username)
+            if pending_user_data:
+                logger.debug('Activating user {}'.format(username))
+                if activation_code == pending_user_data['activation_code']:
+                    # Actually create user
+                    password = pending_user_data[PWD]
+                    pending_users.pop(username)
+                    return create_user(username, password)
+                else:
+                    abort(HTTP_NOT_FOUND)
+            else:
+                logger.info('{} is not pending'.format(username))
+                abort(HTTP_NOT_FOUND)
 
     @auth.login_required
     def delete(self, username):
@@ -489,6 +514,50 @@ the $appname Team
         userdata.pop(username)
         shutil.rmtree(userpath2serverpath(username))
         return 'User "{}" removed.\n'.format(username), HTTP_OK
+
+
+class UsersReset(Resource):
+    def post(self, username):
+        reset_code = os.urandom(16).encode('hex')
+
+        # The password reset must be called from an active or inactive user
+        if not(username in userdata or username in pending_users):
+            abort(HTTP_NOT_FOUND)
+
+        # Composing email
+        subject = '[{}] Password reset'.format(__title__)
+        sender = 'donotreply@{}.com'.format(__title__)
+        recipients = [username]
+        text_body_template = string.Template("""
+Hi there,
+
+There was recently a request to change the password on your $email account.
+If you requested this password change, please set a new password by following the link below:
+
+$code
+
+If you don't want to change your password, just ignore this message.
+
+Cheers,
+the $appname Team
+""")
+        values = dict(code=reset_code,
+                      email=username,
+                      appname=__title__,
+                      )
+        text_body = text_body_template.substitute(values)
+
+        send_email(subject, sender, recipients, text_body)
+
+        if username in userdata:
+            # create or update 'reset_code' key. No expiration time.
+            userdata[username]['reset_code'] = reset_code
+        elif username in pending_users:
+            pending_users[username] = {'timestamp': now_timestamp(),
+                                       'activation_code': reset_code}
+        # the else case is already covered in the first if
+
+        return 'Reset email sent to {}'.format(username), HTTP_ACCEPTED
 
 
 class Actions(Resource):
@@ -794,6 +863,7 @@ class Files(Resource):
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
+api.add_resource(UsersReset, '{}/users/<string:username>/reset'.format(URL_PREFIX))
 api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
