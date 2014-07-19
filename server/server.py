@@ -298,6 +298,7 @@ class Actions(Resource):
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
@@ -326,6 +327,7 @@ class Actions(Resource):
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
@@ -355,6 +357,7 @@ class Actions(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
