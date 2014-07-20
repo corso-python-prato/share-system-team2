@@ -81,12 +81,15 @@ class ConnectionManager(object):
 
         try:
             r = requests.post(url, data=req)
+            # this mean the password is not allowed, i must check before raise_for_status to not destroy response
+            if r.status_code == 403:
+                return {'data': json.loads(r.text), 'need_improvements': True}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+            return {'data': 'Error during registration:\n{}'.format(e), 'need_improvements': False}
         else:
-            return r.text
-        return False
+            return {'data': json.loads(r.text), 'need_improvements': False}
 
     def do_activate(self, data):
         """
