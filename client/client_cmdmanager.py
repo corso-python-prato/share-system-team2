@@ -97,7 +97,13 @@ class CommandParser(cmd.Cmd):
             print 'usage: register <e-mail> <password>'
         else:
             message = {'register': (mail, password)}
-            self._send_to_daemon(message)
+            response = self._send_to_daemon(message)
+            if response['need_improvements']:
+                print '\nThe password you entered is weak, possible improvements:'
+                for k,v in response['data'].items():
+                    print '{}: {}'.format(k, v)
+            else:
+                print response['data']
 
     def do_activate(self, line):
         """
