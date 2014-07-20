@@ -835,17 +835,17 @@ def main():
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
     # Added costum terms list into passwordmeter from words file
-    tempset = set()
+    costum_password = set()
     try:
-        with open(UNWANTED_PASS, 'r') as fo:
-            for line in fo:
-                tempset.add(line)
+        with open(UNWANTED_PASS, 'r') as terms_file:
+            for term in terms_file:
+                costum_password.add(term)
     except IOError:
-        logging.info('Impossible to load file {}! loaded default setting.'.format(UNWANTED_PASS))
+        logging.info('Impossible to load terms file {}! loaded default setting.'.format(UNWANTED_PASS))
     else:
-        passwordmeter.common10k = passwordmeter.common10k.union(tempset)
+        passwordmeter.common10k = passwordmeter.common10k.union(costum_password)
     finally:
-        del tempset
+        del costum_password
 
     userdata.update(load_userdata())
     init_root_structure()
