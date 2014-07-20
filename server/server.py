@@ -21,6 +21,7 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+import passwordmeter
 
 __title__ = 'PyBOX'
 
@@ -412,7 +413,9 @@ class Users(Resource):
             abort(HTTP_CONFLICT)
 
         password = request.form['password']
-
+        strength, improvements = passwordmeter.test(password)
+        if strength <= 0.5:
+            return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
         # Composing email
