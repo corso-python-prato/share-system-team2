@@ -51,6 +51,8 @@ PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 
+UNWANTED_PASS = 'words'
+
 
 class ServerError(Exception):
     pass
@@ -832,6 +834,19 @@ def main():
     if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
+
+    # Added costum terms list into passwordmeter from words file
+    tempset = set()
+    try:
+        with open(UNWANTED_PASS, 'r') as fo:
+            for line in fo:
+                tempset.add(line)
+    except IOError:
+        logging.info('Impossible to load file {}! loaded default setting.'.format(UNWANTED_PASS))
+    else:
+        passwordmeter.common10k = passwordmeter.common10k.union(tempset)
+    finally:
+        del tempset
 
     userdata.update(load_userdata())
     init_root_structure()
