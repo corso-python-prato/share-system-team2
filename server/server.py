@@ -141,7 +141,7 @@ def userpath2serverpath(username, path=''):
 def now_timestamp():
     """
     Return the current server timestamp as an int.
-    :return: int
+    :return: long
     """
     return long(time.time()*10000)
 
@@ -527,13 +527,11 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
 
-
-        userdata[username]['files'].pop(normpath(filepath))
-
         # file deleted, last_server_timestamp is set to current timestamp
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-
+        userdata[username]['files'].pop(normpath(filepath))
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
@@ -563,6 +561,7 @@ class Actions(Resource):
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
@@ -587,13 +586,13 @@ class Actions(Resource):
         self._clear_dirs(os.path.dirname(server_src), username)
 
 
-        last_server_timestamp = file_timestamp(server_dst)
+        last_server_timestamp = now_timestamp()
 
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
-
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
@@ -639,7 +638,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     :return: dict.
     """
     snapshot = {}
-    last_timestamp = 0
+    last_timestamp = now_timestamp()
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -651,10 +650,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = file_timestamp(filepath)
-                if timestamp > last_timestamp:
-                    last_timestamp = timestamp
-                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+                snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
