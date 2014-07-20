@@ -536,15 +536,13 @@ class TestUserdataConsistence(unittest.TestCase):
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
 
-        # post a file again
-        user, pw = 'pippo', 'pass'
 
-        # delete it
+        user, pw = 'pippo', 'pass'
+        # delete new_file
         delete_test_url = SERVER_ACTIONS_API + 'delete'
         self.app.post(delete_test_url,
                       headers={'Authorization': 'Basic ' + base64.b64encode('{}:{}'.format(user, pw))},
                       data={'filepath': "new_file"})
-        #
         # check consistency
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
