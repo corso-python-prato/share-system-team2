@@ -524,15 +524,13 @@ class Actions(Resource):
 
         abspath = os.path.abspath(join(FILE_ROOT, username, filepath))
 
-        if not os.path.isfile(abspath):
-            abort(HTTP_NOT_FOUND)
-
         try:
             os.remove(abspath)
         except OSError:
+            # This error raises when the file is missing
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # file deleted, last_server_timestamp is set to current timestamp
+        # File deleted, last_server_timestamp is set to current timestamp
 
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
@@ -675,11 +673,12 @@ class Files(Resource):
         logger.debug('Files.get({})'.format(repr(path)))
         username = auth.username()
         user_rootpath = join(FILE_ROOT, username)
+
         if path:
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
 
-            if not check_path(dirname, username):
+            if not check_path(path, username):
                 abort(HTTP_FORBIDDEN)
 
             if not os.path.exists(dirname):
