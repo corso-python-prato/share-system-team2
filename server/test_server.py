@@ -921,19 +921,18 @@ class TestUserdataConsistence(unittest.TestCase):
 
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
-        import pdb; pdb.set_trace()
         self.assertEqual(dic_state, dir_state)
 
 
-        # user, pw = 'pippo', 'pass'
-        # # delete new_file
-        # delete_test_url = SERVER_ACTIONS_API + 'delete'
-        # self.app.post(delete_test_url,
-        #               headers=make_basicauth_headers(user, pw),
-        #               data={'filepath': "new_file"})
-        # # check consistency
-        # dic_state, dir_state = get_dic_dir_states()
-        # self.assertEqual(dic_state, dir_state)
+        user, pw = 'pippo', 'pass'
+        # delete new_file
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        self.app.post(delete_test_url,
+                      headers=make_basicauth_headers(user, pw),
+                      data={'filepath': "new_file"})
+        # check consistency
+        dic_state, dir_state = get_dic_dir_states()
+        self.assertEqual(dic_state, dir_state)
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
