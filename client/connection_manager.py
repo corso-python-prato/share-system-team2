@@ -220,8 +220,5 @@ class ConnectionManager(object):
         else:
             return json.loads(r.text)
 
-    # logging.info('ConnectionManager: do_reguser: URL: {} - DATA: {} '.format(url, data))
-    # logging.error('ConnectionManager: do_reguser: URL: {} - EXCEPTIONS_CATCHED: {} '.format(url, e))
-
     def _default(self, method):
         print 'Received Unknown Command:', method
