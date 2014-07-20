@@ -1,43 +1,70 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import socket
 import unittest
-import string
-import random
+import json
 
 import client_cmdmanager
+import test_utils
 
 
-def id_gen(size=int(random.random() * 8), chars=string.ascii_uppercase + string.digits):
-    return ''.join(random.choice(chars) for _ in range(size))
-
-
-@unittest.skip('CommandManager has to be fixed')
-class Testcmdmanager(unittest.TestCase):
+class TestCmdManagerDaemonConnection(unittest.TestCase):
+    """
+    Test the connection between Cmd Manager and Daemon
+    """
     def setUp(self):
-        self.CommandParser = client_cmdmanager.CommandParser()
-        self.random_strings = []
-        for num in range(10):
-            self.random_strings.append(id_gen() + id_gen() + ' ' + id_gen() + '   ' + id_gen() + ' ' + id_gen())
+        self.commandparser = client_cmdmanager.CommandParser()
+        self.commandparser.sock = test_utils.FakeSocket()
 
-    def tearDown(self):
-        pass
+    def test_sent_to_daemon_input(self):
+        """
+        Tests the string passed in input:
+        test a long string
+        """
+        response = 'ciao sono test'
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
+        input_str = 'input'
+
+        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str * 100000), response)
+
+    def test_send_to_daemon_output(self):
+        """
+        Tests the string received:
+        test a long string
+        """
+        input_str = 'input'
+        response = 'ciao sono test'
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
+
+        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+
+        response = response * 100000
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
+
+        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+
+
+class TestDoQuitDoEOF(unittest.TestCase):
+    """
+    Test do_quit and EOF method
+    """
+    def setUp(self):
+        self.commandparser = client_cmdmanager.CommandParser()
+        self.line = 'linelinelineline'
 
     def test_do_quit(self):
         """
-        Verify do_quit generate always True with random string
+        Verify do_quit
         """
-        for string in self.random_strings:
-            self.assertTrue(self.CommandParser.do_quit(string))
+        self.assertTrue(self.commandparser.do_quit(self.line))
 
     def test_do_EOF(self):
         """
-        Verify do_EOF generate always True with random string
+        Verify do_EOF
         """
-        for string in self.random_strings:
-            self.assertTrue(self.CommandParser.do_EOF(string))
+        self.assertTrue(self.commandparser.do_EOF(self.line))
 
-    def test_failed_connection(self):
-            self.assertRaises(socket.error, self.CommandParser.do_newUser, 'user pass') is False
 
+if __name__ == '__main__':
+    unittest.main()

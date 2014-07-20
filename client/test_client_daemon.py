@@ -1,10 +1,14 @@
 import hashlib
 import unittest
 import os
+import sys
 import shutil
 import json
 import time
+import random
+# import httpretty
 import client_daemon
+import test_utils
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -30,16 +34,16 @@ LIST_OF_TEST_FILES = [
 base_dir_tree = {}
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
-    "sharing_path": TEST_SHARING_FOLDER,
-    "cmd_address": "localhost",
-    "cmd_port": 60001,
-    "api_suffix": "/API/V1/",
+    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST, 
+    "sharing_path": TEST_SHARING_FOLDER, 
+    "cmd_address": "localhost", 
+    "cmd_port": 60001, 
+    "api_suffix": "/API/V1/", 
     # no server_address to be sure
-    "server_address": "",
-    "user": "user",
-    "pass": "pass",
-    "timeout_listener_sock": 0.5,
+    "server_address": "", 
+    "user": "user", 
+    "pass": "pass", 
+    "timeout_listener_sock": 0.5, 
     "backlog_listener_sock": 1
 }
 
@@ -444,3 +448,21 @@ class TestClientDaemon(unittest.TestCase):
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
+
+class TestDaemonCmdManagerConnection(unittest.TestCase):
+    def setUp(self):
+        self.client_daemon = client_daemon.Daemon()
+        self.client_daemon.create_observer()
+        self.socket = test_utils.FakeSocket()
+
+    def test_get_cmdmanager_request(self):
+        command = {'shutdown': ()}
+        json_data = json.dumps(command)
+        self.socket.set_response(json_data)
+
+        self.assertEquals(self.client_daemon._get_cmdmanager_request(self.socket), json.loads(json_data))
+
+    def test_set_cmdmanager_response(self):
+        response = 'testtestetst'
+        self.assertEqual(self.client_daemon._set_cmdmanager_response(self.socket, response),
+                         json.dumps({'message': response}))
