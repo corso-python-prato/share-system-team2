@@ -50,10 +50,6 @@ class CommandParser(cmd.Cmd):
                     response_packet = ''.join([response_packet, response_buffer])
 
                 response = json.loads(response_packet)
-
-                print response['message']
-
-                # to improve testing
                 return response['message']
             else:
                 raise Exception('Error: lost connection with daemon')
@@ -116,7 +112,8 @@ class CommandParser(cmd.Cmd):
             print 'usage: activate <e-mail> <token>'
         else:
             message = {'activate': (mail, token)}
-            self._send_to_daemon(message)
+            response = self._send_to_daemon(message)
+            print response
 
 
 if __name__ == '__main__':
