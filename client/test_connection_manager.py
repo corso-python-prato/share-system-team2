@@ -64,18 +64,15 @@ class TestConnectionManager(unittest.TestCase):
         resource = <user>
         data = password=<password>
         """
-        user = 'mail@mail.it'
-        password = 'password'
-        data = (user, password)
-        url = ''.join((self.user_url, user))
-
-        httpretty.register_uri(httpretty.POST, url, status=201, body='user activated')
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        content = 'user activated'
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.POST, url, status=200, body= content_jsoned)
         response = self.cm.do_register(data)
-        self.assertNotEqual(response, False)
-        self.assertIsInstance(response, unicode)
+        self.assertIn('message', response)
+        self.assertEqual(response['message'], content)
 
-        httpretty.register_uri(httpretty.POST, url, status=404)
-        self.assertFalse(self.cm.do_register(data))
 
         httpretty.register_uri(httpretty.POST, url, status=409)
         self.assertFalse(self.cm.do_register(data))
