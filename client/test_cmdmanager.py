@@ -73,6 +73,53 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
 
         self.assertEquals(self.commandparser._send_to_daemon(input_str), response * 100000)
 
+    def test_do_register(self):
+        """
+        Test the successful creation of user
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format(USR, 'Str0ng_Password')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_register(self.line)
+        self.assertIn('content', response)
+        self.assertNotIn('improvements', response)
+
+    def test_do_register_with_weak_password(self):
+        """
+        Test a user registration with weak password.
+        The server refuse registration and send a dictionary with inside the possible improvements for the password.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format(USR, 'password')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_register(self.line)
+        self.assertNotIn('content', response)
+        self.assertIn('improvements', response)
+
+    def test_do_register_with_user_already_existent(self):
+        """
+        Test a user registration with already existent user.
+        The server refuse registration with error message and the client_daemon translate
+        the error into message for client.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format('existent_user', PW)
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_register(self.line)
+        self.assertIn('content', response)
+        self.assertNotIn('improvements', response)
+
+    def test_do_register_with_bad_arguments(self):
+        """
+        Test the registration of user with bad arguments,
+        :return: the response received from daemon
+        """
+        self.line = '{0} {0} {1}'.format(USR, PW)
+        response = self.commandparser.do_register(self.line)
+        self.assertFalse(response)
+        self.line = '{0}'.format(USR, PW)
+        response = self.commandparser.do_register(self.line)
+        self.assertFalse(response)
 
 class TestDoQuitDoEOF(unittest.TestCase):
     """
