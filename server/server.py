@@ -841,7 +841,7 @@ def main():
             for term in terms_file:
                 costum_password.add(term)
     except IOError:
-        logging.info('Impossible to load terms file {}! loaded default setting.'.format(UNWANTED_PASS))
+        logging.info('Impossible to load file {}! loaded default setting.'.format(UNWANTED_PASS))
     else:
         passwordmeter.common10k = passwordmeter.common10k.union(costum_password)
     finally:
