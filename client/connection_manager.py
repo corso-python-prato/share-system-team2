@@ -85,13 +85,13 @@ class ConnectionManager(object):
             if r.status_code == 403:
                 return {'improvements': json.loads(r.text)}
             elif r.status_code == 409:
-                return {'message': 'Error! User already existent!'}
+                return {'content': 'Error! User already existent!'}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
-            return {'message': 'Error during registration:\n{}'.format(e)}
+            return {'content': 'Error during registration:\n{}'.format(e)}
         else:
-            return {'message': json.loads(r.text)}
+            return {'content': json.loads(r.text)}
 
     def do_activate(self, data):
         """

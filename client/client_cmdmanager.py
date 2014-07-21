@@ -130,10 +130,10 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             if 'improvements' in response:
                 print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['data'].items():
+                for k, v in response['improvements'].items():
                     print '{}: {}'.format(k, v)
             else:
-                print response['message']
+                print response['content']
 
     def do_activate(self, line):
         """

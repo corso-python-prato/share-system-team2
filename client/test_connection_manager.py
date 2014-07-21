@@ -70,8 +70,8 @@ class TestConnectionManager(unittest.TestCase):
         content_jsoned = json.dumps(content)
         httpretty.register_uri(httpretty.POST, url, status=200, body= content_jsoned)
         response = self.cm.do_register(data)
-        self.assertIn('message', response)
-        self.assertEqual(response['message'], content)
+        self.assertIn('content', response)
+        self.assertEqual(response['content'], content)
 
     @httpretty.activate
     def test_register_user_with_weak_password(self):
@@ -105,8 +105,8 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.POST, url, status=409)
         response = self.cm.do_register(data)
         response = self.cm.do_register(data)
-        self.assertIn('message', response)
-        self.assertIsInstance(response['message'], str)
+        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
     def test_activate_user(self):
