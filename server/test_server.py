@@ -402,6 +402,31 @@ class TestRequests(unittest.TestCase):
         self.assertFalse(os.path.isfile(to_delete_filepath))
         self.assertNotIn(delete_test_file_path, server.userdata[USR][server.SNAPSHOT])
 
+    def test_delete_file_path_with_tricky_filepath(self):
+        """
+        Test the deleting action with a path that can fall in other user directories or upper.
+        """
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        tricky_to_delete_test_filepath = 'testdelete/../../testdeletefile.txt'
+
+        test = self.app.post(delete_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'filepath': tricky_to_delete_test_filepath}, follow_redirects=True)
+
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+    def test_delete_file_path_with_unexisting_filepath(self):
+        """
+        Test if delete action returns HTTP_NOT_FOUND when trying to remove an unexisting file.
+        """
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        wrong_to_delete_test_filepath = 'testdelete/unexistingfile.dat'
+
+        test = self.app.post(delete_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'filepath': wrong_to_delete_test_filepath}, follow_redirects=True)
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+
     def test_copy_file_path(self):
         """
         Test if a created source file is copied in a new created destination and assures the source file
@@ -423,6 +448,36 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_OK)
         self.assertTrue(os.path.isfile(src_copy_filepath))
+
+    def test_copy_file_path_with_tricky_filepaths(self):
+        """
+        Test the copy action with source and destination paths that can fall in other user directories or upper.
+        """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        tricky_src_copy_test_file_path = 'test_copy_src/../../testcopysrc.txt'
+        tricky_dst_copy_test_file_path = 'test_copy_dst/../../testcopydst.txt'
+
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': tricky_src_copy_test_file_path, 'dst': tricky_dst_copy_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+    def test_copy_file_path_with_unexisting_source(self):
+        """
+        Test if copy action returns HTTP_NOT_FOUND when trying to copy from an unexisting source file.
+        """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        unexisting_src_copy_test_file_path = 'test_copy_src/unexistingcopysrc.txt'
+        dst_copy_test_file_path = 'test_copy_dst/testcopydst.txt'
+
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': unexisting_src_copy_test_file_path, 'dst': dst_copy_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
 
     def test_move_file_path(self):
         """
@@ -461,6 +516,36 @@ class TestRequests(unittest.TestCase):
                              follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_move_file_path_with_tricky_filepaths(self):
+        """
+        Test the move action with source and destination paths that can fall in other user directories or upper.
+        """
+        move_test_url = SERVER_ACTIONS_API + 'move'
+        tricky_src_move_test_file_path = 'test_move_src/../../testmovesrc.txt'
+        tricky_dst_move_test_file_path = 'test_move_dst/../../testmovedst.txt'
+
+        test = self.app.post(move_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': tricky_src_move_test_file_path, 'dst': tricky_dst_move_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+    def test_move_file_path_with_unexisting_source(self):
+        """
+        Test if move action returns HTTP_NOT_FOUND when trying to move from an unexisting source file.
+        """
+        move_test_url = SERVER_ACTIONS_API + 'move'
+        unexisting_src_move_test_file_path = 'test_move_src/unexistingmovesrc.txt'
+        dst_move_test_file_path = 'test_move_dst/testmovedst.txt'
+
+        test = self.app.post(move_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': unexisting_src_move_test_file_path, 'dst': dst_move_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
 
 
 class TestGetRequests(unittest.TestCase):
@@ -555,6 +640,24 @@ class TestGetRequests(unittest.TestCase):
                             headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
+    def test_files_get_with_not_existing_directory(self):
+        """
+        Test that error 404 is correctly returned if an authenticated user try to download
+        from an unexisting directory.
+        """
+        test = self.app.get(SERVER_FILES_API + 'unexisting/unexisting.txt',
+                            headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_files_get_with_tricky_file(self):
+        """
+        Test that error 403 is correctly returned if an authenticated user try to download
+        a file that can fall in other user directories or upper.
+        """
+        test = self.app.get(SERVER_FILES_API + 'testdownload/../../testfile.txt',
+                            headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
     def test_files_get_snapshot(self):
         """
         Test server-side user files snapshot.
@@ -608,6 +711,7 @@ class TestUsersPost(unittest.TestCase):
 
         test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                              data={'password': self.password})
+
         self.assertEqual(test.status_code, HTTP_CONFLICT)
 
     def test_activation_email(self):
