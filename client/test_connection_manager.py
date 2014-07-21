@@ -25,6 +25,8 @@ import shutil
 #  - DELETE /shares/<root_path> - elimina del tutto lo share
 #  - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
 
+# Test-user account details
+USR, PW = 'client_user@mail.com', 'Mail_85'
 
 class TestConnectionManager(unittest.TestCase):
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
