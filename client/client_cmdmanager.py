@@ -5,10 +5,40 @@ import cmd
 import socket
 import struct
 import json
+import os
 
 
-DAEMON_HOST = 'localhost'
-DAEMON_PORT = 50001
+# The path for configuration directory and daemon configuration file
+CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+# Default configuration for socket
+daemon_host = 'localhost'
+daemon_port = 50001
+
+
+def load_cfg(cfg_path=CONFIG_FILEPATH):
+    """
+    Load config file with socket configuration
+    :param cfg_path: filepath of cfg file
+    :return:
+    """
+    try:
+        with open(cfg_path, 'r') as fo:
+            loaded_config = json.load(fo)
+    except (ValueError, IOError, OSError):
+        pass
+    else:
+        try:
+            global daemon_host
+            daemon_host = loaded_config['cmd_address']
+            global daemon_port
+            daemon_port = loaded_config['cmd_port']
+            return
+        except KeyError:
+            pass
+    # If all go right i will not do this print
+    print 'Impossible to load cfg, client_daemon already loaded?'
+    print 'Loaded default configuration for socket'
 
 
 class CommandParser(cmd.Cmd):
@@ -62,7 +92,7 @@ class CommandParser(cmd.Cmd):
         """
         setup before the looping start
         """
-        self.sock.connect((DAEMON_HOST, DAEMON_PORT))
+        self.sock.connect((daemon_host, daemon_port))
 
     def postloop(self):
         """
@@ -100,7 +130,7 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             if 'improvements' in response:
                 print '\nThe password you entered is weak, possible improvements:'
-                for k,v in response['data'].items():
+                for k, v in response['data'].items():
                     print '{}: {}'.format(k, v)
             else:
                 print response['message']
@@ -123,6 +153,5 @@ class CommandParser(cmd.Cmd):
 
 
 if __name__ == '__main__':
+    load_cfg()
     CommandParser().cmdloop()
-
-
