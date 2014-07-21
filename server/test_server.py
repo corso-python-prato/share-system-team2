@@ -739,6 +739,18 @@ class TestUsersPost(unittest.TestCase):
             self.assertIn(self.username, server.pending_users.keys())
             self.assertEqual(test.status_code, HTTP_OK)
 
+    def test_user_creation_with_weak_password(self):
+        """
+        """
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                                 data={'password': 'weak_password'})
+
+        # Test that user is not added to <pendint_users>
+        self.assertNotIn(self.username, server.pending_users.keys())
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+        self.assertIsInstance(json.loads(test.get_data()), dict)
+
+
     def test_user_already_existing(self):
         """
         Existing user --> 409.
