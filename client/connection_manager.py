@@ -194,7 +194,6 @@ class ConnectionManager(object):
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_delete', url, e))
         else:
             event_timestamp = json.loads(r.text)
-
             return event_timestamp
         return False
 
@@ -216,12 +215,16 @@ class ConnectionManager(object):
     def do_get_server_snapshot(self, data):
         url = self.files_url
 
+
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_get_server_snapshot', url, data))
+
         try:
             r = requests.get(url, auth=self.auth)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
+
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_get_server_snapshot', url, e))
+
         else:
             return json.loads(r.text)
 
