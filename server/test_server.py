@@ -209,6 +209,24 @@ class TestRequests(unittest.TestCase):
         _manually_remove_user(USR)
         tear_down_test_dir()
 
+    def test_update_passwordmeter_terms(self):
+        import passwordmeter
+        terms_file = tempfile.NamedTemporaryFile()
+
+        terms = ['dsgdfgsfgsr\n',
+                 'sdfdffdgdgfs\n',
+                 'sfsdgdhgdsdfgdg\n',
+                 'dsffdgdfgdfgdf\n'
+        ]
+        for term in terms:
+            terms_file.write(term)
+        # We have to give filename to the function update_passwordmeter_terms
+        name_of_file = terms_file.name
+        terms_file.seek(0)
+        server.update_passwordmeter_terms(name_of_file)
+        for term in terms:
+            self.assertIn(term, passwordmeter.common10k)
+
     def test_files_post_with_auth(self):
         """
         Test for authenticated upload.
