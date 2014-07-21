@@ -463,6 +463,25 @@ class TestRequests(unittest.TestCase):
 
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
 
+    def test_copy_file_path_with_unexisting_destinationfile(self):
+        """
+        Test the creation of a destination file if this one doesn't exists from the beginning.
+        """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        src_copy_test_file_path = 'test_copy_src/testcopysrc.txt'
+        dst_copy_test_file_path = 'test_copy_dst/testcopydst.txt'
+        # Create source file to be copied and its destination.
+        src_copy_filepath = userpath2serverpath(USR, src_copy_test_file_path)
+
+        _create_file(USR, src_copy_test_file_path, 'this is the file to be copied')
+
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, server.HTTP_OK)
+
     def test_copy_file_path_with_unexisting_source(self):
         """
         Test if copy action returns HTTP_NOT_FOUND when trying to copy from an unexisting source file.
