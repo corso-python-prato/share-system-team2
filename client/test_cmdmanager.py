@@ -8,6 +8,10 @@ import client_cmdmanager
 import test_utils
 
 
+# Test-user account details
+USR, PW = 'mail@hotmail.com', 'Hard_Password_Since_1985'
+
+
 class TestCmdManagerDaemonConnection(unittest.TestCase):
     """
     Test the connection between Cmd Manager and Daemon
