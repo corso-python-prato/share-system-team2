@@ -91,8 +91,22 @@ class TestConnectionManager(unittest.TestCase):
         self.assertIn('improvements', response)
         self.assertEqual(response['improvements'], content)
 
+    @httpretty.activate
+    def test_register_user_with_already_existent_user(self):
+        """
+        Test register user api with already existent user:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        # This is the only case where server doesn't send data with the message error
         httpretty.register_uri(httpretty.POST, url, status=409)
-        self.assertFalse(self.cm.do_register(data))
+        response = self.cm.do_register(data)
+        response = self.cm.do_register(data)
+        self.assertIn('message', response)
+        self.assertIsInstance(response['message'], str)
 
     @httpretty.activate
     def test_activate_user(self):
