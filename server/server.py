@@ -102,6 +102,22 @@ EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
 api = Api(app)
 auth = HTTPBasicAuth()
 
+def update_passwordmeter_terms(terms_file):
+    """
+    Added costume terms list into passwordmeter from words file
+    :return:
+    """
+    costume_password = set()
+    try:
+        with open(terms_file, 'rb') as terms_file:
+            for term in terms_file:
+                costume_password.add(term)
+    except IOError:
+        logging.info('Impossible to load file ! loaded default setting.')
+    else:
+        passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
+    finally:
+        del costume_password
 
 def _read_file(filename):
     """
@@ -834,18 +850,7 @@ def main():
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
-    # Added costum terms list into passwordmeter from words file
-    costum_password = set()
-    try:
-        with open(UNWANTED_PASS, 'r') as terms_file:
-            for term in terms_file:
-                costum_password.add(term)
-    except IOError:
-        logging.info('Impossible to load file {}! loaded default setting.'.format(UNWANTED_PASS))
-    else:
-        passwordmeter.common10k = passwordmeter.common10k.union(costum_password)
-    finally:
-        del costum_password
+    update_passwordmeter_terms(UNWANTED_PASS)
 
     userdata.update(load_userdata())
     init_root_structure()
