@@ -100,12 +100,23 @@ class CommandParser(cmd.Cmd):
         """
         self.sock.close()
 
+    def postcmd(self, stop, line):
+        """
+        This function is called after any do_<something>.
+        If the last operation called return 'exit' the program will be closed
+        :param stop: Is the returning value of the last cmd executed
+        :param line: Is the last line received from the last cmd executed
+        :return:
+        """
+        if stop == 'exit':
+            return True
+
     def do_quit(self, line):
         """Exit Command"""
-        return True
+        return 'exit'
 
     def do_EOF(self, line):
-        return True
+        return 'exit'
 
     def do_shutdown(self, line):
         """
@@ -125,6 +136,8 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'Bad arguments:'
             print 'usage: register <e-mail> <password>'
+            # for testing purpose
+            return False
         else:
             message = {'register': (mail, password)}
             response = self._send_to_daemon(message)
@@ -134,6 +147,8 @@ class CommandParser(cmd.Cmd):
                     print '{}: {}'.format(k, v)
             else:
                 print response['content']
+            # for testing purpose
+            return response
 
     def do_activate(self, line):
         """
@@ -146,10 +161,13 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'Bad arguments:'
             print 'usage: activate <e-mail> <token>'
+            # for testing purpose
+            return False
         else:
             message = {'activate': (mail, token)}
             response = self._send_to_daemon(message)
             print response
+            return response
 
 
 if __name__ == '__main__':
