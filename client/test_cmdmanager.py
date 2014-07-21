@@ -12,6 +12,32 @@ import test_utils
 USR, PW = 'mail@hotmail.com', 'Hard_Password_Since_1985'
 
 
+def _fake_send_to_daemon(message):
+    """
+    This function emulate the send_to_daemon method of commandparser
+    :return: the message received from client_daemon
+    """
+    if 'register' in message:
+        # User creation validated
+        if 'Str0ng_Password' in message['register'][1]:
+            return {'content': 'Message relative successful user creation'}
+        # User creation failed for weak password
+        elif 'password' in message['register'][1]:
+            return {'improvements': {'type_improvement': 'Relative info about this improvement'}}
+        # user creation of existent user
+        elif 'existent_user' in message['register'][0]:
+            return {'content': 'Message relative already existent user creation'}
+        else:
+            return {'Error': 'You must never came here!'}
+    elif 'activate' in message:
+        if 'valid_token' in message['activate'][1]:
+            return 'Message relative successful activation of user'
+        if 'bad_token' in message['activate'][1]:
+            return False
+        else:
+            return {'Error': 'You must never came here!'}
+
+
 class TestCmdManagerDaemonConnection(unittest.TestCase):
     """
     Test the connection between Cmd Manager and Daemon
