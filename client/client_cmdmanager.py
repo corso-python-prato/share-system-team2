@@ -5,6 +5,7 @@ import cmd
 import socket
 import struct
 import json
+import getpass
 
 
 DAEMON_HOST = 'localhost'
@@ -117,6 +118,36 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             self._send_to_daemon(message)
+
+    def do_changepass(self, line):
+        """
+        Change user password.
+        Usage: changepass <e-mail>
+        """
+        mail = line.strip()
+
+        for attempt in range(3):
+            new_password = getpass.getpass('Please enter new password: ')
+            if not new_password:
+                # It empty, assume the user has changed mind
+                print 'Aborted'
+                return
+            new_password_confirmation = getpass.getpass('Please re-enter new password: ')
+            if new_password == new_password_confirmation:
+                req_message = {'reqchangepass': mail}
+                self._send_to_daemon(req_message)
+
+                # Wait for the email containing the reset code...
+
+                reset_code = raw_input('Enter the reset password code received by email: ')
+                message = {'changepass': (mail, reset_code, new_password)}
+                self._send_to_daemon(message)
+                break  # exit from trial for
+            else:
+                print 'Error: passwords doesn\'t match.'
+        else:
+            print 'No more attempts. Just recall the changepass command to retry.'
+            # The user have to re-enter the 'changepass' command to retry.
 
 
 if __name__ == '__main__':

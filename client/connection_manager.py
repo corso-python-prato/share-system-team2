@@ -105,6 +105,37 @@ class ConnectionManager(object):
             return r.text
         return False
 
+    def do_reqchangepass(self, data):
+        """
+        Ask server for reset current user password.
+        """
+        mail = data
+        url = '{}{}/reset'.format(self.users_url, mail)
+        print 'url =', repr(url)
+        try:
+            r = requests.post(url)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_reqchangepass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+        else:
+            return r.text
+
+    def do_changepass(self, data):
+        """
+        Change current password using the code given by email.
+        """
+        mail, changepass_code, new_password = data
+        url = '{}{}'.format(self.users_url, mail)
+        try:
+            r = requests.put(url,
+                             data={'password': new_password,
+                                   'reset_code': changepass_code})
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_reqchangepass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+        else:
+            return r.text
+
     # files
 
     def do_download(self, data):
