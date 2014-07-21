@@ -42,7 +42,7 @@ server.logger.setLevel(server_verbosity)
 logging.basicConfig(level=logging.WARNING)
 
 # Test-user account details
-REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
+REGISTERED_TEST_USER = 'user@mail.com', 'Mail_85'
 USR, PW = REGISTERED_TEST_USER
 
 
@@ -682,8 +682,8 @@ class TestUsersPost(unittest.TestCase):
         self.app = server.app.test_client()
         self.app.testing = True
 
-        self.username = 'superpippo@topoliniamail.com'
-        self.password = 'superpass'
+        self.username = USR
+        self.password = PW
         self.user_dirpath = userpath2serverpath(self.username)
 
     def tearDown(self):
@@ -737,9 +737,8 @@ class TestUsersPut(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-
-        self.username = 'superpippo@topoliniamail.com'
-        self.password = 'superpass'
+        self.username = USR
+        self.password = PW
         self.user_dirpath = userpath2serverpath(self.username)
         assert self.username not in server.pending_users
         assert not os.path.exists(self.user_dirpath)
