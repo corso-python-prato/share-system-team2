@@ -121,6 +121,41 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         response = self.commandparser.do_register(self.line)
         self.assertFalse(response)
 
+    def test_do_activate(self):
+        """
+        Test the successful activation of user.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format(USR, 'valid_token')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_activate(self.line)
+        self.assertIsInstance(response, str)
+
+    def test_do_activate_with_bad_token(self):
+        """
+        Test do_activate with a bad token.
+        The server refuse to create user and we received a False from client_daemon.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format(USR, 'bad_token')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_activate(self.line)
+        self.assertFalse(response)
+
+    def test_do_activate_with_bad_arguments(self):
+        """
+        Test the activation of user with bad arguments,
+        :return: the response received from daemon
+
+        """
+        self.line = '{0} {0} {1}'.format(USR, PW)
+        response = self.commandparser.do_activate(self.line)
+        self.assertFalse(response)
+        self.line = '{0}'.format(USR, PW)
+        response = self.commandparser.do_activate(self.line)
+        self.assertFalse(response)
+
+
 class TestDoQuitDoEOF(unittest.TestCase):
     """
     Test do_quit and EOF method
