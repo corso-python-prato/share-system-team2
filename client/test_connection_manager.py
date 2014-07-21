@@ -12,9 +12,9 @@ import shutil
 # - GET /diffs, con parametro timestamp
 #
 # files:
-#  - GET /files/<path> - scarica un file
-#  - POST /files/<path> - crea un file
-#  - PUT /files/<path> - modifica un file
+# - GET /files/<path> - scarica un file
+# - POST /files/<path> - crea un file
+# - PUT /files/<path> - modifica un file
 # actions:
 #  - POST /actions/copy - parametri src, dest
 #  - POST /actions/delete - parametro path
@@ -41,7 +41,6 @@ class TestConnectionManager(unittest.TestCase):
         # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
         self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-
 
         # create this auth testing
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass'] + "@www.pyboxtest.com"
@@ -134,7 +133,7 @@ class TestConnectionManager(unittest.TestCase):
                                content_type="application/json")
 
         # call api
-        response = self.cm.do_upload({'filepath': 'foo.txt'})
+        response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     # actions:
@@ -173,7 +172,7 @@ class TestConnectionManager(unittest.TestCase):
                                body=js,
                                content_type="application/json")
 
-        response = self.cm.do_modify({'filepath': 'foo.txt'})
+        response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     @httpretty.activate
