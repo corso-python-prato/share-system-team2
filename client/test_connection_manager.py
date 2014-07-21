@@ -73,6 +73,23 @@ class TestConnectionManager(unittest.TestCase):
         self.assertIn('message', response)
         self.assertEqual(response['message'], content)
 
+    @httpretty.activate
+    def test_register_user_with_weak_password(self):
+        """
+        Test register user api with weak password:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        weak_password = 'Password'
+        data = (USR, weak_password)
+        url = ''.join((self.user_url, USR))
+        content = {'type_of_improvement': 'improvement suggested'}
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.POST, url, status=403, body=content_jsoned)
+        response = self.cm.do_register(data)
+        self.assertIn('improvements', response)
+        self.assertEqual(response['improvements'], content)
 
         httpretty.register_uri(httpretty.POST, url, status=409)
         self.assertFalse(self.cm.do_register(data))
