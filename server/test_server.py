@@ -658,6 +658,24 @@ class TestGetRequests(unittest.TestCase):
                             headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
+    def test_files_get_with_not_existing_directory(self):
+        """
+        Test that error 404 is correctly returned if an authenticated user try to download
+        from an unexisting directory.
+        """
+        test = self.app.get(SERVER_FILES_API + 'unexisting/unexisting.txt',
+                            headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_files_get_with_tricky_file(self):
+        """
+        Test that error 403 is correctly returned if an authenticated user try to download
+        a file that can fall in other user directories or upper.
+        """
+        test = self.app.get(SERVER_FILES_API + 'testdownload/../../testfile.txt',
+                            headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
     def test_files_get_snapshot(self):
         """
         Test server-side user files snapshot.
