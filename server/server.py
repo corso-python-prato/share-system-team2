@@ -457,11 +457,12 @@ the $appname Team
         logger.debug('Got activation code: {}'.format(activation_code))
         logger.debug('Pending users: {}'.format(pending_users.keys()))
 
+        pending_user_data = pending_users.get(username)
+
         # Pending users cleanup
         expired_pending_users = self._clean_pending_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
-        pending_user_data = pending_users.get(username)
         if pending_user_data:
             logger.debug('Activating user {}'.format(username))
             if activation_code == pending_user_data['activation_code']:
