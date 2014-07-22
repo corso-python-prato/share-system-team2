@@ -141,19 +141,20 @@ def userpath2serverpath(username, path=''):
 def now_timestamp():
     """
     Return the current server timestamp as an int.
-    :return: int
+    :return: long
     """
-    return int(time.time())
+    return long(time.time()*10000)
 
 
 def file_timestamp(filepath):
     """
-    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+    Return the long of last modification timestamp of <filepath> (i.e. long(os.path.getmtime(filepath))).
 
     :param filepath: str
-    :return: int
+    :return: long
     """
-    return int(os.path.getmtime(filepath))
+
+    return long(os.path.getmtime(filepath)*10000)
 
 
 def _encrypt_password(password):
@@ -394,7 +395,7 @@ class Users(Resource):
             user_data = userdata[username]
             creation_timestamp = user_data.get(USER_CREATION_TIME)
             if creation_timestamp:
-                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp/10000.0))
             else:
                 time_str = '<unknown time>'
             # TODO: return json?
@@ -594,11 +595,12 @@ class Actions(Resource):
             # This error raises when the file is missing
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # File deleted, last_server_timestamp is set to current timestamp
 
+        # file deleted, last_server_timestamp is set to current timestamp
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
@@ -624,9 +626,11 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
 
         last_server_timestamp = file_timestamp(server_dst)
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
@@ -650,11 +654,14 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
 
-        last_server_timestamp = file_timestamp(server_dst)
+
+        last_server_timestamp = now_timestamp()
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
@@ -700,7 +707,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     :return: dict.
     """
     snapshot = {}
-    last_timestamp = 0
+    last_timestamp = now_timestamp()
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -712,10 +719,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = file_timestamp(filepath)
-                if timestamp > last_timestamp:
-                    last_timestamp = timestamp
-                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+                snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
@@ -793,7 +797,7 @@ class Files(Resource):
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
-        save_userdata()
+        save_userdata()    
         return last_server_timestamp
 
     @auth.login_required
@@ -902,7 +906,6 @@ def main():
     userdata.update(load_userdata())
     init_root_structure()
     app.run(host=args.host, debug=args.debug)
-
 
 if __name__ == '__main__':
     main()

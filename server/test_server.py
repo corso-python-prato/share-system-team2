@@ -83,9 +83,9 @@ def _create_file(username, user_relpath, content, update_userdata=True):
         os.makedirs(dirpath)
     with open(filepath, 'wb') as fp:
         fp.write(content)
-    mtime = os.path.getmtime(filepath)
+    mtime = server.now_timestamp()
     if update_userdata:
-        server.userdata[username][server.SNAPSHOT][user_relpath] = [int(mtime),
+        server.userdata[username][server.SNAPSHOT][user_relpath] = [mtime,
                                                                     server.calculate_file_md5(open(filepath, 'rb'))]
     return mtime
 
@@ -463,6 +463,25 @@ class TestRequests(unittest.TestCase):
                              follow_redirects=True)
 
         self.assertEqual(test.status_code, server.HTTP_FORBIDDEN)
+
+    def test_copy_file_path_with_unexisting_destinationfile(self):
+        """
+        Test the creation of a destination file if this one doesn't exists from the beginning.
+        """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        src_copy_test_file_path = 'test_copy_src/testcopysrc.txt'
+        dst_copy_test_file_path = 'test_copy_dst/testcopydst.txt'
+        # Create source file to be copied and its destination.
+        src_copy_filepath = userpath2serverpath(USR, src_copy_test_file_path)
+
+        _create_file(USR, src_copy_test_file_path, 'this is the file to be copied')
+
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path},
+                             follow_redirects=True)
+
+        self.assertEqual(test.status_code, server.HTTP_OK)
 
     def test_copy_file_path_with_unexisting_source(self):
         """
@@ -930,7 +949,9 @@ def get_dic_dir_states():
         single_user_data.pop(server.PWD)  # not very beautiful
         single_user_data.pop(server.USER_CREATION_TIME)  # not very beautiful
         dic_state[username] = single_user_data
-        dir_state[username] = server.compute_dir_state(userpath2serverpath(username))
+        dir_state = json.load(open('userdata.json', "rb"))
+        dir_state[username].pop(server.PWD) # not very beatiful cit. ibidem
+        dir_state[username].pop(server.USER_CREATION_TIME) # not very beatiful cit. ibidem
     return dic_state, dir_state
 
 
@@ -946,11 +967,14 @@ class TestUserdataConsistence(unittest.TestCase):
 
     def test_consistence_after_actions(self):
         """
-        Complex test that do several actions and finally test the consistence.
+        Complex test that do several actions and finally test the consistency.
         """
         # create user
         user = 'pippo'
         _manually_create_user(user, 'pass')
+
+        # i need to create the userdata.json to check consistency
+        server.save_userdata()
 
         # post
         _create_file(user, 'new_file', 'ciao!!!')
@@ -979,29 +1003,16 @@ class TestUserdataConsistence(unittest.TestCase):
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
 
-        # create other user
-        user, pw = 'pluto', 'pw'
-        _manually_create_user(user, pw)
-        # post a file
-        path = 'dir/dirfile.txt'
-        _create_file(user, path, 'dirfile content...')
-        self.app.post(SERVER_FILES_API + path,
-                      headers=make_basicauth_headers(user, pw))
 
-        # delete it
-        self.app.post(SERVER_FILES_API + 'delete',
+        user, pw = 'pippo', 'pass'
+        # delete new_file
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        self.app.post(delete_test_url,
                       headers=make_basicauth_headers(user, pw),
-                      data={'filepath': path})
-
-        # final check
+                      data={'filepath': "new_file"})
+        # check consistency
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
-
-        # Now I manually delete a file in the server and must be NOT synchronized!
-        os.remove(userpath2serverpath(user, 'WELCOME'))
-        dic_state, dir_state = get_dic_dir_states()
-        self.assertNotEqual(dic_state, dir_state)  # NOT EQUAL
-
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
