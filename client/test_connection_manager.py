@@ -12,9 +12,9 @@ import shutil
 # - GET /diffs, con parametro timestamp
 #
 # files:
-#  - GET /files/<path> - scarica un file
-#  - POST /files/<path> - crea un file
-#  - PUT /files/<path> - modifica un file
+# - GET /files/<path> - scarica un file
+# - POST /files/<path> - crea un file
+# - PUT /files/<path> - modifica un file
 # actions:
 #  - POST /actions/copy - parametri src, dest
 #  - POST /actions/delete - parametro path
@@ -41,7 +41,6 @@ class TestConnectionManager(unittest.TestCase):
         # override
         self.cfg['server_address'] = "http://www.pyboxtest.com"
         self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-
 
         # create this auth testing
         self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass'] + "@www.pyboxtest.com"
@@ -103,6 +102,77 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.PUT, url, status=409)
         self.assertFalse(self.cm.do_activate(data))
 
+    @httpretty.activate
+    def test_addshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        shared_folder = 'folder'
+        data = (shared_folder, user)
+        url = ''.join([self.shares_url, shared_folder, '/', user])
+
+        httpretty.register_uri(httpretty.POST, url, status=200, body='added shared folder')
+        response = self.cm.do_addshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        self.assertFalse(self.cm.do_addshare(data))
+
+        httpretty.register_uri(httpretty.POST, url, status=409)
+        self.assertFalse(self.cm.do_addshare(data))
+
+    @httpretty.activate
+    def test_removeshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        shared_folder = 'folder'
+        data = (shared_folder, )
+        url = ''.join([self.shares_url, shared_folder])
+
+        httpretty.register_uri(httpretty.DELETE, url, status=200, body='share removed')
+        response = self.cm.do_removeshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.DELETE, url, status=404)
+        self.assertFalse(self.cm.do_removeshare(data))
+
+        httpretty.register_uri(httpretty.DELETE, url, status=409)
+        self.assertFalse(self.cm.do_removeshare(data))
+
+    @httpretty.activate
+    def test_removeshareduser(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        shared_folder = 'folder'
+        data = (shared_folder, user)
+        url = ''.join([self.shares_url, shared_folder, '/', user])
+
+        httpretty.register_uri(httpretty.DELETE, url, status=200, body='removed user from share')
+        response = self.cm.do_removeshareduser(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.DELETE, url, status=404)
+        self.assertFalse(self.cm.do_removeshareduser(data))
+
+        httpretty.register_uri(httpretty.DELETE, url, status=409)
+        self.assertFalse(self.cm.do_removeshareduser(data))
+
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
@@ -134,7 +204,7 @@ class TestConnectionManager(unittest.TestCase):
                                content_type="application/json")
 
         # call api
-        response = self.cm.do_upload({'filepath': 'foo.txt'})
+        response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     # actions:
@@ -173,7 +243,7 @@ class TestConnectionManager(unittest.TestCase):
                                body=js,
                                content_type="application/json")
 
-        response = self.cm.do_modify({'filepath': 'foo.txt'})
+        response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     @httpretty.activate

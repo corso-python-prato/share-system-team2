@@ -5,6 +5,7 @@ import cmd
 import socket
 import struct
 import json
+import os.path
 
 
 DAEMON_HOST = 'localhost'
@@ -24,9 +25,10 @@ class CommandParser(cmd.Cmd):
         cmd.Cmd.__init__(self)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def _send_to_daemon(self, message=None):
+    def _send_to_daemon(self, message=None, show=True):
         """
         it sends user input command to the daemon server
+        if show = True then print response message, otherwise it get message response without printing it
         """
         if not message:
             raise
@@ -51,7 +53,8 @@ class CommandParser(cmd.Cmd):
 
                 response = json.loads(response_packet)
 
-                print response['message']
+                if show:
+                    print response['message']
 
                 # to improve testing
                 return response['message']
@@ -117,6 +120,60 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             self._send_to_daemon(message)
+
+    def do_addshare(self, line):
+        """
+        Share a folder with a new user
+        Usage: addshare <shared_folder> <user>
+        """
+        try:
+            shared_folder, user = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: share <share_folder> <user>'
+        else:
+            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
+            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
+                print '"%s" not exists' % shared_folder
+            else:
+                message = {'addshare': (shared_folder, user)}
+                self._send_to_daemon(message)
+
+    def do_removeshare(self, line):
+        """
+        Remove completely the sharing in a folder
+        Usage: removeshare <shared_folder>
+        """
+        try:
+            shared_folder = line.split()[0]
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: share <share_folder>'
+        else:
+            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
+            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
+                print '"%s" not exists' % shared_folder
+            else:
+                message = {'removeshare': (shared_folder, )}
+                self._send_to_daemon(message)
+
+    def do_removeshareduser(self, line):
+        """
+        Remove the user from the shared folder
+        Usage: removeshareduser <shared_folder> <user>
+        """
+        try:
+            shared_folder, user = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: removeshareduser <share_folder> <user>'
+        else:
+            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
+            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
+                print '"%s" not exists' % shared_folder
+            else:
+                message = {'removeshareduser': (shared_folder, user)}
+                self._send_to_daemon(message)
 
 
 if __name__ == '__main__':

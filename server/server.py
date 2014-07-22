@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import ConfigParser
 import os
 import json
 import shutil
@@ -7,16 +8,19 @@ import logging
 import datetime
 import argparse
 import hashlib
+import time
+import string
+
 join = os.path.join
 normpath = os.path.normpath
 abspath = os.path.abspath
 
 import pprint
-import time
 
 from flask import Flask, make_response, request, abort, jsonify
 from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, Api
+from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
 
@@ -41,11 +45,23 @@ URL_PREFIX = '/API/V1'
 WORKDIR = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+
+USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
-PASSWORD = 'password'
+PWD = 'password'
+USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+
+
+class ServerError(Exception):
+    pass
+
+
+class ServerConfigurationError(ServerError):
+    pass
 
 
 # Logging configuration
@@ -77,8 +93,14 @@ logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now
 # Server initialization
 # =====================
 userdata = {}
+pending_users = {}
 
 app = Flask(__name__)
+app.testing = __name__ != '__main__'  # Reasonable assumption?
+# if True, you can see the exception traceback, suppress the sending of emails, etc.
+EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
+                               ('email_settings.ini', 'email_settings.ini.example')[app.testing])
+
 api = Api(app)
 auth = HTTPBasicAuth()
 
@@ -90,6 +112,7 @@ def _read_file(filename):
     with open(filename, 'rb') as f:
         content = f.read()
     return content
+
 
 def check_path(path, username):
     """
@@ -123,18 +146,20 @@ def userpath2serverpath(username, path=''):
 def now_timestamp():
     """
     Return the current server timestamp as an int.
-    :return: int
+    :return: long
     """
-    return int(time.time())
+    return long(time.time()*10000)
+
 
 def file_timestamp(filepath):
     """
-    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+    Return the long of last modification timestamp of <filepath> (i.e. long(os.path.getmtime(filepath))).
 
     :param filepath: str
-    :return: int
+    :return: long
     """
-    return int(os.path.getmtime(filepath))
+
+    return long(os.path.getmtime(filepath)*10000)
 
 
 def _encrypt_password(password):
@@ -170,7 +195,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
     os.makedirs(dirpath)
 
     welcome_file = join(dirpath, 'WELCOME')
-    with open(welcome_file, 'w') as fp:
+    with open(welcome_file, 'wb') as fp:
         fp.write('Welcome to %s, %s!\n' % (__title__, username))
 
     for dirname in default_dirs:
@@ -179,7 +204,7 @@ def init_user_directory(username, default_dirs=DEFAULT_USER_DIRS):
         os.mkdir(subdirpath)
         # Create a default file for each default directory
         # beacuse wee need files to see the directories.
-        with open(filepath, 'w') as fp:
+        with open(filepath, 'wb') as fp:
             fp.write('{} {}\n'.format(username, dirname))
     logger.info('{} created'.format(dirpath))
     return compute_dir_state(dirpath)
@@ -209,6 +234,14 @@ def save_userdata():
     logger.info('Saved {:,} users'.format(len(userdata)))
 
 
+def reset_userdata():
+    """
+    Clear userdata and pending_users dictionaries.
+    """
+    userdata.clear()
+    pending_users.clear()
+
+
 @auth.verify_password
 def verify_password(username, password):
     """
@@ -219,7 +252,7 @@ def verify_password(username, password):
         return False
     single_user_data = userdata.get(username)
     if single_user_data:
-        stored_pw = single_user_data.get(PASSWORD)
+        stored_pw = single_user_data.get(PWD)
         assert stored_pw is not None, 'Server error: user data must contain a password!'
         res = sha256_crypt.verify(password, stored_pw)
     else:
@@ -228,17 +261,14 @@ def verify_password(username, password):
     return res
 
 
-@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
-def create_user():
+def create_user(username, password):
     """
     Handle the creation of a new user.
     """
     # Example of creation using requests:
     # requests.post('http://127.0.0.1:5000/API/V1/signup',
-    #               data={'username': 'Pippo', 'password': 'ciao'})
+    # data={'username': 'Pippo', 'password': 'ciao'})
     logger.debug('Creating user...')
-    username = request.form.get('username')
-    password = request.form.get('password')
     if username and password:
         if username in userdata:
             # user already exists!
@@ -247,9 +277,10 @@ def create_user():
             enc_pass = _encrypt_password(password)
 
             temp = init_user_directory(username)
-            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP],temp[SNAPSHOT]
+            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
 
-            single_user_data = {PASSWORD: enc_pass,
+            single_user_data = {USER_CREATION_TIME: now_timestamp(),
+                                PWD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot,
                                 'shared_with_me':{},
@@ -262,6 +293,211 @@ def create_user():
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
+
+
+@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
+def signup():
+    """
+    Old simpler and immediate signup method (no mail) temporarily maintained only for testing purposes.
+    """
+    username = request.form.get('username')
+    password = request.form.get('password')
+    return create_user(username, password)
+
+
+def configure_email():
+    """
+    Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
+    """
+    # Relations between Flask configuration keys and settings file fields.
+    keys_tuples = [
+        ('MAIL_SERVER', 'smtp_address'),  # the address of the smtp server
+        ('MAIL_PORT', 'smtp_port'),  # the port of the smtp server
+        ('MAIL_USERNAME', 'smtp_username'),  # the username of the smtp server (if required)
+        ('MAIL_PASSWORD', 'smtp_password'),  # the password of the smtp server (if required)
+    ]
+
+    cfg = ConfigParser.ConfigParser()
+    cfg.read(EMAIL_SETTINGS_FILEPATH)
+    for flask_key, file_key in keys_tuples:
+        value = cfg.get('email', file_key)
+        if flask_key == 'MAIL_PORT':
+            value = int(value)
+        app.config[flask_key] = value
+
+    return Mail(app)
+
+
+def send_email(subject, sender, recipients, text_body):
+    """
+    Sent an email and return the Message instance of sent email.
+
+    :param subject: str
+    :param sender: str
+    :param recipients: list
+    :param text_body: str
+    :return: Message
+    """
+    msg = Message(subject, sender=sender, recipients=recipients)
+    msg.body = text_body
+    mail.send(msg)
+    return msg
+
+
+class UsersFacility(Resource):
+    """
+    Debug facility/backdoor to get all users (and pending users) info and without authentication.
+    """
+
+    def get(self, username):
+        """
+        Show some info about users.
+        """
+        if username == '__all__':
+            # Easter egg to see a list of registered and pending users.
+            if userdata:
+                reg_users_listr = ', '.join(userdata.keys())
+            else:
+                reg_users_listr = 'no registered users'
+            if pending_users:
+                pending_users_listr = ', '.join(pending_users.keys())
+            else:
+                pending_users_listr = 'no pending users'
+            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
+                       HTTP_OK
+        else:
+            if username in userdata:
+                user_data = userdata[username]
+                creation_timestamp = user_data.get(USER_CREATION_TIME)
+                if creation_timestamp:
+                    time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                else:
+                    time_str = '<unknown time>'
+                response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
+            else:
+                response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
+        return response
+
+
+class Users(Resource):
+    def _clean_pending_users(self):
+        """
+        Remove expired pending users (users whose activation time is expired)
+        and return a list of them.
+        :return: list
+        """
+        # Remove expired pending users.
+        to_remove = [username for (username, data) in pending_users.iteritems()
+                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
+        [pending_users.pop(username) for username in to_remove]
+        return to_remove
+
+    @auth.login_required
+    def get(self, username):
+        """
+        Show logged user details.
+        """
+        logged = auth.username()
+        if username == logged:
+            user_data = userdata[username]
+            creation_timestamp = user_data.get(USER_CREATION_TIME)
+            if creation_timestamp:
+                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp/10000.0))
+            else:
+                time_str = '<unknown time>'
+            # TODO: return json?
+            response = 'You joined on {}.'.format(time_str), HTTP_OK
+            return response
+        else:
+            abort(HTTP_FORBIDDEN)
+
+    def post(self, username):
+        """
+        A not-logged user is asking to register himself.
+        NB: username must be a valid email address.
+        """
+        if username in userdata:
+            abort(HTTP_CONFLICT)
+
+        password = request.form['password']
+
+        activation_code = os.urandom(16).encode('hex')
+
+        # Composing email
+        subject = '[{}] Confirm your email address'.format(__title__)
+        sender = 'donotreply@{}.com'.format(__title__)
+        recipients = [username]
+        text_body_template = string.Template("""
+Thanks for signing up for $appname!
+
+As a final step of the $appname account creation process, please confirm the email address $email.
+Copy and paste the activation code below into the desktop application:
+
+$code
+
+If you don't know what this is about, then someone has probably entered your email address by mistake.
+Sorry about that. You don't need to do anything further. Just delete this message.
+
+Cheers,
+the $appname Team
+""")
+        values = dict(code=activation_code,
+                      email=username,
+                      appname=__title__,
+                      )
+        text_body = text_body_template.substitute(values)
+
+        send_email(subject, sender, recipients, text_body)
+
+        pending_users[username] = {
+            'timestamp': now_timestamp(),
+            'activation_code': activation_code,
+            PWD: password,
+        }
+        return 'User activation email sent to {}'.format(username), HTTP_OK
+
+    def put(self, username):
+        """
+        Create user using activation code sent by email.
+        """
+        activation_code = request.form['activation_code']
+        logger.debug('Got activation code: {}'.format(activation_code))
+        logger.debug('Pending users: {}'.format(pending_users.keys()))
+
+        pending_user_data = pending_users.get(username)
+
+        # Pending users cleanup
+        expired_pending_users = self._clean_pending_users()
+        logging.info('Expired pending users: {}'.format(expired_pending_users))
+
+        if pending_user_data:
+            logger.debug('Activating user {}'.format(username))
+            if activation_code == pending_user_data['activation_code']:
+                # Actually create user
+                password = pending_user_data[PWD]
+                pending_users.pop(username)
+                return create_user(username, password)
+            else:
+                abort(HTTP_NOT_FOUND)
+        else:
+            logger.info('{} is not pending'.format(username))
+            abort(HTTP_NOT_FOUND)
+
+    @auth.login_required
+    def delete(self, username):
+        """
+        Delete all logged user's files and data.
+        The same user won't more log in, but it can be recreated with the signup procedure.
+        """
+        logged = auth.username()
+
+        if username != logged:
+            # I mustn't delete other users!
+            abort(HTTP_FORBIDDEN)
+
+        userdata.pop(username)
+        shutil.rmtree(userpath2serverpath(username))
+        return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
 class Actions(Resource):
@@ -292,19 +528,18 @@ class Actions(Resource):
 
         abspath = os.path.abspath(join(FILE_ROOT, username, filepath))
 
-        if not os.path.isfile(abspath):
-            abort(HTTP_NOT_FOUND)
-
         try:
             os.remove(abspath)
         except OSError:
+            # This error raises when the file is missing
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # file deleted, last_server_timestamp is set to current timestamp
 
+        # file deleted, last_server_timestamp is set to current timestamp
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
@@ -330,9 +565,11 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
 
         last_server_timestamp = file_timestamp(server_dst)
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
@@ -357,11 +594,13 @@ class Actions(Resource):
         self._clear_dirs(os.path.dirname(server_src), username)
 
 
-        last_server_timestamp = file_timestamp(server_dst)
+        last_server_timestamp = now_timestamp()
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
@@ -407,7 +646,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     :return: dict.
     """
     snapshot = {}
-    last_timestamp = 0
+    last_timestamp = now_timestamp()
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -419,10 +658,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = file_timestamp(filepath)
-                if timestamp > last_timestamp:
-                    last_timestamp = timestamp
-                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+                snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
@@ -505,6 +741,7 @@ class Files(Resource):
     """
     Class that handle files as web resources.
     """
+
     @auth.login_required
     def get(self, path=''):
         """
@@ -516,12 +753,15 @@ class Files(Resource):
         logger.debug('Files.get({})'.format(repr(path)))
         username = auth.username()
         user_rootpath = join(FILE_ROOT, username)
+
         if path:
             if _is_shared_with_me(dirname, username):
                 pass
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
-            if not check_path(dirname, username):
+
+            if not check_path(path, username):
+
                 abort(HTTP_FORBIDDEN)
 
             if not os.path.exists(dirname):
@@ -574,8 +814,8 @@ class Files(Resource):
         filepath = userpath2serverpath(username, path)
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath))]
-        save_userdata()
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
+        save_userdata()    
         return last_server_timestamp
 
     @auth.login_required
@@ -587,17 +827,24 @@ class Files(Resource):
         :param path: str
         """
         username = auth.username()
+
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
+
+        if calculate_file_md5(upload_file) != md5:
+            abort(HTTP_CONFLICT)
 
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
             if os.path.isfile(join(dirname, filename)):
                 abort(HTTP_FORBIDDEN)
+
         filepath = join(dirname, filename)
         upload_file.save(filepath)
 
+        # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -614,14 +861,19 @@ class Files(Resource):
         """
         username = auth.username()
         upload_file = request.files['file']
+        md5 = request.form['md5']
         dirname, filename = self._get_dirname_filename(path)
-        filepath = join(dirname, filename)
 
+        if calculate_file_md5(upload_file) != md5:
+            abort(HTTP_CONFLICT)
+
+        filepath = join(dirname, filename)
         if os.path.isfile(filepath):
             upload_file.save(filepath)
         else:
             abort(HTTP_NOT_FOUND)
 
+        # Update and save <userdata>, and return the last server timestamp.
         last_server_timestamp = self._update_user_path(username, path)
 
         resp = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -631,7 +883,12 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
-api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<string:root_path>'.format(URL_PREFIX))
+api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<path:root_path>'.format(URL_PREFIX))
+api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
+api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
+
+# Set the flask.ext.mail.Mail instance
+mail = configure_email()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -643,7 +900,8 @@ def main():
     parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
-    parser.add_argument('-H', '--host', default='0.0.0.0', help='set host address to run the server. [default: %(default)s].')
+    parser.add_argument('-H', '--host', default='0.0.0.0',
+                        help='set host address to run the server. [default: %(default)s].')
     args = parser.parse_args()
 
     if args.debug:
@@ -657,6 +915,10 @@ def main():
         console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
+
+    if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
+        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
+        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
     userdata.update(load_userdata())
     init_root_structure()
