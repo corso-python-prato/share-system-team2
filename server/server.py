@@ -400,7 +400,8 @@ class Users(Resource):
         """
         # Remove expired pending users.
         to_remove = [username for (username, data) in pending_users.iteritems()
-                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
+                     if now_timestamp() - data['timestamp'] >
+                     (USER_ACTIVATION_TIMEOUT * 10000)]
         [pending_users.pop(username) for username in to_remove]
         return to_remove
 
