@@ -70,10 +70,10 @@ class Daemon(RegexMatchingEventHandler):
     DEF_CONF['cmd_port'] = 50001
     DEF_CONF['api_suffix'] = '/API/V1/'
     DEF_CONF['server_address'] = 'http://localhost:5000'
-    DEF_CONF['user'] = 'pasquale'
-    DEF_CONF['pass'] = 'secretpass'
-    DEF_CONF['timeout_listener_sock'] = 0.5
-    DEF_CONF['backlog_listener_sock'] = 1
+    DEF_CONF['user'] = ''
+    DEF_CONF['pass'] = ''
+    DEF_CONF['activate'] = False
+
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
@@ -669,10 +669,12 @@ class Daemon(RegexMatchingEventHandler):
         self.create_observer()
         self.observer.start()
 
+        TIMEOUT_LISTENER_SOCK = 0.5
+        BACKLOG_LISTENER_SOCK = 1
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.listener_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.listener_socket.bind((self.cfg['cmd_address'], self.cfg['cmd_port']))
-        self.listener_socket.listen(self.cfg['backlog_listener_sock'])
+        self.listener_socket.listen(BACKLOG_LISTENER_SOCK)
         r_list = [self.listener_socket]
         self.daemon_state = 'started'
         self.running = 1
@@ -680,7 +682,7 @@ class Daemon(RegexMatchingEventHandler):
         self.sync_with_server()
         try:
             while self.running:
-                r_ready, w_ready, e_ready = select.select(r_list, [], [], self.cfg['timeout_listener_sock'])
+                r_ready, w_ready, e_ready = select.select(r_list, [], [], TIMEOUT_LISTENER_SOCK)
 
                 for s in r_ready:
 
