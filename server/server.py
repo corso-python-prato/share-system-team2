@@ -701,14 +701,14 @@ class Shares(Resource):
         if not os.path.exists(path):
             abort(HTTP_NOT_FOUND)
         #Check if the path is sharable
-        print root_path
-        print username
-        print '#'*20
-        print self._is_sharable(root_path, owner)
+        #print root_path
+        #print username
+        #print '#'*20
+        #print self._is_sharable(root_path, owner)
         if not self._is_sharable(root_path, owner):
             abort(HTTP_FORBIDDEN)    
         self._share(root_path, username, owner)
-        pprint.pprint (userdata)
+        #pprint.pprint (userdata)
 
         return HTTP_OK
 
@@ -752,30 +752,40 @@ class Files(Resource):
         """
         logger.debug('Files.get({})'.format(repr(path)))
         username = auth.username()
-        user_rootpath = join(FILE_ROOT, username)
-
+        
         if path:
-            if _is_shared_with_me(dirname, username):
-                pass
+            if self._is_shared_with_me(path, username):
+                _, owner, file_path = path.split('/',2)
+                user_rootpath = join(FILE_ROOT, owner)
+                dirname = join(user_rootpath, os.path.dirname(file_path))
+                fp = file_path
+
+            else:
+                if not check_path(path, username):
+                    abort(HTTP_FORBIDDEN)
+                user_rootpath = join(FILE_ROOT, username)
+                dirname = join(user_rootpath, os.path.dirname(path))
+                fp = path
+
             # Download the file specified by <path>.
-            dirname = join(user_rootpath, os.path.dirname(path))
-
-            if not check_path(path, username):
-
-                abort(HTTP_FORBIDDEN)
+          
 
             if not os.path.exists(dirname):
                 abort(HTTP_NOT_FOUND)
             s_filename = secure_filename(os.path.split(path)[-1])
 
+            #pprint.pprint(os.path.realpath(dirname))
+            #pprint.pprint(s_filename)
+
             try:
-                response = make_response(_read_file(join(FILE_ROOT, username, path)))
+                response = make_response(_read_file(join(user_rootpath, fp)))
             except IOError:
                 response = 'Error: file {} not found.\n'.format(path), HTTP_NOT_FOUND
             else:
                 response.headers['Content-Disposition'] = 'attachment; filename=%s' % s_filename
         else:
             # If path is not given, return the snapshot of user directory.
+            user_rootpath = join(FILE_ROOT, username)
             logger.debug('launch snapshot of {}...'.format(repr(user_rootpath)))
             snapshot = userdata[username][SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
@@ -785,9 +795,18 @@ class Files(Resource):
         logging.debug(response)
         return response
     
-    def _is_shared_with_me(self, dirname, username):
-        pass
+    def _is_shared_with_me(self, path, username):
+        #shared, ownresourceplit('/',2)
 
+        #if shared == 'shared' and resource in userdata[username][shared_with_me].get(owner):
+        if path.split('/')[0] == 'shared':
+            _, owner, resource = path.split('/',2)
+            
+            if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
+                return True
+        return False
+
+    
     def _get_dirname_filename(self, path):
         """
         Return dirname(directory name) and filename(file name) for a given path to complete

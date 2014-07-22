@@ -5,16 +5,13 @@
 		 		   <path>: (<timestamp>, <md5>),
 		 		 ...
 		 		 },
-		  'shared_to_others':{<path>:[<user>,<user>,<user>,...],
+		 'shared_to_others':{<path>:[<user>,<user>,<user>,...],
 		  					  <path>:[<user>,<user>,<user>,...],
 		  					  ...
 
 		  					 },
-		  'shared_with_me':{<user>: {<path>: (<timestamp>, <md5>),
-		  								 <path>: (<timestamp>, <md5>),
-		  		 						...
-		  		 						},
-		  		 			<user>: {......},
+		 'shared_with_me':{<user>: [<path>, <path>, ...],
+		  		 			<user>: [......],
 		  		 		   },
 		 },
 
