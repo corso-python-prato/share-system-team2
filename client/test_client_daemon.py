@@ -449,6 +449,30 @@ class TestClientDaemon(unittest.TestCase):
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
 
+    def test_sync_process_delete(self):
+        """
+        Test SYNC: New file on server, server_timestamp > client_timestamp
+        but file_timestamp < client_timestamp
+        Directory MODIFIED
+        """
+
+        # only file that i really need
+        create_base_dir_tree(['file_test_delete.txt', 'file_mp3_test_delete.mp3'])
+        server_timestamp = timestamp_generator()
+
+        # Server and client are the same
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        server_dir_tree = base_dir_tree.copy()
+
+        # client timestamp < server timestamp
+        self.daemon.local_dir_state['last_timestamp'] = server_timestamp - 1
+        # directory modified
+        self.daemon.local_dir_state['global_md5'] = 'md5diversodaquelloeffettivo'
+
+        server_dir_tree.update({'new_file': (server_timestamp - 2, 'md5md6jkshkfv')})
+        self.assertEqual(
+            self.daemon._sync_process(server_timestamp, server_dir_tree),
+            [('delete', 'new_file')])
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
