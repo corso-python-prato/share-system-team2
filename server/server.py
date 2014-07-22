@@ -513,6 +513,7 @@ the $appname Team
             abort(HTTP_FORBIDDEN)
 
         userdata.pop(username)
+        # TODO: add save_userdata()
         shutil.rmtree(userpath2serverpath(username))
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 

@@ -829,8 +829,8 @@ class TestUsersDelete(unittest.TestCase):
         _manually_create_user(USR, PW)
         user_dirpath = userpath2serverpath(USR)
         # Really created?
-        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)
-        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)
+        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)  # TODO: translate
+        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)  # TODO: translate
 
         # Test FORBIDDEN case (removing other users)
         url = SERVER_API + 'users/' + 'otheruser'
