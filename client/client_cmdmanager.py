@@ -6,10 +6,46 @@ import socket
 import struct
 import json
 import getpass
+import re
 
 
 DAEMON_HOST = 'localhost'
 DAEMON_PORT = 50001
+
+
+def validate_email(address):
+    """
+    Validate an email address according to http://www.regular-expressions.info/email.html.
+    :param address: str
+    :return: bool
+    """
+    # WARNING: it seems a not 100%-exhaustive email address validation.
+    # source: http://www.regular-expressions.info/email.html
+    regexp = r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b'
+    return bool(re.search(regexp, address, re.IGNORECASE))
+
+
+def _getpass():
+    """
+    Ask the user for a new password. He must type it 2 times for confirmation.
+    If successful, return the string of new password,
+    else (empty or wrong confirmation) return False.
+    """
+    for attempt in range(3):
+        new_password = getpass.getpass('Please enter a new password: ')
+        if not new_password:
+            # It empty, assume the user has changed mind
+            print 'Aborted'
+            return False
+        new_password_confirmation = getpass.getpass('Please re-enter the new password: ')
+        if new_password == new_password_confirmation:
+            return new_password
+        else:
+            print 'Error: passwords doesn\'t match.'
+    else:
+        print 'No more attempts. '
+        # The user have to re-enter the 'recoverpass' command to retry.
+        return False
 
 
 class CommandParser(cmd.Cmd):
@@ -126,28 +162,30 @@ class CommandParser(cmd.Cmd):
         """
         mail = line.strip()
 
-        for attempt in range(3):
-            new_password = getpass.getpass('Please enter a new password: ')
-            if not new_password:
-                # It empty, assume the user has changed mind
-                print 'Aborted'
-                return
-            new_password_confirmation = getpass.getpass('Please re-enter the new password: ')
-            if new_password == new_password_confirmation:
-                req_message = {'reqrecoverpass': mail}
-                self._send_to_daemon(req_message)
+        if not validate_email(mail):
+            print 'Error: invalid email address.'
+            return False
 
-                # Wait for the email containing the reset code...
+        # Ask password without showing it:
+        new_password = _getpass()
 
-                reset_code = raw_input('Enter the reset password code received by email: ')
+        if new_password:
+            req_message = {'reqrecoverpass': mail}
+            r = self._send_to_daemon(req_message)
+
+            # FIXME: Complete procedure using a specific command ('activate' or a new one).
+            if r:
+                reset_code = raw_input('Enter the recover password code received by email:> ')
                 message = {'recoverpass': (mail, reset_code, new_password)}
-                self._send_to_daemon(message)
-                break  # exit from trial for
+                resp = self._send_to_daemon(message)
+                if not resp:
+                    print 'Error: invalid code.'
             else:
-                print 'Error: passwords doesn\'t match.'
+                print 'Error: the user does not exist or is not valid.'
         else:
-            print 'No more attempts. Just recall the recoverpass command to retry.'
-            # The user have to re-enter the 'recoverpass' command to retry.
+            # Empty password or confirm password not matching
+            print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+            return False
 
 
 if __name__ == '__main__':
