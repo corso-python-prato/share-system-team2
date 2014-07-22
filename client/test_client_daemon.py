@@ -473,6 +473,34 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(
             self.daemon._sync_process(server_timestamp, server_dir_tree),
             [('delete', 'new_file')])
+
+    def test_sync_process_local_dir_modified_client_ts_equal_server_ts(self):
+        """
+        Test SYNC: server_timestamp == client_timestamp
+        Directory MODIFIED
+        the client rules because dir is modified
+        """
+
+        create_base_dir_tree(['file_test.txt', 'file_mp3_test.mp3'])
+        server_timestamp = timestamp_generator()
+
+        # Server and client are the same
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        server_dir_tree = base_dir_tree.copy()
+
+        # server ts and client ts are the same
+        self.daemon.local_dir_state['last_timestamp'] = server_timestamp
+        # directory not modified
+        self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
+
+        self.daemon.client_snapshot['file.txt'] = (server_timestamp -1, '321456879')
+        self.daemon.client_snapshot['file_test.txt'] = (server_timestamp -1, '123654789')
+        server_dir_tree.update({'new_file_on_server': (server_timestamp - 2, 'md5md6jkshkfv')})
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+            [('delete', 'new_file_on_server'),
+            ('modify', 'file_test.txt'),
+            ('upload', 'file.txt')])
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
