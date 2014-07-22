@@ -114,7 +114,7 @@ class ConnectionManager(object):
         print 'url =', repr(url)
         try:
             r = requests.post(url)
-            #r.raise_for_status()
+            r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
         else:
