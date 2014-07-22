@@ -544,8 +544,10 @@ class TestClientDaemon(unittest.TestCase):
         print "Wha i've popped: ", self.daemon.client_snapshot.pop(src)
         self.daemon.update_local_dir_state(server_timestamp)
         return True
+
+    def test_sync_process_copy_on_client(self):
         """
-        Test SYNC: server_timestamp > client_timestamp test COPY on client
+        Test SYNC: server_timestamp > client_timestamp test COPY on server
         Directory MODIFIED
         copy or move? copy
         """
@@ -556,11 +558,11 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.client_snapshot = base_dir_tree.copy()
         server_dir_tree = base_dir_tree.copy()
 
-        # add a file to test copy on server
+        # add a the same file in server and client and then move it on SERVER
         self.daemon.client_snapshot['file_test_copy.txt'] = (server_timestamp -1, '987654321')
         server_dir_tree['file_test_copy.txt'] = (server_timestamp -1, '987654321')
 
-        # copied file on server must copy on client
+        # copied file on server must be copied on client now
         server_dir_tree['file_test_copied.txt'] = (server_timestamp, '987654321')
 
         # server_ts > client_ts
@@ -570,8 +572,8 @@ class TestClientDaemon(unittest.TestCase):
         # adding file to client_snapshot so dir will be  modified
         self.daemon.client_snapshot['another_file_modified.txt'] = (server_timestamp -1, '645987123')
 
-        # override the copy function to simulate the copy on disk
-        self.daemon._make_copy_on_client = self.fake_copy_on_client
+        # mock the function. if not it will try to really move the file on disk
+        self.daemon._make_copy_on_client = self.mock_copy_on_client
 
         # dir is modified so i've to find an upload
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
@@ -583,13 +585,13 @@ class TestClientDaemon(unittest.TestCase):
 
         # the file copied must be in the client snapshot after the copy
         self.assertIn('file_test_copied.txt', self.daemon.client_snapshot)
+        self.assertIn('file_test_copy.txt', self.daemon.client_snapshot)
 
-    def fake_copy_on_client(self, src, dst, server_timestamp):
+    def mock_copy_on_client(self, src, dst, server_timestamp):
 
         self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
         self.daemon.update_local_dir_state(server_timestamp)
         return True
-
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
