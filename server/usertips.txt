@@ -47,6 +47,11 @@ User activation (PUT):
 
     curl -X put localhost:5000/API/V1/users/<youruser> --data "activation_code=<yourcode>"
 
+User authentication:
+
+    curl http://localhost:5000/API/V1/users/<youruser> --user "<youruser>:<yourpassword>"
+
+
 User info (GET):
 
     curl localhost:5000/API/V1/users/<youruser>
@@ -55,6 +60,11 @@ User info (GET):
 User signup shortcut:
 
     curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
+
+User delete:
+
+    curl -X delete http://<youruser>:<yourpassword>@localhost:5000/API/V1/users/<youruser>
+
 
 
 Automated testing with nose and coverage
