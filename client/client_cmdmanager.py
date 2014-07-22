@@ -175,8 +175,8 @@ class CommandParser(cmd.Cmd):
 
             # FIXME: Complete procedure using a specific command ('activate' or a new one).
             if r:
-                reset_code = raw_input('Enter the recover password code received by email:> ')
-                message = {'recoverpass': (mail, reset_code, new_password)}
+                recoverpass_code = raw_input('Enter the recover password code received by email:> ')
+                message = {'recoverpass': (mail, recoverpass_code, new_password)}
                 resp = self._send_to_daemon(message)
                 if not resp:
                     print 'Error: invalid code.'
