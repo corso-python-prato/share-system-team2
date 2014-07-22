@@ -468,19 +468,19 @@ the $appname Team
             except KeyError:
                 abort(HTTP_BAD_REQUEST)
             else:
-                request_reset_code = request.form['reset_code']
-                reset_code = userdata[username].get('reset_code')
-                if request_reset_code == reset_code:
+                request_recoverpass_code = request.form['recoverpass_code']
+                recoverpass_code = userdata[username].get('recoverpass_code')
+                if request_recoverpass_code == recoverpass_code:
                     userdata[PWD] = new_password
                     #print('Updating password with "{}"'.format(new_password))
                     enc_pass = _encrypt_password(new_password)
                     userdata[username][PWD] = enc_pass
-                    userdata[username].pop('reset_code')
+                    userdata[username].pop('recoverpass_code')
                     response = 'Password changed succesfully', HTTP_OK
                 else:
                     # reset code not corresponding
-                    response = 'Code not corrisponding: {} vs {}'.format(reset_code,
-                                                                         request_reset_code), HTTP_NOT_FOUND
+                    response = 'Code not corrisponding: {} vs {}'.format(recoverpass_code,
+                                                                         request_recoverpass_code), HTTP_NOT_FOUND
                 return response
         else:
             activation_code = request.form['activation_code']
@@ -519,7 +519,7 @@ the $appname Team
 
 class UsersReset(Resource):
     def post(self, username):
-        reset_code = os.urandom(16).encode('hex')
+        recoverpass_code = os.urandom(16).encode('hex')
 
         # The password reset must be called from an active or inactive user
         if not(username in userdata or username in pending_users):
@@ -542,7 +542,7 @@ If you don't want to change your password, just ignore this message.
 Cheers,
 the $appname Team
 """)
-        values = dict(code=reset_code,
+        values = dict(code=recoverpass_code,
                       email=username,
                       appname=__title__,
                       )
@@ -551,11 +551,11 @@ the $appname Team
         send_email(subject, sender, recipients, text_body)
 
         if username in userdata:
-            # create or update 'reset_code' key. No expiration time.
-            userdata[username]['reset_code'] = reset_code
+            # create or update 'recoverpass_code' key. No expiration time.
+            userdata[username]['recoverpass_code'] = recoverpass_code
         elif username in pending_users:
             pending_users[username] = {'timestamp': now_timestamp(),
-                                       'activation_code': reset_code}
+                                       'activation_code': recoverpass_code}
         # the else case is already covered in the first if
 
         return 'Reset email sent to {}'.format(username), HTTP_ACCEPTED

@@ -105,7 +105,7 @@ class ConnectionManager(object):
             return r.text
         return False
 
-    def do_reqchangepass(self, data):
+    def do_reqrecoverpass(self, data):
         """
         Ask server for reset current user password.
         """
@@ -114,25 +114,25 @@ class ConnectionManager(object):
         print 'url =', repr(url)
         try:
             r = requests.post(url)
-            r.raise_for_status()
+            #r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            self.logger.error('do_reqchangepass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+            self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
         else:
             return r.text
 
-    def do_changepass(self, data):
+    def do_recoverpass(self, data):
         """
         Change current password using the code given by email.
         """
-        mail, changepass_code, new_password = data
+        mail, recoverpass_code, new_password = data
         url = '{}{}'.format(self.users_url, mail)
         try:
             r = requests.put(url,
                              data={'password': new_password,
-                                   'reset_code': changepass_code})
+                                   'recoverpass_code': recoverpass_code})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            self.logger.error('do_reqchangepass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+            self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
         else:
             return r.text
 
