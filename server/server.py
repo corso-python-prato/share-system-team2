@@ -11,6 +11,7 @@ join = os.path.join
 normpath = os.path.normpath
 abspath = os.path.abspath
 
+import pprint
 import time
 
 from flask import Flask, make_response, request, abort, jsonify
@@ -250,7 +251,10 @@ def create_user():
 
             single_user_data = {PASSWORD: enc_pass,
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: dir_snapshot}
+                                SNAPSHOT: dir_snapshot,
+                                'shared_with_me':{},
+                                'shared_with_others':{}
+                                }
             userdata[username] = single_user_data
             save_userdata()
             response = 'User "{}" created.\n'.format(username), HTTP_CREATED
@@ -429,6 +433,19 @@ class Shares(Resource):
     """
     @auth.login_required
     def post(self, root_path, username):
+        owner = auth.username()
+        #Check if the path is in the owner root
+        if not check_path(root_path, owner):
+            abort(HTTP_FORBIDDEN)
+        #Cheks if the path exists
+        path = os.path.abspath(join(FILE_ROOT, owner, root_path))   
+        if not os.path.exists(path):
+            abort(HTTP_NOT_FOUND)
+        #Check if the path is sharable
+        if not self._is_sharable(root_path, owner):
+            abort(HTTP_FORBIDDEN)    
+        self._share(path, username, owner)
+
         return HTTP_OK
 
     def  delete(self, root_path, username=''):
@@ -436,27 +453,48 @@ class Shares(Resource):
     
     @auth.login_required
     def get(self, root_path, username=''):
+        """"
+        Just for testing.
+        """
         owner = auth.username()
-
+        #Check if the path is in the owner root
         if not check_path(root_path, owner):
             abort(HTTP_FORBIDDEN)
-
-        path = os.path.abspath(join(FILE_ROOT, owner, root_path))
-       
-        print self._is_sharable(root_path, owner)
-        # print root_path
-        # print owner
-        # print username
+        #Cheks if the path exists
+        path = os.path.abspath(join(FILE_ROOT, owner, root_path))   
         if not os.path.exists(path):
             abort(HTTP_NOT_FOUND)
+        #Check if the path is sharable
+        print root_path
+        print username
+        print '#'*20
+        print self._is_sharable(root_path, owner)
+        if not self._is_sharable(root_path, owner):
+            abort(HTTP_FORBIDDEN)    
+        self._share(root_path, username, owner)
+        pprint.pprint (userdata)
+
         return HTTP_OK
 
-    def _is_sharable(self, path, username):
-        root_path = os.path.abspath(join(FILE_ROOT, username))
-        sharing_path = os.path.abspath(join(FILE_ROOT, username, path))
-        # print root_path
-        # print sharing_path
-        # print os.path.split(sharing_path)[0]
+    def _share(self, path, username, owner):
+        if not (owner in  userdata[username]['shared_with_me']):
+            userdata[username]['shared_with_me'][owner]=[]
+
+        if not (path in userdata[owner]['shared_with_others']):
+            userdata[owner]['shared_with_others'][path]=[]
+
+        if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
+            abort(HTTP_CONFLICT)
+
+        userdata[username]['shared_with_me'][owner].append(path)
+        userdata[owner]['shared_with_others'][path].append(username)
+
+    def _is_sharable(self, path, owner):
+        """
+        Checks if the file or folder is located in the owner main root path.
+        """
+        root_path = os.path.abspath(join(FILE_ROOT, owner))
+        sharing_path = os.path.abspath(join(FILE_ROOT, owner, path))
         if os.path.split(sharing_path)[0] == root_path:
            return True
         return False
@@ -479,9 +517,10 @@ class Files(Resource):
         username = auth.username()
         user_rootpath = join(FILE_ROOT, username)
         if path:
+            if _is_shared_with_me(dirname, username):
+                pass
             # Download the file specified by <path>.
             dirname = join(user_rootpath, os.path.dirname(path))
-
             if not check_path(dirname, username):
                 abort(HTTP_FORBIDDEN)
 
@@ -505,6 +544,9 @@ class Files(Resource):
                                 SNAPSHOT: snapshot})
         logging.debug(response)
         return response
+    
+    def _is_shared_with_me(self, dirname, username):
+        pass
 
     def _get_dirname_filename(self, path):
         """
@@ -589,7 +631,7 @@ class Files(Resource):
 
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
-api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<path:root_path>'.format(URL_PREFIX))
+api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<string:root_path>'.format(URL_PREFIX))
 
 def main():
     parser = argparse.ArgumentParser()
