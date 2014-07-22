@@ -501,7 +501,49 @@ class TestClientDaemon(unittest.TestCase):
             [('delete', 'new_file_on_server'),
             ('modify', 'file_test.txt'),
             ('upload', 'file.txt')])
-    def test_sync_process_local_dir_modified_client_ts_lessthan_server_ts(self):
+
+    def test_sync_move_on_server(self):
+        """
+        Test SYNC: server_timestamp > client_timestamp test MOVE on server
+        Directory MODIFIED
+        copy or move? move on server
+        """
+
+        create_base_dir_tree(['file_test_move.txt', 'file_mp3_test_move.mp3'])
+        server_timestamp = timestamp_generator()
+
+        # Server and client starts the same
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        server_dir_tree = base_dir_tree.copy()
+
+        # server_ts > client_ts
+        self.daemon.local_dir_state['last_timestamp'] = server_timestamp - 5
+        self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
+
+        # function _make_move_on_client
+        self.daemon._make_move_on_client = self.mock_move_on_client
+
+        # move the file on SERVER
+        server_dir_tree['folder/file_test_moved.txt'] = server_dir_tree.pop('file_test_move.txt')
+
+        # add a file to the client to modify the local_dir
+        self.daemon.client_snapshot.update({'new_file_': (server_timestamp - 2, 'md5md6jkshkfv')})
+
+        # the new file have to be uploaded
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+             [('upload', 'new_file_')])
+
+        # assure the move
+        self.assertIn('folder/file_test_moved.txt',self.daemon.client_snapshot)
+        self.assertNotIn('file_test_move.txt',self.daemon.client_snapshot)
+        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
+
+    def mock_move_on_client(self, src, dst, server_timestamp):
+
+        self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
+        print "Wha i've popped: ", self.daemon.client_snapshot.pop(src)
+        self.daemon.update_local_dir_state(server_timestamp)
+        return True
         """
         Test SYNC: server_timestamp > client_timestamp test COPY on client
         Directory MODIFIED
