@@ -166,7 +166,7 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             response = self._send_to_daemon(message)
-            print response
+            print response['content']
             return response
 
 
