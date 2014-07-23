@@ -174,6 +174,9 @@ class CommandParser(cmd.Cmd):
             r = self._send_to_daemon(req_message)
             if not r:
                 print 'Error: the user does not exist or is not valid.'
+                return False
+            else:
+                return True
 
     def do_changepass(self, line):
         """
@@ -185,6 +188,7 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'Bad arguments:'
             print 'usage: changepass <e-mail> <recoverpass_code>'
+            return False
         else:
             # Ask password without showing it:
             new_password = _getpass()
@@ -193,6 +197,9 @@ class CommandParser(cmd.Cmd):
                 resp = self._send_to_daemon(message)
                 if not resp:
                     print 'Error: invalid recoverpass code.'
+                    return False
+                else:
+                    return True
             else:
                 # Empty password or confirm password not matching
                 print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
