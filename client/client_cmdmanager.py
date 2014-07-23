@@ -161,6 +161,10 @@ class CommandParser(cmd.Cmd):
         Usage: recoverpass <e-mail>
         """
         mail = line.strip()
+        if not mail:
+            print 'Bad arguments:'
+            print 'usage: recoverpass <e-mail>'
+            return False
 
         if not validate_email(mail):
             print 'Error: invalid email address.'
