@@ -111,7 +111,6 @@ class ConnectionManager(object):
         """
         mail = data
         url = '{}{}/reset'.format(self.users_url, mail)
-        print 'url =', repr(url)
         try:
             r = requests.post(url)
             r.raise_for_status()
