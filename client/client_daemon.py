@@ -667,17 +667,25 @@ class Daemon(RegexMatchingEventHandler):
         socket.sendall(response_packet)
         return response_packet
 
+    def _initialize_observing(self):
+        """
+        Intial operation for observing.
+        We create the client_snapshot, load the information stored inside local_dir_state and create observer.
+        """
+
+        self.build_client_snapshot()
+        self.load_local_dir_state()
+        self.create_observer()
+        self.observer.start()
+
     def start(self):
         """
         Starts the communication with the command_manager.
         """
-        self.build_client_snapshot()
-        self.load_local_dir_state()
-
-        # Operations necessary to start the daemon
-        self.create_observer()
-        self.observer.start()
-
+        # If user is activated we can start observing.
+        if self.cfg['activate']:
+            self._initialize_observing()
+            self.sync_with_server()
         TIMEOUT_LISTENER_SOCK = 0.5
         BACKLOG_LISTENER_SOCK = 1
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -688,7 +696,6 @@ class Daemon(RegexMatchingEventHandler):
         self.daemon_state = 'started'
         self.running = 1
         polling_counter = 0
-        self.sync_with_server()
         try:
             while self.running:
                 r_ready, w_ready, e_ready = select.select(r_list, [], [], TIMEOUT_LISTENER_SOCK)
