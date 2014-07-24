@@ -519,7 +519,17 @@ the $appname Team
 
 
 class UsersReset(Resource):
+    """
+    This class handles the recovering of a lost user's password by changing it.
+
+    Use case: the user has forgotten its password and wants to recover it.
+    NB: recover the old password is not even possible since it's stored encrypted.
+    """
     def post(self, username):
+        """
+        Handle the request for change the user's password
+        by sending a 'recoverpass' token to its email address.
+        """
         recoverpass_code = os.urandom(16).encode('hex')
 
         # The password reset must be called from an active or inactive user
