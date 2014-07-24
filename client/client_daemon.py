@@ -783,7 +783,8 @@ class Daemon(RegexMatchingEventHandler):
         if self.daemon_state == 'started':
             self.running = 0
             self.daemon_state = 'down'
-            self.save_local_dir_state()
+            if self.local_dir_state:
+                self.save_local_dir_state()
         if exit_message:
             print exit_message
         exit(exit_status)
