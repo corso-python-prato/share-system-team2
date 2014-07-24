@@ -8,6 +8,7 @@ import json
 import httpretty
 import time
 import shutil
+
 # API:
 # - GET /diffs, con parametro timestamp
 #
@@ -94,7 +95,7 @@ class TestConnectionManager(unittest.TestCase):
         url = ''.join((self.user_url, USR))
         content = 'user activated'
         content_jsoned = json.dumps(content)
-        httpretty.register_uri(httpretty.POST, url, status=200, body= content_jsoned)
+        httpretty.register_uri(httpretty.POST, url, status=200, body=content_jsoned)
         response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertEqual(response['content'], content)
@@ -129,7 +130,6 @@ class TestConnectionManager(unittest.TestCase):
         url = ''.join((self.user_url, USR))
         # This is the only case where server doesn't send data with the message error
         httpretty.register_uri(httpretty.POST, url, status=409)
-        response = self.cm.do_register(data)
         response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertIsInstance(response['content'], str)
