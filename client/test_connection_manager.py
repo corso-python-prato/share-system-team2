@@ -25,6 +25,8 @@ import shutil
 #  - DELETE /shares/<root_path> - elimina del tutto lo share
 #  - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
 
+# Test-user account details
+USR, PW = 'client_user@mail.com', 'Mail_85'
 
 class TestConnectionManager(unittest.TestCase):
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
@@ -62,21 +64,49 @@ class TestConnectionManager(unittest.TestCase):
         resource = <user>
         data = password=<password>
         """
-        user = 'mail@mail.it'
-        password = 'password'
-        data = (user, password)
-        url = ''.join((self.user_url, user))
-
-        httpretty.register_uri(httpretty.POST, url, status=201, body='user activated')
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        content = 'user activated'
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.POST, url, status=200, body= content_jsoned)
         response = self.cm.do_register(data)
-        self.assertNotEqual(response, False)
-        self.assertIsInstance(response, unicode)
+        self.assertIn('content', response)
+        self.assertEqual(response['content'], content)
 
-        httpretty.register_uri(httpretty.POST, url, status=404)
-        self.assertFalse(self.cm.do_register(data))
+    @httpretty.activate
+    def test_register_user_with_weak_password(self):
+        """
+        Test register user api with weak password:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        weak_password = 'Password'
+        data = (USR, weak_password)
+        url = ''.join((self.user_url, USR))
+        content = {'type_of_improvement': 'improvement suggested'}
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.POST, url, status=403, body=content_jsoned)
+        response = self.cm.do_register(data)
+        self.assertIn('improvements', response)
+        self.assertEqual(response['improvements'], content)
 
+    @httpretty.activate
+    def test_register_user_with_already_existent_user(self):
+        """
+        Test register user api with already existent user:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        # This is the only case where server doesn't send data with the message error
         httpretty.register_uri(httpretty.POST, url, status=409)
-        self.assertFalse(self.cm.do_register(data))
+        response = self.cm.do_register(data)
+        response = self.cm.do_register(data)
+        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
     def test_activate_user(self):

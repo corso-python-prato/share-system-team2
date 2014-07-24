@@ -21,6 +21,7 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+import passwordmeter
 
 __title__ = 'PyBOX'
 
@@ -49,6 +50,8 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+
+UNWANTED_PASS = 'words'
 
 
 class ServerError(Exception):
@@ -99,6 +102,22 @@ EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
 api = Api(app)
 auth = HTTPBasicAuth()
 
+def update_passwordmeter_terms(terms_file):
+    """
+    Added costume terms list into passwordmeter from words file
+    :return:
+    """
+    costume_password = set()
+    try:
+        with open(terms_file, 'rb') as terms_file:
+            for term in terms_file:
+                costume_password.add(term)
+    except IOError:
+        logging.info('Impossible to load file ! loaded default setting.')
+    else:
+        passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
+    finally:
+        del costume_password
 
 def _read_file(filename):
     """
@@ -413,7 +432,9 @@ class Users(Resource):
             abort(HTTP_CONFLICT)
 
         password = request.form['password']
-
+        strength, improvements = passwordmeter.test(password)
+        if strength <= 0.5:
+            return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
         # Composing email
@@ -833,6 +854,8 @@ def main():
     if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
+
+    update_passwordmeter_terms(UNWANTED_PASS)
 
     userdata.update(load_userdata())
     init_root_structure()
