@@ -93,12 +93,7 @@ class Daemon(RegexMatchingEventHandler):
         self.local_dir_state = {}  # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
-
-        if cfg_path:
-            self.cfg = self.load_cfg(cfg_path)
-        else:
-            self.cfg = self.load_cfg(Daemon.CONFIG_FILEPATH)
-
+        self.cfg = self.load_cfg(cfg_path)
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
