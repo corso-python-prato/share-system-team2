@@ -83,6 +83,9 @@ class Daemon(RegexMatchingEventHandler):
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
+    #Allowed operation before user is activated
+    ALLOWED_OPERATION = {'register','activate'}
+
     def __init__(self, cfg_path=None):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
 
