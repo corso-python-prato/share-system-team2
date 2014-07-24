@@ -127,8 +127,10 @@ class Daemon(RegexMatchingEventHandler):
 
         if os.path.isfile(config_path):
             try:
-                with open(config_path, 'r') as fo:
-                    loaded_config = json.load(fo)
+                with open(cfg_path, 'r') as fo:
+                    loaded_config = OrderedDict()
+                    for k,v in json.load(fo).items():
+                        loaded_config[k] = v
             except ValueError:
                 print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(
                     config_path)
