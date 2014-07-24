@@ -678,6 +678,32 @@ class Daemon(RegexMatchingEventHandler):
         self.create_observer()
         self.observer.start()
 
+    def _activation_check(self, s, cmd, data):
+        """
+        This method allow only registration and activation of user until this will be accomplished.
+        In case of bad cmd this will be refused otherwise if the server response are successful
+        we update the daemon_config and after activation of user start the observing.
+        :param s: connection socket with client_cmdmanager
+        :param cmd: received cmd from client_cmdmanager
+        :param data: received data from client_cmdmanager
+        """
+        if cmd not in Daemon.ALLOWED_OPERATION:
+            self._set_cmdmanager_response(s, 'Operation not allowed! Authorization required.')
+        else:
+            response = self.conn_mng.dispatch_request(cmd, data)
+            if response['successful']:
+                if cmd == 'register':
+                    self.cfg['user'] = data[0]
+                    self.cfg['pass'] = data[1]
+                    self.save_cfg()
+                elif cmd == 'activate':
+                    self.cfg['activate'] = True
+                    self.save_cfg()
+                    # Now the client_daemon is ready to operate, we do the start activity
+                    self._initialize_observing()
+                    self.sync_with_server()
+            self._set_cmdmanager_response(s, response)
+
     def start(self):
         """
         Starts the communication with the command_manager.
@@ -716,15 +742,17 @@ class Daemon(RegexMatchingEventHandler):
                                     self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
                                 else:
-                                    response = self.conn_mng.dispatch_request(cmd, data)
-                                    # for now the protocol is that for request sent by
-                                    # command manager, the server reply with a string
-                                    # so, to maintain the same data structure during
-                                    # daemon and cmdmanager comunications, it rebuild a json
-                                    # to send like response
-                                    # TODO it's advisable to make attention to this assertion or refact the architecture
-                                    self._set_cmdmanager_response(s, response)
-
+                                    if not self.cfg['activate']:
+                                        self._activation_check(s, cmd, data)
+                                    else: # client is already activated
+                                        response = self.conn_mng.dispatch_request(cmd, data)
+                                        # for now the protocol is that for request sent by
+                                        # command manager, the server reply with a string
+                                        # so, to maintain the same data structure during
+                                        # daemon and cmdmanager comunications, it rebuild a json
+                                        # to send like response
+                                        # TODO it's advisable to make attention to this assertion or refact the architecture
+                                        self._set_cmdmanager_response(s, response)
                         else:  # it receives the FIN packet that close the connection
                             s.close()
                             r_list.remove(s)
