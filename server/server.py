@@ -518,7 +518,7 @@ the $appname Team
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
-class UsersReset(Resource):
+class UsersRecoverPassword(Resource):
     """
     This class handles the recovering of a lost user's password by changing it.
 
@@ -877,7 +877,7 @@ class Files(Resource):
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
-api.add_resource(UsersReset, '{}/users/<string:username>/reset'.format(URL_PREFIX))
+api.add_resource(UsersRecoverPassword, '{}/users/<string:username>/reset'.format(URL_PREFIX))
 api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
