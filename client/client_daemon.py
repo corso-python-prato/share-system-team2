@@ -760,19 +760,20 @@ class Daemon(RegexMatchingEventHandler):
                             s.close()
                             r_list.remove(s)
 
-                # synchronization polling
-                # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
-                # maybe optimizable but now functional
-
-                polling_counter += 1
-                if polling_counter == 6:
-                    polling_counter = 0
-                    self.sync_with_server()
+                if self.cfg['activate']:
+                    # synchronization polling
+                    # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
+                    # maybe optimizable but now functional
+                    polling_counter += 1
+                    if polling_counter == 6:
+                        polling_counter = 0
+                        self.sync_with_server()
 
         except KeyboardInterrupt:
             self.stop(0)
-        self.observer.stop()
-        self.observer.join()
+        if self.cfg['activate']:
+            self.observer.stop()
+            self.observer.join()
         self.listener_socket.close()
 
     def stop(self, exit_status, exit_message=None):
