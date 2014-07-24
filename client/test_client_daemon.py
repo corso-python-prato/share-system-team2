@@ -34,17 +34,16 @@ LIST_OF_TEST_FILES = [
 base_dir_tree = {}
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST, 
-    "sharing_path": TEST_SHARING_FOLDER, 
-    "cmd_address": "localhost", 
-    "cmd_port": 60001, 
-    "api_suffix": "/API/V1/", 
+    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
+    "sharing_path": TEST_SHARING_FOLDER,
+    "cmd_address": "localhost",
+    "cmd_port": 60001,
+    "api_suffix": "/API/V1/",
     # no server_address to be sure
-    "server_address": "", 
-    "user": "user", 
-    "pass": "pass", 
-    "timeout_listener_sock": 0.5, 
-    "backlog_listener_sock": 1
+    "server_address": "",
+    "user": "user",
+    "pass": "pass",
+    "activate": True,
 }
 
 def timestamp_generator():

@@ -25,18 +25,44 @@ import shutil
 #  - DELETE /shares/<root_path> - elimina del tutto lo share
 #  - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
 
+TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
+CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+LOCAL_DIR_STATE_FOR_TEST = os.path.join(CONFIG_DIR, 'local_dir_state')
+TEST_SHARING_FOLDER = os.path.join(TEST_DIR, 'test_sharing_folder')
+
+TEST_CFG = {
+    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
+    "sharing_path": TEST_SHARING_FOLDER,
+    "cmd_address": "localhost",
+    "cmd_port": 60001,
+    "api_suffix": "/API/V1/",
+    # no server_address to be sure
+    "server_address": "",
+    "user": "user",
+    "pass": "pass",
+    "activate": True,
+}
+
+def create_environment():
+    if not os.path.exists(TEST_DIR):
+        os.makedirs(CONFIG_DIR)
+        os.mkdir(TEST_SHARING_FOLDER)
+
+    with open(CONFIG_FILEPATH,'w') as f:
+            json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
+
 # Test-user account details
 USR, PW = 'client_user@mail.com', 'Mail_85'
 
+
 class TestConnectionManager(unittest.TestCase):
-    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
-    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'dir_state')
+
 
     def setUp(self):
         httpretty.enable()
-
-        with open(TestConnectionManager.CONFIG_FILEPATH, 'r') as fo:
+        create_environment()
+        with open(CONFIG_FILEPATH, 'r') as fo:
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
