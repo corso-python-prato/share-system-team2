@@ -102,30 +102,40 @@ class Daemon(RegexMatchingEventHandler):
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
-    def load_cfg(self, config_path):
+    def save_cfg(self, cfg_path=None, init=False):
         """
-        Load config, if impossible to find it or config file is corrupted restore it and load default configuration
-        :param config_path: Path of config
-        :return: dictionary containing configuration
+        Save the configuration stored in self.cfg into a file with path cfg_path.
+        If no cfg_path is given as default we save in default path stored in Daemon.CONFIG_FILEPATH.
+        If the flag init is True this mean we have to initialize the cfg attribute into Daemon.
+        :param cfg_path: Path of config
+        :param init: If True self.cfg will be initialized with Daemon.DEF_CONF
         """
+         # Search if config directory exists otherwise create it
 
-        def build_default_cfg():
-            """
-            Restore default config file by writing on file
-            :return: default configuration contained in the dictionary DEF_CONF
-            """
-            with open(Daemon.CONFIG_FILEPATH, 'wb') as fo:
-                json.dump(Daemon.DEF_CONF, fo, skipkeys=True, ensure_ascii=True, indent=4)
-            return Daemon.DEF_CONF
-
-        # Search if config directory exists otherwise create it
+        if cfg_path:
+            Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
+            Daemon.DEF_CONF['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
+        else:
+            cfg_path = Daemon.CONFIG_FILEPATH
+        if init:
+            self.cfg = Daemon.DEF_CONF
         if not os.path.isdir(Daemon.CONFIG_DIR):
             try:
                 os.makedirs(Daemon.CONFIG_DIR)
             except (OSError, IOError):
                 self.stop(1, '\nImpossible to create "{}" directory! Permission denied!\n'.format(Daemon.CONFIG_DIR))
+        with open(cfg_path, 'wb') as daemon_config:
+            json.dump(self.cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
+        Daemon.CONFIG_FILEPATH = cfg_path
 
-        if os.path.isfile(config_path):
+    def load_cfg(self, cfg_path):
+        """
+        Load config, if impossible to find it or config file is corrupted restore it and load default configuration
+        :param cfg_path: Path of config
+        :return: dictionary containing configuration
+        """
+        if not cfg_path: cfg_path = Daemon.CONFIG_FILEPATH
+        if os.path.isfile(cfg_path):
             try:
                 with open(cfg_path, 'r') as fo:
                     loaded_config = OrderedDict()
@@ -133,23 +143,25 @@ class Daemon(RegexMatchingEventHandler):
                         loaded_config[k] = v
             except ValueError:
                 print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(
-                    config_path)
-                return build_default_cfg()
-            corrupted_config = False
-            for k in Daemon.DEF_CONF:
-                if k not in loaded_config:
-                    corrupted_config = True
-            # In the case is all gone right run config in loaded_config
-            if not corrupted_config:
-                return loaded_config
+                    cfg_path)
             else:
-                print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(
-                    config_path)
-                return build_default_cfg()
+                corrupted_config = False
+                for k in Daemon.DEF_CONF:
+                    if k not in loaded_config:
+                        corrupted_config = True
+                # In the case is all gone right we can update the CONFIG costant and return loaded_config
+                if not corrupted_config:
+                    Daemon.CONFIG_FILEPATH = cfg_path
+                    Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
+                    return loaded_config
+                else:
+                    print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(
+                        cfg_path)
         else:
             print '\nWarning "{0}" doesn\'t exist, Config file overwrited and loaded default config!\n'.format(
-                config_path)
-            return build_default_cfg()
+                cfg_path)
+        self.save_cfg(cfg_path, init=True)
+        return Daemon.DEF_CONF
 
     def init_sharing_path(self):
         """
