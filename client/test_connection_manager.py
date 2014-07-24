@@ -175,9 +175,9 @@ class TestConnectionManager(unittest.TestCase):
         self.assertFalse(response['successful'])
 
     @httpretty.activate
-    def test_fail_to_activate_user(self):
+    def test_activate_user_not_existent(self):
         """
-        Test failed activation
+        Test activate user not existent
         Test activate user api:
         method = PUT
         resource = <user>
@@ -188,6 +188,25 @@ class TestConnectionManager(unittest.TestCase):
         data = (user, token)
         url = ''.join((self.user_url, user))
         httpretty.register_uri(httpretty.PUT, url, status=404)
+
+        response = self.cm.do_activate(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
+    def test_fail_to_activate_user(self):
+        """
+        Test failed activation request
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = 'bad_token'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
+        httpretty.register_uri(httpretty.PUT, url, status=500)
 
         response = self.cm.do_activate(data)
         self.assertIsInstance(response['content'], str)

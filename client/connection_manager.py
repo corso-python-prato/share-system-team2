@@ -81,7 +81,7 @@ class ConnectionManager(object):
 
         try:
             r = requests.post(url, data=req)
-            # this mean the password is not allowed, i must check before raise_for_status to not destroy response
+            # i must check before raise_for_status to not destroy response
             if r.status_code == 403:
                 return {'improvements': json.loads(r.text), 'successful': False}
             elif r.status_code == 409:
@@ -103,6 +103,10 @@ class ConnectionManager(object):
 
         try:
             r = requests.put(url, data=req)
+            if r.status_code == 404:
+                return {'content': 'Error! Impossible to activate user! Unexistent user!', 'successful': False}
+            elif r.status_code == 409:
+                return {'content': 'Error! Impossible to activate user! User already activated!', 'successful': False}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_activate: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
