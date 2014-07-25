@@ -194,6 +194,84 @@ class TestClientDaemon(unittest.TestCase):
         forbidden_path = '/forbidden_path/sharing_folder'
         self.assertRaises(SystemExit, self.daemon._init_sharing_path, forbidden_path)
 
+    def test_load_cfg_with_existent_cfg(self):
+        """
+        This test can be done with created test environment.
+        """
+        self.assertEqual(self.daemon.cfg, TEST_CFG)
+
+    def test_load_cfg_with_customization_cfg(self):
+        """
+        Test loading of cfg file done with customization cfg.
+        """
+        old_cfg = self.daemon.cfg
+        os.remove(CONFIG_FILEPATH)
+        self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
+        self.assertEqual(self.daemon.cfg, old_cfg)
+
+    def test_load_cfg_from_broken_file(self):
+        """
+        This test load broken config file.
+        We expect that default configuration is writen on file and loaded.
+        """
+        broken_json = '{"local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST, "sharing_path": TEST_SHARING_FOLDER'
+
+        # I expect some customize configuration is loaded
+        with open(CONFIG_FILEPATH, 'wb') as broken_cfg:
+            broken_cfg.write(broken_json)
+
+        self.assertNotEqual(self.daemon.cfg, client_daemon.Daemon.DEF_CONF)
+        # Loading of broken_cfg
+        self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
+
+        # Check what is written to the file after load, i expect that broken file is overwrited with default configuration
+        with open(CONFIG_FILEPATH, 'rb') as created_file:
+            loaded_config = json.load(created_file)
+        for cfg_line in loaded_config:
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+
+    def test_load_cfg_with_missing_key(self):
+        """
+        This test load file cfg with missing key.
+        We expect default configuration will be written on file and loaded.
+        """
+
+        # I expect some customize configuration is loaded
+        missing_key_cfg = {"local_dir_state_path": 'error_value','missing_key': False }
+        with open(CONFIG_FILEPATH, 'wb') as cfg:
+            json.dump(missing_key_cfg, cfg)
+
+        self.assertNotEqual(self.daemon.cfg, client_daemon.Daemon.DEF_CONF)
+        # Loading of cfg with missing key
+        self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
+
+        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        with open(CONFIG_FILEPATH, 'rb') as created_file:
+            loaded_config = json.load(created_file)
+        for cfg_line in loaded_config:
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+        # Check configuration inside missing_key_cfg is not written with default_cfg
+        self.assertNotEqual(missing_key_cfg['local_dir_state_path'], self.daemon.cfg['local_dir_state_path'])
+        self.assertNotIn('missing_key', self.daemon.cfg)
+
+    def test_load_cfg_with_unexistent_path(self):
+        """
+        Test load_cfg with cfg_path of unexistent file.
+        I expect default cfg is loaded.
+        """
+
+        os.remove(CONFIG_FILEPATH)
+
+        self.assertNotEqual(self.daemon.cfg, client_daemon.Daemon.DEF_CONF)
+        # Loading unexistent cfg
+        self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
+
+        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        with open(CONFIG_FILEPATH, 'rb') as created_file:
+            loaded_config = json.load(created_file)
+        for cfg_line in loaded_config:
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
