@@ -34,6 +34,7 @@ TEST_DIR = 'server_test'
 SERVER_API = '/API/V1/'
 SERVER_FILES_API = urlparse.urljoin(SERVER_API, 'files/')
 SERVER_ACTIONS_API = urlparse.urljoin(SERVER_API, 'actions/')
+SERVER_SHARES_API = urlparse.urljoin(SERVER_API, 'shares/')
 
 # Set server logging verbosity
 server_verbosity = logging.WARNING  # change it manually if you want change the server verbosity
@@ -44,6 +45,10 @@ logging.basicConfig(level=logging.WARNING)
 # Test-user account details
 REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
 USR, PW = REGISTERED_TEST_USER
+
+
+SHAREUSR = 'pyboxshareuser'
+SHAREUSRPW = '12345'
 
 
 def pick_rand_str(length, possible_chars=string.ascii_lowercase):
@@ -140,6 +145,8 @@ def _manually_create_user(username, pw):
     single_user_data = user_dir_state
     single_user_data[server.PWD] = enc_pass
     single_user_data[server.USER_CREATION_TIME] = server.now_timestamp()
+    single_user_data['shared_with_me'] = {}
+    single_user_data['shared_with_others'] = {}
     server.userdata[username] = single_user_data
     return single_user_data
 
@@ -885,12 +892,12 @@ def get_dic_dir_states():
     dir_state = {}
     for username in server.userdata:
         single_user_data = server.userdata[username].copy()
-        single_user_data.pop(server.PWD)  # not very beautiful
+        single_user_data.pop('password')  # not very beautiful
         single_user_data.pop(server.USER_CREATION_TIME)  # not very beautiful
         dic_state[username] = single_user_data
         dir_state = json.load(open('userdata.json', "rb"))
-        dir_state[username].pop(server.PWD) # not very beatiful cit. ibidem
-        dir_state[username].pop(server.USER_CREATION_TIME) # not very beatiful cit. ibidem
+        dir_state[username].pop(server.USER_CREATION_TIME)
+        dir_state[username].pop('password') # not very beatiful cit. ibidem
     return dic_state, dir_state
 
 
@@ -940,7 +947,9 @@ class TestUserdataConsistence(unittest.TestCase):
 
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
-        self.assertEqual(dic_state, dir_state)
+
+        
+        self.assertEqual(dic_state[user]['files'], dir_state[user]['files'])
 
 
         user, pw = 'pippo', 'pass'
@@ -951,7 +960,8 @@ class TestUserdataConsistence(unittest.TestCase):
                       data={'filepath': "new_file"})
         # check consistency
         dic_state, dir_state = get_dic_dir_states()
-        self.assertEqual(dic_state, dir_state)
+
+        self.assertEqual(dic_state[user]['files'], dir_state[user]['files'])
         # WIP: Test not complete. TODO: Do more things! Put, ...?
 
 
@@ -968,6 +978,75 @@ class TestLoggingConfiguration(unittest.TestCase):
         self.assertFalse(os.path.exists('log') and os.path.isdir('log'))
         reload(server)
         self.assertTrue(os.path.exists('log') and os.path.isdir('log'))
+
+
+class TestShares(unittest.TestCase):
+    def setUp(self):
+        """
+        Create users, folders and files to test the sharing feature.
+        """
+
+        setup_test_dir()
+
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+        _manually_remove_user(USR)
+        _manually_create_user(USR, PW)
+
+        _manually_create_user(SHAREUSR, SHAREUSRPW)    
+
+        
+    def tearDown(self):
+        _manually_remove_user(USR)
+        _manually_remove_user(SHAREUSR)
+        tear_down_test_dir()
+
+    def test_create_file_share(self):
+        sharedFile = 'test.txt'
+        _create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        #check if the owner correctly shared access to the file with the sharing receiver
+        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFileRealPath])
+        #check if the sharing receiver correctly received the shared file access from the owner
+        self.assertIn(sharedFileRealPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
+
+    def test_create_folder_share(self):
+        sharedPath = 'Misc'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedPath + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedRealPath = userpath2serverpath(os.path.join(USR,sharedPath))
+        #check if the owner correctly shared access to the path with the sharing receiver
+        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedRealPath])
+        #check if the sharing receiver correctly received the shared path access from the owner
+        self.assertIn(sharedRealPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
+
+    def test_create_illegal_share(self):
+        sharedFile = 'Misc/test.txt'
+        _create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        #check that the owner have no shares with the receiver
+        self.assertNotIn(sharedFileRealPath, server.userdata[USR]['shared_with_others'].keys())
+        #check that the sharing receiver have no shares from the owner
+        self.assertNotIn(USR, server.userdata[SHAREUSR]['shared_with_me'].keys())
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+
+    def test_create_not_existing_share(self):
+        sharedFile = 'myfile.txt'
+        #_create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        #check that the owner have no shares with the receiver
+        self.assertNotIn(sharedFileRealPath, server.userdata[USR]['shared_with_others'].keys())
+        #check that the sharing receiver have no shares from the owner
+        self.assertNotIn(USR, server.userdata[SHAREUSR]['shared_with_me'].keys())
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+
 
 
 if __name__ == '__main__':
