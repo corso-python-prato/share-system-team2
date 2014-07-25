@@ -96,7 +96,7 @@ class Daemon(RegexMatchingEventHandler):
         self.local_dir_state = {}  # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
-        self.cfg = self.load_cfg(cfg_path)
+        self.cfg = self._load_cfg(cfg_path, sharing_path)
         self._init_sharing_path(sharing_path)
 
         self.conn_mng = ConnectionManager(self.cfg)
@@ -117,7 +117,7 @@ class Daemon(RegexMatchingEventHandler):
                 print 'Created folder:\n', path
         return True
 
-    def create_cfg(self, cfg_path=None, sharing_path=None):
+    def _create_cfg(self, cfg_path, sharing_path=None):
         """
         Create the configuration file of client_daemon.
         If is given custom path for cfg (cfg_path) or observed directory (sharing_path) the config file
@@ -148,7 +148,7 @@ class Daemon(RegexMatchingEventHandler):
         with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
             json.dump(self.cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
 
-    def load_cfg(self, cfg_path):
+    def _load_cfg(self, cfg_path, sharing_path):
         """
         Load config, if impossible to find it or config file is corrupted restore it and load default configuration
         :param cfg_path: Path of config
@@ -182,7 +182,7 @@ class Daemon(RegexMatchingEventHandler):
         else:
             print '\nWarning "{0}" doesn\'t exist!' \
                   '\nNew config file created and loaded with default configuration!\n'.format(cfg_path)
-        return self.create_cfg(cfg_path)
+        return self._create_cfg(cfg_path, sharing_path)
 
     def _init_sharing_path(self, sharing_path):
         """
