@@ -52,9 +52,12 @@ User info (GET):
     curl localhost:5000/API/V1/users/<youruser>
 
 
-User signup shortcut:
+## Backdoors
+NB: The server needs to be started with --debug option!
 
-    curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
+Create directly a new user without the email confirmation (PUT):
+
+    curl -X PUT localhost:5000/API/V1/users/<youruser> --data "activation_code=BACKDOOR"
 
 
 Automated testing with nose and coverage

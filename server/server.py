@@ -508,6 +508,15 @@ the $appname Team
                 else:
                     abort(HTTP_NOT_FOUND)
             else:
+                #### DEBUG-MODE BACKDOOR ####
+                # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
+                if app.debug and activation_code == 'BACKDOOR':
+                    password = 'debug-password'
+                    logger.debug('Creating user "{}" (password="{}") '
+                                 'without email confirmation via backdoor.'.format(username, password))
+                    return create_user(username, password)
+                #### DEBUG-MODE BACKDOOR ####
+
                 logger.info('{} is not pending'.format(username))
                 abort(HTTP_NOT_FOUND)
 
