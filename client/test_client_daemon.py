@@ -628,8 +628,10 @@ class TestClientDaemon(unittest.TestCase):
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
-        self.client_daemon = client_daemon.Daemon()
-        self.client_daemon.create_observer()
+        self.daemon = client_daemon.Daemon()
+        self.daemon.cfg['user'] = ''
+        self.daemon.cfg['pass'] = ''
+        self.daemon.cfg['activate'] = False
         self.socket = test_utils.FakeSocket()
 
     def test_get_cmdmanager_request(self):
