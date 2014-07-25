@@ -307,16 +307,6 @@ def create_user(username, password):
     return response
 
 
-@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
-def signup():
-    """
-    Old simpler and immediate signup method (no mail) temporarily maintained only for testing purposes.
-    """
-    username = request.form.get('username')
-    password = request.form.get('password')
-    return create_user(username, password)
-
-
 def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
