@@ -593,6 +593,32 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.update_local_dir_state(server_timestamp)
         return True
 
+    def test_sync_process_conflicted_path(self):
+        """
+        Test SYNC: server_timestamp > client_timestamp
+        Directory MODIFIED
+        test same file MODIFIED in server and client, worst case
+        """
+
+        create_base_dir_tree(['file_test_conflicted.txt'])
+        server_timestamp = timestamp_generator()
+
+        # Server and client starts the same
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        server_dir_tree = base_dir_tree.copy()
+
+        # server_ts > client_ts
+        self.daemon.local_dir_state['last_timestamp'] = server_timestamp - 5
+        self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
+
+        # mod same file (server has the most recent file)
+        self.daemon.client_snapshot['file_test_conflicted.txt'] = (server_timestamp - 5, '321456879')
+        server_dir_tree['file_test_conflicted.txt'] = (server_timestamp - 4, '987456321')
+
+        expected_value = ''.join(['file_test_conflicted.txt', '.conflicted'])
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+                        [('upload', expected_value)])
+
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
