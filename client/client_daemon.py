@@ -86,7 +86,7 @@ class Daemon(RegexMatchingEventHandler):
     #Allowed operation before user is activated
     ALLOWED_OPERATION = {'register','activate'}
 
-    def __init__(self, cfg_path=None):
+    def __init__(self, cfg_path=None, sharing_path=None):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
 
         # Just Initialize variable the Daemon.start() do the other things
@@ -97,7 +97,8 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(cfg_path)
-        self.init_sharing_path()
+        self.init_sharing_path(sharing_path)
+
         self.conn_mng = ConnectionManager(self.cfg)
 
     def _build_directory(self, path):
@@ -174,18 +175,22 @@ class Daemon(RegexMatchingEventHandler):
         self.save_cfg(cfg_path, init=True)
         return Daemon.DEF_CONF
 
-    def init_sharing_path(self):
+    def _init_sharing_path(self, sharing_path):
         """
         Check that the sharing folder exists otherwise create it.
-        If is impossible to create exit with msg error.
+        If is not given custom sharing_path we use default stored into self.cfg['sharing_path']
+        If is impossible to create the directory exit error message is given.
         """
-        if not os.path.isdir(self.cfg['sharing_path']):
-            try:
-                os.makedirs(self.cfg['sharing_path'])
-            except OSError:
-                self.stop(1,
-                          '\nImpossible to create "{0}" directory! Check sharing_path value contained in the following file:\n"{1}"\n'
-                          .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
+
+        if sharing_path and self._build_directory(sharing_path):
+            print 'Created sharing folder in path:\n', sharing_path
+            self.cfg['sharing_path'] = sharing_path
+        elif self._build_directory(self.cfg['sharing_path']):
+            print 'Created sharing folder in path:\n', self.cfg['sharing_path']
+        else:
+            self.stop(1, '\nImpossible to create sharing folder in path:\n{}\n'
+                                 'Check sharing_path value contained in cfg file:\n{}\n'
+                              .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
 
     def build_client_snapshot(self):
         """
@@ -885,8 +890,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("-cfg", help="the configuration file filepath", type=str)
-    
+    parser.add_argument("-sh", help="the sharing path that we will observing", type=str)
+
     args = parser.parse_args()
-    
-    daemon = Daemon(args.cfg)
+
+    daemon = Daemon(args.cfg, args.sh)
     daemon.start()
