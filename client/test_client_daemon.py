@@ -719,6 +719,26 @@ class TestClientDaemon(unittest.TestCase):
         # the copy must be in the snapshot
         self.assertIn('another_file.txt', self.daemon.client_snapshot)
 
+    def test_on_moved(self):
+        """
+        Test EVENTS: test on_moved watchdog
+        """
+        some_file = os.path.join(TEST_SHARING_FOLDER, 'a_file.txt')
+
+        # replace connection manager in the client instance
+        self.daemon.conn_mng = FakeConnMng()
+
+        # creating client_snapshot {filepath:(timestamp, md5)}
+        create_base_dir_tree(['a_file.txt'])
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        self.daemon.on_moved(
+            FileFakeEvent(src_path=some_file,
+                          content="a_file.txt",
+                          dest_path=os.path.join(TEST_SHARING_FOLDER, 'folder/a_file.txt')))
+        self.assertEqual(self.daemon.conn_mng.data_cmd, 'move')
+        self.assertIn('folder/a_file.txt', self.daemon.client_snapshot)
+        self.assertNotIn('a_file.txt', self.daemon.client_snapshot)
 
 
 class FakeConnMng(object):
