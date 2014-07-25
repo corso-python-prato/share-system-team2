@@ -6,7 +6,6 @@ import shutil
 import json
 import time
 import random
-# import httpretty
 import client_daemon
 import test_utils
 
