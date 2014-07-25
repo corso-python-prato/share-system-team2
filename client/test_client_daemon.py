@@ -127,6 +127,42 @@ class TestClientDaemon(unittest.TestCase):
         with open(self.daemon.CONFIG_FILEPATH, 'rb')  as cfg:
             self.assertTrue(json.load(cfg)['this_is_test_value'])
 
+    def test__create_cfg_with_default_configuration(self):
+        """
+        Test cfg creation with default configuration.
+        """
+        # Set manually the configuration
+        os.remove(CONFIG_FILEPATH)
+        client_daemon.Daemon.CONFIG_DIR = CONFIG_DIR
+        client_daemon.Daemon.CONFIG_FILEPATH = CONFIG_FILEPATH
+        client_daemon.Daemon.DEF_CONF['local_dir_state_path'] = LOCAL_DIR_STATE_FOR_TEST
+        client_daemon.Daemon.DEF_CONF['sharing_path'] = TEST_SHARING_FOLDER
+
+        # Load configuration from default
+        self.daemon._create_cfg(CONFIG_FILEPATH)
+
+        self.assertEqual(self.daemon.CONFIG_FILEPATH, CONFIG_FILEPATH)
+        self.assertEqual(self.daemon.CONFIG_DIR, CONFIG_DIR)
+        self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
+        self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
+
+    def test__create_cfg(self):
+        """
+        Test create cfg file with test options.
+        The cfg is already created during setup, i will test the result is right.
+        """
+        self.assertEqual(self.daemon.CONFIG_DIR, CONFIG_DIR)
+        self.assertEqual(self.daemon.CONFIG_FILEPATH, CONFIG_FILEPATH)
+        self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
+        self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
+
+    def test__create_cfg_in_forbiden_path(self):
+        """
+        Test creation of cfg and cfg directory in forbidden path.
+        """
+        forbidden_path = '/forbiden_path/cfg_file'
+        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path= forbidden_path)
+
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
