@@ -648,6 +648,7 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
         else:
             break
     res = h.hexdigest()
+    fp.seek(0)
     return res
 
 
