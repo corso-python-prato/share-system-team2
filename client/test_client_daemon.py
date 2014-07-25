@@ -140,7 +140,6 @@ class TestClientDaemon(unittest.TestCase):
         self.assertFalse(is_dir_modified_result)
         self.assertEqual(old_global_md5, test_md5)
 
-
     def test_md5_of_client_snapshot_added_file(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method when i have update the client_snapshot
@@ -289,7 +288,7 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
         self.assertNotEqual(self.daemon.local_dir_state['global_md5'], md5_before_copy)
 
-    def test_make_copy_function_src_file_not_exists(self):
+    def test_make_copy_not_src(self):
         """
         Test _MAKE_COPY: test the COPY function when the SRC NOT EXISTS
         :return:
@@ -342,7 +341,7 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
         self.assertNotEqual(self.daemon.local_dir_state['global_md5'], md5_before_move)
 
-    def test_make_move_function_src_file_not_exists(self):
+    def test_make_move_function_not_src(self):
         """
         Test _MAKE_MOVE: test the MOVE function when the SRC NOT EXISTS
         :expect value: False
@@ -367,7 +366,7 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp - 5)
         self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot())
 
-    def test_make_move_function_dst_file_exists(self):
+    def test_make_move_function_not_dst(self):
         """
         Test _MAKE_MOVE: test the MOVE function when the DST EXISTS
         :return:
@@ -386,7 +385,7 @@ class TestClientDaemon(unittest.TestCase):
 
 
     ####################### DIRECTORY MODIFIED #####################################
-    def test_sync_process_new_on_server_new_on_client(self):
+    def test_sync_process_new_on_both(self):
         """
         Test SYNC: new file on server, new on client, server_timestamp > client_timestamp
         Directory modified
@@ -416,7 +415,7 @@ class TestClientDaemon(unittest.TestCase):
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
 
-    def test_sync_process_modified_on_server_modified_on_client(self):
+    def test_sync_process_modified_on_both(self):
 
         """
         Test SYNC: modified file on server, modified same file on client, server_timestamp > client_timestamp
@@ -474,7 +473,7 @@ class TestClientDaemon(unittest.TestCase):
             self.daemon._sync_process(server_timestamp, server_dir_tree),
             [('delete', 'new_file')])
 
-    def test_sync_process_local_dir_modified_client_ts_equal_server_ts(self):
+    def test_sync_process_ts_equal(self):
         """
         Test SYNC: server_timestamp == client_timestamp
         Directory MODIFIED
