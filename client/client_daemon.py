@@ -128,16 +128,17 @@ class Daemon(RegexMatchingEventHandler):
         :param sharing_path: Indicate the path of observed directory
         """
 
-        if cfg_path:
+        building_cfg = Daemon.DEF_CONF
+        if cfg_path and cfg_path != Daemon.CONFIG_FILEPATH:
             Daemon.CONFIG_FILEPATH = cfg_path
             Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
-            Daemon.DEF_CONF['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
+            building_cfg['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
         if sharing_path:
-            Daemon.DEF_CONF['sharing_path'] = sharing_path
+            building_cfg['sharing_path'] = sharing_path
         if self._build_directory(Daemon.CONFIG_DIR):
             with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
-                json.dump(Daemon.DEF_CONF, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
-            return Daemon.DEF_CONF
+                json.dump(building_cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
+            return building_cfg
         else:
             self.stop(1, 'Impossible to create cfg file into {}'.format(Daemon.CONFIG_DIR))
 
