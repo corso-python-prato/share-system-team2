@@ -1009,9 +1009,9 @@ class TestShares(unittest.TestCase):
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
         sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
         #check if the owner correctly shared access to the file with the sharing receiver
-        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFileRealPath])
+        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
         #check if the sharing receiver correctly received the shared file access from the owner
-        self.assertIn(sharedFileRealPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
+        self.assertIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
     def test_create_folder_share(self):
         sharedPath = 'Misc'
@@ -1019,9 +1019,9 @@ class TestShares(unittest.TestCase):
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
         sharedRealPath = userpath2serverpath(os.path.join(USR,sharedPath))
         #check if the owner correctly shared access to the path with the sharing receiver
-        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedRealPath])
+        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedPath])
         #check if the sharing receiver correctly received the shared path access from the owner
-        self.assertIn(sharedRealPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
+        self.assertIn(sharedPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
     def test_create_illegal_share(self):
         sharedFile = 'Misc/test.txt'
@@ -1047,6 +1047,52 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(USR, server.userdata[SHAREUSR]['shared_with_me'].keys())
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
 
+    def test_get_shared_file(self):
+        """
+        Server return HTTP_OK code if an authenticated user request an existing shared file.
+        """
+        #create file to share
+        sharedFile = 'test.txt'
+        _create_file(USR, sharedFile, 'test')
+        #share the file 
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        share = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        #create get:files request: API/V1/files/shared/<owner>/<resource path>
+        SHARED_DOWNLOAD_FILEPATH = 'shared/'+ USR + '/' + sharedFile
+        DOWNLOAD_SHARED_TEST_URL = SERVER_FILES_API + SHARED_DOWNLOAD_FILEPATH
+
+        test = self.app.get(DOWNLOAD_SHARED_TEST_URL,
+                            headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
+        self.assertEqual(test.status_code, server.HTTP_OK)
+
+    def test_get_file_in_shared_folder(self):
+        """
+        Server return HTTP_OK code if an authenticated user request an existing file from a shared folder.
+        """
+        #share the folder
+        q = urlparse.urljoin(SERVER_SHARES_API, 'Music/' + SHAREUSR)
+        share = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        #create get:files request: API/V1/files/shared/<owner>/<resource path>
+        SHARED_DOWNLOAD_FILEPATH = 'shared/'+ USR + '/Music/Music.txt'
+        DOWNLOAD_SHARED_TEST_URL = SERVER_FILES_API + SHARED_DOWNLOAD_FILEPATH
+
+        test = self.app.get(DOWNLOAD_SHARED_TEST_URL,
+                            headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
+        self.assertEqual(test.status_code, server.HTTP_OK)
+
+    def test_get_file_in_not_shared_folder(self):
+        """
+        Server return HTTP_NOT_FOUND code if an authenticated user request an existing file from a not shared but legal folder.
+        """
+        q = urlparse.urljoin(SERVER_SHARES_API, 'Music/' + SHAREUSR)
+        share = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        #create get:files request: API/V1/files/shared/<owner>/<resource path>
+        SHARED_DOWNLOAD_FILEPATH = 'shared/'+ USR + '/Work/Work.txt'
+        DOWNLOAD_SHARED_TEST_URL = SERVER_FILES_API + SHARED_DOWNLOAD_FILEPATH
+
+        test = self.app.get(DOWNLOAD_SHARED_TEST_URL,
+                            headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
 
 if __name__ == '__main__':

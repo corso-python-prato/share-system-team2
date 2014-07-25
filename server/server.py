@@ -680,7 +680,7 @@ class Shares(Resource):
         #Check if the path is sharable
         if not self._is_sharable(root_path, owner):
             abort(HTTP_FORBIDDEN)    
-        self._share(path, username, owner)
+        self._share(root_path, username, owner)
 
         return HTTP_OK
 
@@ -721,7 +721,6 @@ class Shares(Resource):
 
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
-
         userdata[username]['shared_with_me'][owner].append(path)
         userdata[owner]['shared_with_others'][path].append(username)
 
@@ -768,14 +767,9 @@ class Files(Resource):
                 fp = path
 
             # Download the file specified by <path>.
-          
-
             if not os.path.exists(dirname):
                 abort(HTTP_NOT_FOUND)
             s_filename = secure_filename(os.path.split(path)[-1])
-
-            #pprint.pprint(os.path.realpath(dirname))
-            #pprint.pprint(s_filename)
 
             try:
                 response = make_response(_read_file(join(user_rootpath, fp)))
