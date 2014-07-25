@@ -917,7 +917,7 @@ class TestUsersResetPassword(unittest.TestCase):
         self.assertLess(previous_pending_timestamp,
                         server.pending_users[self.pending_user]['timestamp'])
 
-    def test_unknow_user(self):
+    def test_unknown_user(self):
         url = SERVER_API + 'users/{}/reset'.format('unknown@pippo.it')
         test = self.app.post(url,
                              data={'password': 'okokokoko'})
