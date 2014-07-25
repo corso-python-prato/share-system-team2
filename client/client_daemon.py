@@ -114,39 +114,47 @@ class Daemon(RegexMatchingEventHandler):
                 print '\nImpossible to create directory at the following path:\n{}\n'.format(path)
                 return False
         return True
-    def save_cfg(self, cfg_path=None, init=False):
+
+    def create_cfg(self, cfg_path=None, sharing_path=None):
         """
-        Save the configuration stored in self.cfg into a file with path cfg_path.
+        Create the configuration file of client_daemon.
+        If is given custom path for cfg (cfg_path) or observed directory (sharing_path) the config file
+        will be updated with that configuration.
         If no cfg_path is given as default we save in default path stored in Daemon.CONFIG_FILEPATH.
-        If the flag init is True this mean we have to initialize the cfg attribute into Daemon.
+        If no sharing_path is given as default we save in default path stored in Daemon.DEF_CONF['sharing_path'].
         :param cfg_path: Path of config
-        :param init: If True self.cfg will be initialized with Daemon.DEF_CONF
+        :param sharing_path: Indicate the path of observed directory
         """
-         # Search if config directory exists otherwise create it
 
         if cfg_path:
+            Daemon.CONFIG_FILEPATH = cfg_path
             Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
             Daemon.DEF_CONF['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
+        if sharing_path:
+            Daemon.DEF_CONF['sharing_path'] = sharing_path
+        if self._build_directory(Daemon.CONFIG_DIR):
+            with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
+                json.dump(Daemon.DEF_CONF, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
+            return Daemon.DEF_CONF
         else:
-            cfg_path = Daemon.CONFIG_FILEPATH
-        if init:
-            self.cfg = Daemon.DEF_CONF
-        if not os.path.isdir(Daemon.CONFIG_DIR):
-            try:
-                os.makedirs(Daemon.CONFIG_DIR)
-            except (OSError, IOError):
-                self.stop(1, '\nImpossible to create "{}" directory! Permission denied!\n'.format(Daemon.CONFIG_DIR))
-        with open(cfg_path, 'wb') as daemon_config:
+            self.stop(1, 'Impossible to create cfg file into {}'.format(Daemon.CONFIG_DIR))
+
+    def update_cfg(self):
+        """
+        Update cfg with new state in self.cfg
+        """
+        with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
             json.dump(self.cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
-        Daemon.CONFIG_FILEPATH = cfg_path
 
     def load_cfg(self, cfg_path):
         """
         Load config, if impossible to find it or config file is corrupted restore it and load default configuration
         :param cfg_path: Path of config
+        :param sharing_path: Indicate the path of observed directory
         :return: dictionary containing configuration
         """
         if not cfg_path: cfg_path = Daemon.CONFIG_FILEPATH
+
         if os.path.isfile(cfg_path):
             try:
                 with open(cfg_path, 'r') as fo:
@@ -170,10 +178,9 @@ class Daemon(RegexMatchingEventHandler):
                     print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(
                         cfg_path)
         else:
-            print '\nWarning "{0}" doesn\'t exist, Config file overwrited and loaded default config!\n'.format(
+            print '\nWarning "{0}" doesn\'t exist! Config file created and loaded default config!\n'.format(
                 cfg_path)
-        self.save_cfg(cfg_path, init=True)
-        return Daemon.DEF_CONF
+        return self.create_cfg(cfg_path)
 
     def _init_sharing_path(self, sharing_path):
         """
@@ -508,7 +515,7 @@ class Daemon(RegexMatchingEventHandler):
                 self.observer.skip(self.absolutize_path(path))
                 connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if connection_result:
-                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)                    
+                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
                     self.client_snapshot[path] = files[path]
                 else:
                     self.stop(1,
@@ -716,10 +723,10 @@ class Daemon(RegexMatchingEventHandler):
                 if cmd == 'register':
                     self.cfg['user'] = data[0]
                     self.cfg['pass'] = data[1]
-                    self.save_cfg()
+                    self.update_cfg()
                 elif cmd == 'activate':
                     self.cfg['activate'] = True
-                    self.save_cfg()
+                    self.update_cfg()
                     # Now the client_daemon is ready to operate, we do the start activity
                     self._initialize_observing()
                     self.sync_with_server()
@@ -851,8 +858,8 @@ class Daemon(RegexMatchingEventHandler):
         if verbose:
             start = time.time()
         md5Hash = hashlib.md5()
-        
-        for path, time_md5 in sorted(self.client_snapshot.items()):            
+
+        for path, time_md5 in sorted(self.client_snapshot.items()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
             if verbose:
                 print path
