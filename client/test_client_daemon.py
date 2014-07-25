@@ -469,6 +469,7 @@ class TestClientDaemon(unittest.TestCase):
         # directory modified
         self.daemon.local_dir_state['global_md5'] = 'md5diversodaquelloeffettivo'
 
+        # file_timestamp < client_timestamp
         server_dir_tree.update({'new_file': (server_timestamp - 2, 'md5md6jkshkfv')})
         self.assertEqual(
             self.daemon._sync_process(server_timestamp, server_dir_tree),
