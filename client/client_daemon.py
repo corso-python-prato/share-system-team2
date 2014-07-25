@@ -192,9 +192,11 @@ class Daemon(RegexMatchingEventHandler):
         If is impossible to create the directory exit error message is given.
         """
 
-        if sharing_path and self._build_directory(sharing_path):
+        if not sharing_path: sharing_path = Daemon.DEF_CONF['sharing_path']
+        if self._build_directory(sharing_path):
             self.cfg['sharing_path'] = sharing_path
-        elif not self._build_directory(self.cfg['sharing_path']):
+            self.update_cfg()
+        else:
             self.stop(1, '\nImpossible to create sharing folder in path:\n{}\n'
                                  'Check sharing_path value contained in cfg file:\n{}\n'
                               .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
