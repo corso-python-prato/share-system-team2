@@ -876,7 +876,7 @@ class TestUsersGet(unittest.TestCase):
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
 
 
-class TestUsersResetPassword(unittest.TestCase):
+class TestUsersRecoverPassword(unittest.TestCase):
     def setUp(self):
         setup_test_dir()
         server.reset_userdata()
