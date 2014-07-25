@@ -662,6 +662,21 @@ class TestClientDaemon(unittest.TestCase):
         self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot
                         )
 
+class FileFakeEvent(object):
+    """
+    Class that simulates a file related event sent from watchdog.
+    Actually create <src_path> and <dest_path> attributes and the file in disk.
+    """
+
+    def __init__(self, src_path, content='', dest_path=None):
+        self.src_path = src_path
+        self.create_file(self.src_path, content=content)
+        self.dest_path = dest_path
+
+    def create_file(self, path, content=''):
+        with open(path, 'w') as f:
+            f.write(content)
+
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
