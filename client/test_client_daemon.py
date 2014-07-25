@@ -46,6 +46,9 @@ TEST_CFG = {
     "activate": True,
 }
 
+# Test-user account details
+USR, PW = 'user@mail.com', 'Mail_85'
+
 def timestamp_generator():
     timestamp_generator.__test__ = False
     return long(time.time()*10000)
