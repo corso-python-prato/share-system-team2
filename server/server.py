@@ -487,7 +487,7 @@ the $appname Team
         else:
             activation_code = request.form['activation_code']
             logger.debug('Got activation code: {}'.format(activation_code))
-            print('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
+            logger.debug('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
             pending_user_data = pending_users.get(username)
             if pending_user_data:
                 logger.debug('Activating user {}'.format(username))
