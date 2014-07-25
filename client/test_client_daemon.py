@@ -163,6 +163,37 @@ class TestClientDaemon(unittest.TestCase):
         forbidden_path = '/forbiden_path/cfg_file'
         self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path= forbidden_path)
 
+    def test__init_sharing_path_with_default_configuration(self):
+        """
+        Test initialization of sharing folder with default configuration.
+        """
+        # Set manually the configuration
+        shutil.rmtree(TEST_SHARING_FOLDER)
+        client_daemon.Daemon.DEF_CONF['sharing_path'] = TEST_SHARING_FOLDER
+
+        # Load configuration from default
+        self.daemon._init_sharing_path(sharing_path=None)
+
+        with open(CONFIG_FILEPATH, 'rb') as cfg:
+            saved_sharing_path = json.load(cfg)['sharing_path']
+        self.assertEqual(self.daemon.cfg['sharing_path'], saved_sharing_path, TEST_SHARING_FOLDER)
+
+    def test__init_sharing_path_with_customization_folder(self):
+        """
+        Test Initialization of sharing folder done with customization.
+        I can test this with customization happens by create_environment() during setUp.
+        """
+        with open(CONFIG_FILEPATH, 'rb') as cfg:
+            saved_sharing_path = json.load(cfg)['sharing_path']
+        self.assertEqual(self.daemon.cfg['sharing_path'], saved_sharing_path, TEST_SHARING_FOLDER)
+
+    def test__init_sharing_path_with_forbidden_path(self):
+        """
+        Test Initialization of sharing folder done with forbidden_path.
+        """
+        forbidden_path = '/forbidden_path/sharing_folder'
+        self.assertRaises(SystemExit, self.daemon._init_sharing_path, forbidden_path)
+
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
