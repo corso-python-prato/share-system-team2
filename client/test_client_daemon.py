@@ -646,3 +646,132 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response),
                          json.dumps({'message': response}))
 
+    def test__activation_check_block_not_allowed_operation(self):
+        """
+        Test that _activation_check block not allowed operation
+        """
+
+        def fake_initialize_observing():
+            function_called = True
+
+        function_called = False
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+        self.daemon._initialize_observing = fake_initialize_observing
+
+        command = 'not_allowed'
+        data = {}
+        old_user = self.daemon.cfg['user']
+        old_pass = self.daemon.cfg['pass']
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with not allowed operation
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEqual(old_user, self.daemon.cfg['user'])
+        self.assertEqual(old_pass, self.daemon.cfg['pass'])
+        self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
+
+        # Test the observing is not started
+        self.assertFalse(function_called)
+
+    def test__activation_check_receive_registration_cmd_with_success(self):
+        """
+        Test that _activation_check receive registration cmd and registration is successful.
+        """
+
+        def fake_initialize_observing():
+            self.init_observing_called = True
+
+        def fake_register_into_connection_manager(data):
+            return {'successful': True}
+
+        self.init_observing_called = False
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+        self.daemon._initialize_observing = fake_initialize_observing
+
+        command = 'register'
+        self.daemon.conn_mng.do_register = fake_register_into_connection_manager
+
+        data = (USR, PW)
+        old_user = self.daemon.cfg['user']
+        old_pass = self.daemon.cfg['pass']
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with successful response from server
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEqual(self.daemon.cfg['user'], USR)
+        self.assertNotEqual(self.daemon.cfg['user'], old_user)
+        self.assertEqual(self.daemon.cfg['pass'], PW)
+        self.assertNotEqual(self.daemon.cfg['pass'], old_pass)
+        self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
+
+        # Test the observing is not started
+        self.assertFalse(self.init_observing_called)
+
+    def test__activation_check_receive_registration_cmd_with_failed_registration_on_server(self):
+        """
+#       Test that _activation_check receive registration cmd and registration failed on server.
+        """
+
+        def fake_initialize_observing():
+            self.init_observing_called = True
+
+        def fake_register_into_connection_manager(data):
+            return {'successful': False}
+
+        self.init_observing_called = False
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+        self.daemon._initialize_observing = fake_initialize_observing
+
+        command = 'register'
+        self.daemon.conn_mng.do_register = fake_register_into_connection_manager
+
+        data = (USR, PW)
+        old_user = self.daemon.cfg['user']
+        old_pass = self.daemon.cfg['pass']
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with failed response from server
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEqual(old_user, self.daemon.cfg['user'])
+        self.assertEqual(old_pass, self.daemon.cfg['pass'])
+        self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
+
+        # Test the observing is not started
+        self.assertFalse(self.init_observing_called)
+
+    def test__activation_check_receive_activation_cmd_with_success(self):
+        """
+        Test that _activation_check receive registration cmd and registration is successful.
+        """
+
+        def fake_initialize_observing():
+            self.init_observing_called = True
+
+        def fake_activation_into_connection_manager(data):
+            return {'successful': True}
+
+        self.init_observing_called = False
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+        self.daemon._initialize_observing = fake_initialize_observing
+
+        command = 'activate'
+        self.daemon.conn_mng.do_activate = fake_activation_into_connection_manager
+
+        data = (USR, 'token_authorized')
+        old_user = self.daemon.cfg['user'] = USR
+        old_pass = self.daemon.cfg['pass'] = PW
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with successful response from server
+        self.daemon._activation_check(self.socket, command, data)
+        print self.init_observing_called
+        self.assertEqual(self.daemon.cfg['user'], USR, old_user)
+        self.assertEqual(self.daemon.cfg['pass'], PW, old_pass)
+        self.assertTrue(self.daemon.cfg['activate'])
+        self.assertNotEqual(self.daemon.cfg['activate'], old_activate_state)
+
+        # Test the observing is started
+        self.assertTrue(self.init_observing_called)
