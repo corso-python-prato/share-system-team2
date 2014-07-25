@@ -100,6 +100,19 @@ class Daemon(RegexMatchingEventHandler):
         self.init_sharing_path()
         self.conn_mng = ConnectionManager(self.cfg)
 
+    def _build_directory(self, path):
+        """
+        Create a given directory if not existent
+        :param path: the path of dir i want to create
+        :return: boolean that indicate if the directory is now created or not.
+        """
+        if not os.path.isdir(path):
+            try:
+                os.makedirs(path)
+            except OSError:
+                print '\nImpossible to create directory at the following path:\n{}\n'.format(path)
+                return False
+        return True
     def save_cfg(self, cfg_path=None, init=False):
         """
         Save the configuration stored in self.cfg into a file with path cfg_path.
