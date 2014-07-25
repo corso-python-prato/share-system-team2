@@ -117,6 +117,16 @@ class TestClientDaemon(unittest.TestCase):
         :return:boolean value, False if the path is not allowed
         """
         self.assertFalse(self.daemon._build_directory('/cartella_di_prova'))
+
+    def test_update_cfg(self):
+        """
+        Test updating cfg with this_is_test_value
+        """
+        self.daemon.cfg['this_is_test_value'] = True
+        self.daemon.update_cfg()
+        with open(self.daemon.CONFIG_FILEPATH, 'rb')  as cfg:
+            self.assertTrue(json.load(cfg)['this_is_test_value'])
+
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
