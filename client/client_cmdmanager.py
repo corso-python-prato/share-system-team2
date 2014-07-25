@@ -117,10 +117,10 @@ class CommandParser(cmd.Cmd):
 
     def do_quit(self, line):
         """Exit Command"""
-        return True
+        return 'exit'
 
     def do_EOF(self, line):
-        return True
+        return 'exit'
 
     def do_shutdown(self, line):
         """
