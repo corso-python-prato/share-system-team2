@@ -210,9 +210,9 @@ class CommandParser(cmd.Cmd):
         """
         This command allows you to recover (i.e. change) a lost password,
         in 2 steps:
-            1st step: (PyBox)>>> recoverpass <email>
+            1st step: (PyBox)>>> recoverpass <e-mail>
             (wait for the email containing the <recoverpass_code>)
-            2nd step: (PyBox)>>> recoverpass <email> <recoverpass_code>
+            2nd step: (PyBox)>>> recoverpass <e-mail> <recoverpass_code>
         """
         args = line.split()
         if not args:
@@ -223,7 +223,7 @@ class CommandParser(cmd.Cmd):
             mail = args[0]
             # must be a valid email
             if not validate_email(mail):
-                print 'Error: invalid email address.'
+                print 'Error: invalid e-mail address.'
                 return False
 
             if len(args) == 1:
