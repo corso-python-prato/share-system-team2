@@ -111,6 +111,10 @@ class CommandParser(cmd.Cmd):
         """
         self.sock.close()
 
+    def postcmd(self, stop, line):
+        if stop == 'exit':
+            return True
+
     def do_quit(self, line):
         """Exit Command"""
         return True
