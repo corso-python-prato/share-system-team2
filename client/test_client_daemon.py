@@ -665,7 +665,7 @@ class TestClientDaemon(unittest.TestCase):
 
     def test_on_created(self):
         """"
-        Test EVENTS: test on created expect an UPLOAD
+        Test EVENTS: test on created watchdog expect an UPLOAD
         """
         some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
 
@@ -678,7 +678,7 @@ class TestClientDaemon(unittest.TestCase):
 
     def test_on_created_modify(self):
         """"
-        Test EVENTS: test on created expect a MODIFY
+        Test EVENTS: test on created watchdog
         """
 
         some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
@@ -699,7 +699,7 @@ class TestClientDaemon(unittest.TestCase):
 
     def test_on_created_copy(self):
         """"
-        Test EVENTS: test on created expect a COPY
+        Test EVENTS: test on created watchdog
         """
 
         some_file = os.path.join(TEST_SHARING_FOLDER, 'another_file.txt')
