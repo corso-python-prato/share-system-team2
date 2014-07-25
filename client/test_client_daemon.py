@@ -103,6 +103,20 @@ class TestClientDaemon(unittest.TestCase):
         base_dir_tree = {}
         destroy_folder()
 
+    def test__build_directory(self):
+        """
+        Create directory
+        :return: boolean value, True is created or already existent
+        """
+        self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
+        self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
+
+    def test__build_directory_in_forbidend_path(self):
+        """
+        Create directory in forbiden path
+        :return:boolean value, False if the path is not allowed
+        """
+        self.assertFalse(self.daemon._build_directory('/cartella_di_prova'))
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
