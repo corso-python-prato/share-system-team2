@@ -113,6 +113,8 @@ class Daemon(RegexMatchingEventHandler):
             except OSError:
                 print '\nImpossible to create directory at the following path:\n{}\n'.format(path)
                 return False
+            else:
+                print 'Created folder:\n', path
         return True
 
     def create_cfg(self, cfg_path=None, sharing_path=None):
@@ -190,11 +192,8 @@ class Daemon(RegexMatchingEventHandler):
         """
 
         if sharing_path and self._build_directory(sharing_path):
-            print 'Created sharing folder in path:\n', sharing_path
             self.cfg['sharing_path'] = sharing_path
-        elif self._build_directory(self.cfg['sharing_path']):
-            print 'Created sharing folder in path:\n', self.cfg['sharing_path']
-        else:
+        elif not self._build_directory(self.cfg['sharing_path']):
             self.stop(1, '\nImpossible to create sharing folder in path:\n{}\n'
                                  'Check sharing_path value contained in cfg file:\n{}\n'
                               .format(self.cfg['sharing_path'], Daemon.CONFIG_FILEPATH))
