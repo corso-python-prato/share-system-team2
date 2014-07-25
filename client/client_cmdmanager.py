@@ -232,7 +232,7 @@ class CommandParser(cmd.Cmd):
                 if not r:
                     print 'Error: the user does not exist or is not valid.'
                     return False
-
+                print 'Recover password email sent to {}, check your inbox!'.format(mail)
                 return True
             elif len(args) == 2:
                 # The command used with 2 parameters allow the user to enter the "recoverpass code"
@@ -249,7 +249,7 @@ class CommandParser(cmd.Cmd):
                         print 'Error: invalid recoverpass code.'
                         return False
                     else:
-                        # Password changed successfully.
+                        print 'OK. Password changed successfully!'
                         return True
                 else:
                     # Empty password or confirm password not matching
