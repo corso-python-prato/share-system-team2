@@ -164,8 +164,8 @@ class Daemon(RegexMatchingEventHandler):
                     for k,v in json.load(fo).items():
                         loaded_config[k] = v
             except ValueError:
-                print '\nImpossible to read "{0}"! Config file overwrited and loaded default config!\n'.format(
-                    cfg_path)
+                print '\nImpossible to read "{0}"!' \
+                      '\nConfig file overwrited and loaded with default configuration!\n'.format(cfg_path)
             else:
                 corrupted_config = False
                 for k in Daemon.DEF_CONF:
@@ -177,11 +177,11 @@ class Daemon(RegexMatchingEventHandler):
                     Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
                     return loaded_config
                 else:
-                    print '\nWarning "{0}" corrupted! Config file overwrited and loaded default config!\n'.format(
-                        cfg_path)
+                    print '\nWarning "{0}" corrupted!' \
+                          '\nConfig file overwrited and loaded with default configuration!\n'.format(cfg_path)
         else:
-            print '\nWarning "{0}" doesn\'t exist! Config file created and loaded default config!\n'.format(
-                cfg_path)
+            print '\nWarning "{0}" doesn\'t exist!' \
+                  '\nNew config file created and loaded with default configuration!\n'.format(cfg_path)
         return self.create_cfg(cfg_path)
 
     def _init_sharing_path(self, sharing_path):
