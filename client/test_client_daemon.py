@@ -148,7 +148,7 @@ class TestClientDaemon(unittest.TestCase):
         client_daemon.Daemon.DEF_CONF['sharing_path'] = TEST_SHARING_FOLDER
 
         # Load configuration from default
-        self.daemon._create_cfg(CONFIG_FILEPATH)
+        self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH)
 
         self.assertEqual(self.daemon.CONFIG_FILEPATH, CONFIG_FILEPATH)
         self.assertEqual(self.daemon.CONFIG_DIR, CONFIG_DIR)
