@@ -97,7 +97,7 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self.load_cfg(cfg_path)
-        self.init_sharing_path(sharing_path)
+        self._init_sharing_path(sharing_path)
 
         self.conn_mng = ConnectionManager(self.cfg)
 
