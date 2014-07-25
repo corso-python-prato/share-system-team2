@@ -161,59 +161,60 @@ class CommandParser(cmd.Cmd):
 
     def do_recoverpass(self, line):
         """
-        First step to recover (i.e. change) a lost password.
-        Usage: recoverpass <e-mail>
+        Usage: recoverpass <e-mail> [<recoverpass_code>]
 
-        Step examples:
+        This command allows you to recover (i.e. change) a lost password,
+        in 2 steps. See the following example:
+
             1. (PyBox)>>> recoverpass pippo@gmail.com
             (wait for a mail containing your "recoverpass code")
-            2. (PyBox)>>> changepass pippo@gmail.com 93276a664617729123288249c4c5725a
+            2. (PyBox)>>> recoverpass pippo@gmail.com 93276a664617729123288249c4c5725a
             2b. Enter new password (2 times).
         """
-        mail = line.strip()
-        if not mail:
+        args = line.split()
+        if not args:
             print 'Bad arguments:'
-            print 'usage: recoverpass <e-mail>'
-            return False
-
-        if not validate_email(mail):
-            print 'Error: invalid email address.'
-            return False
-
-        req_message = {'reqrecoverpass': mail}
-        r = self._send_to_daemon(req_message)
-        if not r:
-            print 'Error: the user does not exist or is not valid.'
-            return False
-
-        return True
-
-    def do_changepass(self, line):
-        """
-        This command allows you to enter the "recoverpass code" received by email
-        and actually change your password.
-        Usage: changepass <e-mail> <recoverpass_code>
-        """
-        try:
-            mail, recoverpass_code = line.split()
-        except ValueError:
-            print 'Bad arguments:'
-            print 'usage: changepass <e-mail> <recoverpass_code>'
+            print 'usage: recoverpass <e-mail> [<recoverpass_code>]'
             return False
         else:
-            # Ask password without showing it:
-            new_password = _getpass()
-            if new_password:
-                message = {'recoverpass': (mail, recoverpass_code, new_password)}
-                resp = self._send_to_daemon(message)
-                if not resp:
-                    print 'Error: invalid recoverpass code.'
+            mail = args[0]
+            # must be a valid email
+            if not validate_email(mail):
+                print 'Error: invalid email address.'
+                return False
+
+            if len(args) == 1:
+                req_message = {'reqrecoverpass': mail}
+                r = self._send_to_daemon(req_message)
+                if not r:
+                    print 'Error: the user does not exist or is not valid.'
                     return False
+
+                return True
+            elif len(args) == 2:
+                # The command used with 2 parameters allow the user to enter the "recoverpass code"
+                # received by email and actually change the password.
+                # Usage: changepass <e-mail> <recoverpass_code>
+                recoverpass_code = args[1]
+
+                # Ask password without showing it:
+                new_password = _getpass()
+                if new_password:
+                    message = {'recoverpass': (mail, recoverpass_code, new_password)}
+                    resp = self._send_to_daemon(message)
+                    if not resp:
+                        print 'Error: invalid recoverpass code.'
+                        return False
+                    else:
+                        # Password changed successfully.
+                        return True
                 else:
-                    return True
+                    # Empty password or confirm password not matching
+                    print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+                    return False
             else:
-                # Empty password or confirm password not matching
-                print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+                print 'Bad arguments:'
+                print 'usage: changepass <e-mail>  [<recoverpass_code>]'
                 return False
 
 

@@ -78,7 +78,7 @@ class TestDoQuitDoEOF(unittest.TestCase):
         self.assertTrue(self.commandparser.do_EOF(self.line))
 
 
-class TestRecoverpassCommand(unittest.TestCase):
+class TestRecoverpassEmail(unittest.TestCase):
     """
     Test 'recoverpass' command.
     """
@@ -98,12 +98,8 @@ class TestRecoverpassCommand(unittest.TestCase):
         r = self.commandparser.do_recoverpass('myemail@gmail.com')
         self.assertTrue(r)
 
-    def test_recoverpass_2_words(self):
-        r = self.commandparser.do_recoverpass('myemail@gmail.com altroargomento')
-        self.assertFalse(r)
 
-
-class TestChangepassCommand(unittest.TestCase):
+class TestRecoverpassEmailAndToken(unittest.TestCase):
     """
     Test 'changepass' command.
     """
@@ -112,13 +108,7 @@ class TestChangepassCommand(unittest.TestCase):
         self.commandparser = CmdParserMock()
 
     def test_bad_args(self):
-        r = self.commandparser.do_changepass('')
-        self.assertFalse(r)
-
-        r = self.commandparser.do_changepass('myemail@gmail.com')
-        self.assertFalse(r)
-
-        r = self.commandparser.do_changepass('myemail@gmail.com activationcode extra-arg')
+        r = self.commandparser.do_recoverpass('myemail@gmail.com activationcode extra-arg')
         self.assertFalse(r)
 
     def test_password_unconfirmed(self):
@@ -126,21 +116,21 @@ class TestChangepassCommand(unittest.TestCase):
         If the new password is not confirmed, the command must fail.
         """
         client_cmdmanager._getpass = lambda: False
-        r = self.commandparser.do_changepass(self.valid_line)
+        r = self.commandparser.do_recoverpass(self.valid_line)
         self.assertFalse(r)  # because _getpass fail (return False)
 
     def test_invalid_code(self):
         client_cmdmanager._getpass = lambda: 'mynewpassword'
         # Assuming that a empty daemon return value means that the token is invalid.
         self.commandparser.daemon_return_value = ''
-        r = self.commandparser.do_changepass(self.valid_line)
+        r = self.commandparser.do_recoverpass(self.valid_line)
         self.assertFalse(r)
 
     def test_ok(self):
         # mock client_cmdmanager._getpass function
         client_cmdmanager._getpass = lambda: 'mynewpassword'
         self.commandparser.daemon_return_value = 'Password changed succesfully'
-        r = self.commandparser.do_changepass(self.valid_line)
+        r = self.commandparser.do_recoverpass(self.valid_line)
         self.assertTrue(r)
 
 
