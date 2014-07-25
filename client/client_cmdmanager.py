@@ -161,15 +161,11 @@ class CommandParser(cmd.Cmd):
 
     def do_recoverpass(self, line):
         """
-        Usage: recoverpass <e-mail> [<recoverpass_code>]
-
         This command allows you to recover (i.e. change) a lost password,
-        in 2 steps. See the following example:
-
-            1. (PyBox)>>> recoverpass pippo@gmail.com
-            (wait for a mail containing your "recoverpass code")
-            2. (PyBox)>>> recoverpass pippo@gmail.com 93276a664617729123288249c4c5725a
-            2b. Enter new password (2 times).
+        in 2 steps:
+            1st step: (PyBox)>>> recoverpass <email>
+            (wait for the email containing the <recoverpass_code>)
+            2nd step: (PyBox)>>> recoverpass <email> <recoverpass_code>
         """
         args = line.split()
         if not args:
