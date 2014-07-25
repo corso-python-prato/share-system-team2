@@ -476,11 +476,11 @@ class TestClientDaemon(unittest.TestCase):
     def test_sync_process_ts_equal(self):
         """
         Test SYNC: server_timestamp == client_timestamp
-        Directory MODIFIED
-        the client rules because dir is modified
+        local dir is MODIFIED
+        files in server but not in client: delete on server
         """
 
-        create_base_dir_tree(['file_test.txt', 'file_mp3_test.mp3'])
+        create_base_dir_tree(['file_test.txt'])
         server_timestamp = timestamp_generator()
 
         # Server and client are the same
@@ -492,10 +492,17 @@ class TestClientDaemon(unittest.TestCase):
         # directory not modified
         self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
 
+        # dir is now modified with this two operations
         self.daemon.client_snapshot['file.txt'] = (server_timestamp -1, '321456879')
         self.daemon.client_snapshot['file_test.txt'] = (server_timestamp -1, '123654789')
+
+        # add a file with timestamp < client_timestamp
         server_dir_tree.update({'new_file_on_server': (server_timestamp - 2, 'md5md6jkshkfv')})
 
+        # files in server but not in client,
+        # local_dir is modified,
+        # client_ts == server_ts
+        # test the delete of new_file_on_server
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
             [('delete', 'new_file_on_server'),
             ('modify', 'file_test.txt'),
