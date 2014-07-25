@@ -135,6 +135,23 @@ class TestConnectionManager(unittest.TestCase):
         self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
+    def test_fail_to_register_user(self):
+        """
+        Test failed register request
+        Test activate user api:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        httpretty.register_uri(httpretty.POST, url, status=500)
+
+        response = self.cm.do_register(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
     def test_activate_user(self):
         """
         Test successful activation
