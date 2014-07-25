@@ -275,7 +275,7 @@ def verify_password(username, password):
     return res
 
 
-def create_user(username, password):
+def activate_user(username, password):
     """
     Handle the creation of a new user.
     """
@@ -286,8 +286,8 @@ def create_user(username, password):
     if username and password:
         if username in userdata:
             # user already exists!
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
+            #response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
+        #else:
             enc_pass = _encrypt_password(password)
 
             temp = init_user_directory(username)
@@ -300,7 +300,7 @@ def create_user(username, password):
                                 }
             userdata[username] = single_user_data
             save_userdata()
-            response = 'User "{}" created.\n'.format(username), HTTP_CREATED
+            response = 'User "{}" activated.\n'.format(username), HTTP_OK
     else:
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
@@ -314,7 +314,7 @@ def signup():
     """
     username = request.form.get('username')
     password = request.form.get('password')
-    return create_user(username, password)
+    return activate_user(username, password)
 
 
 def configure_email():
@@ -489,7 +489,7 @@ the $appname Team
                 # Actually create user
                 password = pending_user_data[PWD]
                 pending_users.pop(username)
-                return create_user(username, password)
+                return activate_user(username, password)
             else:
                 abort(HTTP_NOT_FOUND)
         else:
