@@ -662,6 +662,22 @@ class TestClientDaemon(unittest.TestCase):
         self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot
                         )
 
+
+
+
+class FakeConnMng(object):
+
+    def __init__(self):
+        print "FakeConnMng created"
+        self.data_cmd = ''
+        self.data_file = ''
+
+    def dispatch_request(self, data_cmd, data_file):
+        self.data_cmd = data_cmd
+        self.data_file = data_file
+        return {'server_timestamp': time.time()*10000}
+
+
 class FileFakeEvent(object):
     """
     Class that simulates a file related event sent from watchdog.
