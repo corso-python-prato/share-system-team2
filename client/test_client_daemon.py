@@ -542,7 +542,7 @@ class TestClientDaemon(unittest.TestCase):
     def mock_move_on_client(self, src, dst, server_timestamp):
 
         self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
-        print "Wha i've popped: ", self.daemon.client_snapshot.pop(src)
+        self.daemon.client_snapshot.pop(src)
         self.daemon.update_local_dir_state(server_timestamp)
         return True
 
