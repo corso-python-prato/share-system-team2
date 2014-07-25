@@ -662,6 +662,63 @@ class TestClientDaemon(unittest.TestCase):
         self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot
                         )
 
+    ################ TEST EVENTS ####################
+
+    def test_on_created(self):
+        """"
+        Test EVENTS: test on created expect an UPLOAD
+        """
+        some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
+
+        # replace connection manager in the client instance
+        self.daemon.conn_mng = FakeConnMng()
+
+        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
+        self.assertIn('file.txt', self.daemon.client_snapshot)
+        self.assertEqual(self.daemon.conn_mng.data_cmd, 'upload')
+
+    def test_on_created_modify(self):
+        """"
+        Test EVENTS: test on created expect a MODIFY
+        """
+
+        some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
+
+        # replace connection manager in the client instance
+        self.daemon.conn_mng = FakeConnMng()
+
+        create_base_dir_tree(['file.txt'])
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        # the file it's in client_snapshot so when i create it the event it's detected as modify
+        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
+        self.assertIn('file.txt', self.daemon.client_snapshot)
+
+        # check md5. must be the same
+        self.assertEqual(self.daemon.client_snapshot['file.txt'][1], hashlib.md5('Un po di testo').hexdigest())
+        self.assertEqual(self.daemon.conn_mng.data_cmd, 'modify')
+
+    def test_on_created_copy(self):
+        """"
+        Test EVENTS: test on created expect a COPY
+        """
+
+        some_file = os.path.join(TEST_SHARING_FOLDER, 'another_file.txt')
+
+        # replace connection manager in the client instance
+        self.daemon.conn_mng = FakeConnMng()
+
+        # creating client_snapshot {filepath:(timestamp, md5)}
+        create_base_dir_tree(['file.txt'])
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        # putting the filepath in the content generate the same md5 so must be a copy event
+        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='file.txt'))
+        self.assertEqual(self.daemon.conn_mng.data_cmd, 'copy')
+        self.assertEqual(self.daemon.conn_mng.data_file['dst'], 'another_file.txt')
+
+        # the copy must be in the snapshot
+        self.assertIn('another_file.txt', self.daemon.client_snapshot)
 
 
 
