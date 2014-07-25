@@ -257,7 +257,7 @@ class CommandParser(cmd.Cmd):
                     return False
             else:
                 print 'Bad arguments:'
-                print 'usage: changepass <e-mail>  [<recoverpass_code>]'
+                print 'usage: recoverpass <e-mail>  [<recoverpass_code>]'
                 return False
 
 
