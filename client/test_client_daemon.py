@@ -92,6 +92,12 @@ def fake_make_copy(self, src, dst, timestamp):
     self.operation_happened = "copy: src "+src+" dst: "+dst
     return True
 
+def fake_set_cmdmanager_response(socket, message):
+    response = {'message': message}
+    response_packet = json.dumps(response)
+    return response_packet
+
+
 class TestClientDaemon(unittest.TestCase):
 
     def setUp(self):
