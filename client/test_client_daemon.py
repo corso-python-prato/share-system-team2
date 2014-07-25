@@ -155,6 +155,22 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
         self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
 
+    def test__create_cfg_with_custom_sharing_path(self):
+        """
+        Test cfg creation with default configuration.
+        """
+        # Set manually the configuration
+        os.remove(CONFIG_FILEPATH)
+        client_daemon.Daemon.CONFIG_DIR = CONFIG_DIR
+        client_daemon.Daemon.CONFIG_FILEPATH = CONFIG_FILEPATH
+        client_daemon.Daemon.DEF_CONF['local_dir_state_path'] = LOCAL_DIR_STATE_FOR_TEST
+        new_sharing_path = os.path.join(CONFIG_DIR, 'new_sharing_path')
+
+        # Load configuration from default
+        self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH, new_sharing_path)
+
+        self.assertEqual(self.daemon.cfg['sharing_path'], new_sharing_path)
+
     def test__create_cfg(self):
         """
         Test create cfg file with test options.
