@@ -702,11 +702,11 @@ class Daemon(RegexMatchingEventHandler):
         Intial operation for observing.
         We create the client_snapshot, load the information stored inside local_dir_state and create observer.
         """
-
         self.build_client_snapshot()
         self.load_local_dir_state()
         self.create_observer()
         self.observer.start()
+        self.sync_with_server()
 
     def _activation_check(self, s, cmd, data):
         """
@@ -731,7 +731,6 @@ class Daemon(RegexMatchingEventHandler):
                     self.update_cfg()
                     # Now the client_daemon is ready to operate, we do the start activity
                     self._initialize_observing()
-                    self.sync_with_server()
             self._set_cmdmanager_response(s, response)
 
     def start(self):
@@ -741,7 +740,7 @@ class Daemon(RegexMatchingEventHandler):
         # If user is activated we can start observing.
         if self.cfg['activate']:
             self._initialize_observing()
-            self.sync_with_server()
+
         TIMEOUT_LISTENER_SOCK = 0.5
         BACKLOG_LISTENER_SOCK = 1
         self.listener_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
