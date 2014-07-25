@@ -157,8 +157,14 @@ class CommandParser(cmd.Cmd):
 
     def do_recoverpass(self, line):
         """
-        Recover (= change, reset) the user's password.
+        First step to recover (i.e. change) a lost password.
         Usage: recoverpass <e-mail>
+
+        Step examples:
+            1. (PyBox)>>> recoverpass pippo@gmail.com
+            (wait for a mail containing your "recoverpass code")
+            2. (PyBox)>>> changepass pippo@gmail.com 93276a664617729123288249c4c5725a
+            2b. Enter new password (2 times).
         """
         mail = line.strip()
         if not mail:
@@ -180,7 +186,8 @@ class CommandParser(cmd.Cmd):
 
     def do_changepass(self, line):
         """
-        Enter the recover password code received by email.
+        This command allows you to enter the "recoverpass code" received by email
+        and actually change your password.
         Usage: changepass <e-mail> <recoverpass_code>
         """
         try:
