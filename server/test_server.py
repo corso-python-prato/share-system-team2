@@ -895,7 +895,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         test = self.app.post(url,
                              data={'password': new_password})
         self.assertEqual(test.status_code, HTTP_ACCEPTED)
-        self.assertIsNotNone(server.userdata[self.active_user].get('reset_code'))
+        self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_code'))
 
     def test_pending_user(self):
         url = SERVER_API + 'users/{}/reset'.format(self.pending_user)
@@ -927,10 +927,10 @@ class TestUsersRecoverPassword(unittest.TestCase):
         old_password = server.userdata[self.active_user]['password']
         # first request a new password with post
         self.app.post(SERVER_API + 'users/{}/reset'.format(self.active_user))
-        reset_code = server.userdata[self.active_user]['reset_code']
+        recoverpass_code = server.userdata[self.active_user]['recoverpass_code']
         # then, put with given code and new password
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
-                            data={'reset_code': reset_code,
+                            data={'recoverpass_code': recoverpass_code,
                                   'password': pick_rand_pw(10)})
         self.assertEqual(test.status_code, HTTP_OK)
         self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
