@@ -619,6 +619,29 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
                         [('upload', expected_value)])
 
+    def test_sync_process_stupid_case(self):
+        """
+        Test SYNC: server_timestamp == local_timestamp
+        local directory NOT modified
+        expected value []
+        :return:
+        """
+
+        create_base_dir_tree(['just_a_file.txt'])
+        server_timestamp = timestamp_generator()
+
+        # Server and client starts the same
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        server_dir_tree = base_dir_tree.copy()
+
+        # server_ts == client_ts
+        self.daemon.local_dir_state['last_timestamp'] = server_timestamp
+        self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+                         [])
+
+
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
