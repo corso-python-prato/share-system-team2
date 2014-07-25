@@ -179,14 +179,14 @@ class CommandParser(cmd.Cmd):
         if not validate_email(mail):
             print 'Error: invalid email address.'
             return False
-        else:
-            req_message = {'reqrecoverpass': mail}
-            r = self._send_to_daemon(req_message)
-            if not r:
-                print 'Error: the user does not exist or is not valid.'
-                return False
-            else:
-                return True
+
+        req_message = {'reqrecoverpass': mail}
+        r = self._send_to_daemon(req_message)
+        if not r:
+            print 'Error: the user does not exist or is not valid.'
+            return False
+
+        return True
 
     def do_changepass(self, line):
         """
