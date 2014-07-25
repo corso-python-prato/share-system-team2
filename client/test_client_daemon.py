@@ -94,7 +94,7 @@ class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
-        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH)
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
         self.daemon.operation_happened = 'initial'
         self.daemon.create_observer()
 
