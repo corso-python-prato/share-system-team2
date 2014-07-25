@@ -639,9 +639,10 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         json_data = json.dumps(command)
         self.socket.set_response(json_data)
 
-        self.assertEquals(self.client_daemon._get_cmdmanager_request(self.socket), json.loads(json_data))
+        self.assertEquals(self.daemon._get_cmdmanager_request(self.socket), json.loads(json_data))
 
     def test_set_cmdmanager_response(self):
         response = 'testtestetst'
-        self.assertEqual(self.client_daemon._set_cmdmanager_response(self.socket, response),
+        self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response),
                          json.dumps({'message': response}))
+
