@@ -565,7 +565,7 @@ class UsersRecoverPassword(Resource):
 Hi there,
 
 There was recently a request to change the password on your $email account.
-If you requested this password change, please set a new password by following the link below:
+If you requested this password change, please set a new password by using the code below:
 
 $code
 
