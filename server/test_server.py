@@ -931,13 +931,6 @@ class TestUsersRecoverPassword(unittest.TestCase):
         new_password = pick_rand_pw(10)
         previous_pending_activation = server.pending_users[self.pending_user]['activation_code']
         previous_pending_timestamp = server.pending_users[self.pending_user]['timestamp']
-
-        # TODO: remove this block of sleep when timestamp is multiplied by 10,000 and converted to integer
-        # Wait at least 1 second (temporary! because of 'now_timestamp' "1-second-level truncation")
-        import time
-        time.sleep(1.1)
-        # end of sleep block
-
         test = self.app.post(url,
                              data={'password': new_password})
         self.assertEqual(test.status_code, HTTP_ACCEPTED)
