@@ -17,6 +17,11 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 daemon_host = 'localhost'
 daemon_port = 50001
 
+# A regular expression to check if an email address is valid or not.
+# WARNING: it seems a not 100%-exhaustive email address validation.
+# source: http://www.regular-expressions.info/email.html
+EMAIL_REG_OBJ = re.compile(r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b', re.IGNORECASE)
+
 
 def load_cfg(cfg_path=CONFIG_FILEPATH):
     """
@@ -49,10 +54,7 @@ def validate_email(address):
     :param address: str
     :return: bool
     """
-    # WARNING: it seems a not 100%-exhaustive email address validation.
-    # source: http://www.regular-expressions.info/email.html
-    regexp = r'\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,4}\b'
-    return bool(re.search(regexp, address, re.IGNORECASE))
+    return bool(re.search(EMAIL_REG_OBJ, address))
 
 
 def _getpass():
