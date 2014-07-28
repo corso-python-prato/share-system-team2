@@ -471,7 +471,7 @@ class Daemon(RegexMatchingEventHandler):
 
             elif command == 'modify' or command == 'upload':
 
-                new_md5 = self.hash_file(self.relativize_path(path))
+                new_md5 = self.hash_file(self.absolutize_path(path))
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if event_timestamp:
                     last_operation_timestamp = event_timestamp['server_timestamp']

@@ -5,3 +5,4 @@ Flask-RESTful>=0.2.12
 Flask-Mail>=0.9.0
 nose>=1.3.3
 coverage>=3.7.1
+passwordmeter>=0.1.5
