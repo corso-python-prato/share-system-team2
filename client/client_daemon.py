@@ -170,9 +170,8 @@ class Daemon(RegexMatchingEventHandler):
                     Daemon.CONFIG_FILEPATH = cfg_path
                     Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
                     return loaded_config
-                else:
-                    print '\nWarning "{0}" corrupted!' \
-                          '\nConfig file overwrited and loaded with default configuration!\n'.format(cfg_path)
+                print '\nWarning "{0}" corrupted!\nConfig file overwrited and loaded with default configuration!\n'\
+                    .format(cfg_path)
         else:
             print '\nWarning "{0}" doesn\'t exist!' \
                   '\nNew config file created and loaded with default configuration!\n'.format(cfg_path)
