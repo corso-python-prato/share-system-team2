@@ -147,6 +147,23 @@ def _manually_create_active_user(username, pw):
     server.userdata[username] = single_user_data
     return single_user_data
 
+def _manually_create_inactive_user(username, pw):
+    """
+    Create an inactive user without creating its server directory.
+    :param username: str
+    :param pw: str
+    :return: dict
+    """
+    activation_code = os.urandom(16).encode('hex')
+    single_user_data = {}
+    single_user_data[username] = {}
+    single_user_data[username][USER_IS_ACTIVE] = False
+    single_user_data[username][USER_ACTIVATION_DATA] = {'creation_timestamp': server.now_timestamp(),
+                                                       'activation_code': activation_code,
+                                                       'password': pw,
+                                                       }
+    server.save_userdata()
+    return single_user_data
 
 def _manually_remove_user(username):  # TODO: make this from server module?
     """
@@ -162,6 +179,13 @@ def _manually_remove_user(username):  # TODO: make this from server module?
         shutil.rmtree(user_dirpath)
         logging.debug('"%s" user directory removed' % user_dirpath)
 
+def _manually_remove_inactive_user(username):
+    """
+    Remove inactive user from server if exists.
+     :param username: str
+    """
+    if USR in server.userdata and server.userdata[USR][USER_IS_ACTIVE] is False:
+        server.userdata.pop(username)
 
 def setup_test_dir():
     """
@@ -728,6 +752,7 @@ class TestUsersPost(unittest.TestCase):
         self.user_dirpath = userpath2serverpath(self.username)
 
     def tearDown(self):
+        _manually_remove_inactive_user(USR)
         tear_down_test_dir()
 
     def test_repeated_post(self):
