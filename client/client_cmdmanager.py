@@ -180,7 +180,7 @@ class CommandParser(cmd.Cmd):
             shared_folder, user = line.split()
         except ValueError:
             print 'Bad arguments:'
-            print 'usage: share <share_folder> <user>'
+            print 'usage: addshare <share_folder> <user>'
         else:
             message = {'addshare': (shared_folder, user)}
             response = self._send_to_daemon(message)
@@ -196,7 +196,7 @@ class CommandParser(cmd.Cmd):
             shared_folder = line.split()[0]
         except ValueError:
             print 'Bad arguments:'
-            print 'usage: share <share_folder>'
+            print 'usage: removeshare <share_folder>'
         else:
             message = {'removeshare': (shared_folder, )}
             response = self._send_to_daemon(message)
