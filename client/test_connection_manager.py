@@ -138,7 +138,7 @@ class TestConnectionManager(unittest.TestCase):
         Test that if /users/<email>/reset POST == 404 then cm return None
         """
         # An unknown user (neither registered nor pending) is a resource not found for the server...
-        email = 'utentesconosciuto@gmail.com'
+        email = 'unknown.user@gmail.com'
         url = self.user_url + email + '/reset'
         # ...so the server should return a 404:
         httpretty.register_uri(httpretty.POST, url, status=404)
