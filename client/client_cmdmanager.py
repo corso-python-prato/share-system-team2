@@ -20,7 +20,15 @@ daemon_port = 50001
 # A regular expression to check if an email address is valid or not.
 # WARNING: it seems a not 100%-exhaustive email address validation.
 # source: http://www.regular-expressions.info/email.html (modified)
-EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9][A-Z0-9._%+-]+[A-Z0-9_-]@[A-Z0-9.-]+\.[A-Z]{2,4}$', re.IGNORECASE)
+EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9]'  # the first char must be alphanumeric (no dots etc...)
+                           r'[A-Z0-9._%+-]+'  # allowed characters in the "local part"
+                           # NB: many email providers allow letters, numbers, and '.', '-' and '_' only.
+                           # GMail even allows letters, numbers and dots only (no '-' nor underscores).
+                           r'[A-Z0-9_-]'  # no dots before the '@'
+                           r'@'
+                           r'[A-Z0-9.-]+'  # domain part before the last dot ('.' and '-' allowed too)
+                           r'\.[A-Z]{2,4}$',  # domain extension: 2, 3 or 4 letters
+                           re.IGNORECASE | re.VERBOSE)
 
 
 def load_cfg(cfg_path=CONFIG_FILEPATH):
