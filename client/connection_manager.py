@@ -136,7 +136,7 @@ class ConnectionManager(object):
                                    'recoverpass_code': recoverpass_code})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+            self.logger.error('do_recoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
         else:
             return r.text
 
