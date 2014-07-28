@@ -475,7 +475,7 @@ the $appname Team
                                                          },
                                   }
             save_userdata()
-            response = 'User activation email sent to {}'.format(username), HTTP_OK
+            response = 'User activation email sent to {}'.format(username), HTTP_CREATED
 
         return response
 
