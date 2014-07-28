@@ -617,8 +617,9 @@ class Daemon(RegexMatchingEventHandler):
         data = {'src': rel_src_path,
                 'dst': rel_dest_path,
                 'md5': md5,
-            }
-        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+                }
+        # Send data to connection manager dispatcher and check return value.
+        # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('move', data)
         print 'event_timestamp di "move" =', event_timestamp
         if event_timestamp:
@@ -638,9 +639,10 @@ class Daemon(RegexMatchingEventHandler):
 
         data = {'filepath': rel_path,
                 'md5': new_md5
-            }
+                }
 
-        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        # Send data to connection manager dispatcher and check return value.
+        # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('modify', data)
         if event_timestamp:
             print 'event_timestamp di "modified" =', event_timestamp
@@ -655,7 +657,8 @@ class Daemon(RegexMatchingEventHandler):
         print 'start delete'
         rel_deleted_path = self.relativize_path(e.src_path)
 
-        # Send data to connection manager dispatcher and check return value. If all go right update client_snapshot and local_dir_state
+        # Send data to connection manager dispatcher and check return value.
+        # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
         if event_timestamp:
             print 'event_timestamp di "delete" =', event_timestamp
