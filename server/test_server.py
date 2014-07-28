@@ -768,8 +768,8 @@ class TestUsersPost(unittest.TestCase):
         Activation mail must be sent to the right recipient and *a line* of its body must be the activation code.
         """
         with server.mail.record_messages() as outbox:
-            resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                                 data={'password': self.password})
+            self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                          data={'password': self.password})
         # Retrieve the generated activation code
         activation_code = server.pending_users[self.username]['activation_code']
 
