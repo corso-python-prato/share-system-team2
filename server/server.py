@@ -62,6 +62,14 @@ class ServerConfigurationError(ServerError):
     pass
 
 
+class ServerInternalError(ServerError):
+    """
+    Custom exception to raise programming errors
+    (i.e. when unexpected conditions are found).
+    """
+    pass
+
+
 # Logging configuration
 # =====================
 LOG_FILENAME = 'log/server.log'
@@ -483,7 +491,7 @@ the $appname Team
         if username in userdata:
             # The user is already active, so it should be a request of password resetting.
             if username in pending_users:
-                raise RuntimeError('Programming error: user {} must\'n t be both pending and active'.format(username))
+                raise ServerInternalError('User {} must\'n t be both pending and active'.format(username))
             try:
                 new_password = request.form[PWD]
             except KeyError:
