@@ -805,6 +805,16 @@ class TestUsersPost(unittest.TestCase):
         self.assertEqual(recipients, [self.username])
         self.assertIn(activation_code, body.splitlines())
 
+    def test_creation_inactive_user(self):
+        """
+        """
+        _manually_create_inactive_user(self.username, self.password)
+        print _manually_create_inactive_user(self.username, self.password)
+
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                             data={'password': self.password})
+
+        self.assertEqual(test.status_code, HTTP_CREATED)
 
 class TestUsersPut(unittest.TestCase):
     def setUp(self):
