@@ -913,7 +913,8 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.app.testing = True
 
         self.active_user = 'Attivo'
-        _manually_create_user(self.active_user, pick_rand_pw(8))
+        self.active_user_pw = pick_rand_pw(8)
+        _manually_create_user(self.active_user, self.active_user_pw)
         self.pending_user = 'Pendente'
         server.pending_users[self.pending_user] = {'timestamp': server.now_timestamp(),
                                                    'activation_code': 'fake-activation-code'}
@@ -956,6 +957,25 @@ class TestUsersRecoverPassword(unittest.TestCase):
                                   'password': pick_rand_pw(10)})
         self.assertEqual(test.status_code, HTTP_OK)
         self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
+
+    def test_password_recovery_email(self):
+        """
+        Test recovery email recipient, subject and body.
+        """
+        with server.mail.record_messages() as outbox:
+            self.app.post(urlparse.urljoin(SERVER_API, 'users/{}/reset'.format(self.active_user)))
+        # Retrieve the generated activation code
+        recoverpass_code = server.userdata[self.active_user]['recoverpass_code']
+        self.assertEqual(len(outbox), 1)
+        body = outbox[0].body
+        recipients = outbox[0].recipients
+        subject = outbox[0].subject
+        self.assertEqual(recipients, [self.active_user])
+        # A line must be the recoverpass code
+        self.assertIn(recoverpass_code, body.splitlines())
+        # The email subject and body must contain some "keywords".
+        self.assertIn('password', subject.lower())
+        self.assertTrue('change' in body and 'password' in body)
 
 
 def get_dic_dir_states():
