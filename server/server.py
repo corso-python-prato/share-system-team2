@@ -685,6 +685,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
              SNAPSHOT: snapshot}
     return state
 
+
 class Shares(Resource):
     """
     Folder sharing handling class.
@@ -706,7 +707,7 @@ class Shares(Resource):
 
         return HTTP_OK
 
-    def  delete(self, root_path, username=''):
+    def delete(self, root_path, username=''):
         return HTTP_DELETED
     
     @auth.login_required
@@ -735,11 +736,11 @@ class Shares(Resource):
         return HTTP_OK
 
     def _share(self, path, username, owner):
-        if not (owner in  userdata[username]['shared_with_me']):
-            userdata[username]['shared_with_me'][owner]=[]
+        if not (owner in userdata[username]['shared_with_me']):
+            userdata[username]['shared_with_me'][owner] = []
 
         if not (path in userdata[owner]['shared_with_others']):
-            userdata[owner]['shared_with_others'][path]=[]
+            userdata[owner]['shared_with_others'][path] = []
 
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
@@ -753,9 +754,8 @@ class Shares(Resource):
         root_path = os.path.abspath(join(FILE_ROOT, owner))
         sharing_path = os.path.abspath(join(FILE_ROOT, owner, path))
         if os.path.split(sharing_path)[0] == root_path:
-           return True
+            return True
         return False
-
 
 
 class Files(Resource):
@@ -821,7 +821,6 @@ class Files(Resource):
             if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
                 return True
         return False
-
     
     def _get_dirname_filename(self, path):
         """
@@ -924,6 +923,7 @@ api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFI
 
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()
+
 
 def main():
     parser = argparse.ArgumentParser()
