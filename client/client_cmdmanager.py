@@ -51,13 +51,14 @@ def load_cfg(cfg_path=CONFIG_FILEPATH):
 def validate_email(address):
     """
     Validate an email address according to http://www.regular-expressions.info/email.html.
-    In addition, at most one '.' is allowed before the '@'.
+    In addition, at most one '.' before the '@' and no '..' in the domain part are allowed.
     :param address: str
     :return: bool
     """
     if not re.search(EMAIL_REG_OBJ, address):
         return False
-    return address.split('@')[0].count('.') <= 1
+    local_part, domain_part = address.split('@')
+    return local_part.count('.') <= 1 and '..' not in domain_part
 
 
 def _getpass():
