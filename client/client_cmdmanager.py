@@ -182,12 +182,10 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: share <share_folder> <user>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'addshare': (shared_folder, user)}
-                self._send_to_daemon(message)
+            message = {'addshare': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_removeshare(self, line):
         """
@@ -200,12 +198,10 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: share <share_folder>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'removeshare': (shared_folder, )}
-                self._send_to_daemon(message)
+            message = {'removeshare': (shared_folder, )}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_removeshareduser(self, line):
         """
@@ -218,12 +214,10 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: removeshareduser <share_folder> <user>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'removeshareduser': (shared_folder, user)}
-                self._send_to_daemon(message)
+            message = {'removeshareduser': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
 
 if __name__ == '__main__':
