@@ -164,12 +164,9 @@ class Daemon(RegexMatchingEventHandler):
                 print '\nImpossible to read "{0}"!' \
                       '\nConfig file overwrited and loaded with default configuration!\n'.format(cfg_path)
             else:
-                corrupted_config = False
-                for k in Daemon.DEF_CONF:
-                    if k not in loaded_config:
-                        corrupted_config = True
-                # In the case is all gone right we can update the CONFIG costant and return loaded_config
-                if not corrupted_config:
+                # Check that all the key in DEF_CONF are in loaded_config
+                if not [True for k in Daemon.DEF_CONF if k not in loaded_config]:
+                    # In the case is all gone right we can update the CONFIG costant and return loaded_config
                     Daemon.CONFIG_FILEPATH = cfg_path
                     Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
                     return loaded_config
