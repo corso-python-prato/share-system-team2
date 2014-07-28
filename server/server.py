@@ -50,6 +50,8 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+USER_IS_ACTIVE = 'activated'
+USER_ACTIVATION_DATA = 'activation_data'
 
 UNWANTED_PASS = 'words'
 
@@ -91,7 +93,6 @@ logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now
 # Server initialization
 # =====================
 userdata = {}
-pending_users = {}
 
 app = Flask(__name__)
 app.testing = __name__ != '__main__'  # Reasonable assumption?
@@ -253,7 +254,6 @@ def reset_userdata():
     Clear userdata and pending_users dictionaries.
     """
     userdata.clear()
-    pending_users.clear()
 
 
 @auth.verify_password
@@ -277,32 +277,24 @@ def verify_password(username, password):
 
 def activate_user(username, password):
     """
-    Handle the creation of a new user.
+    Handle the activation of an existing user(with flag activated: False).
     """
-    # Example of creation using requests:
-    # requests.post('http://127.0.0.1:5000/API/V1/signup',
-    # data={'username': 'Pippo', 'password': 'ciao'})
-    logger.debug('Creating user...')
-    if username and password:
-        if username in userdata:
-            # user already exists!
-            #response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        #else:
-            enc_pass = _encrypt_password(password)
+    logger.debug('Activating user...')
 
-            temp = init_user_directory(username)
-            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
+    enc_pass = _encrypt_password(password)
+    temp = init_user_directory(username)
+    last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
 
-            single_user_data = {USER_CREATION_TIME: now_timestamp(),
-                                PWD: enc_pass,
-                                LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: dir_snapshot,
-                                }
-            userdata[username] = single_user_data
-            save_userdata()
-            response = 'User "{}" activated.\n'.format(username), HTTP_OK
-    else:
-        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
+    single_user_data = {USER_CREATION_TIME: now_timestamp(),
+                        PWD: enc_pass,
+                        LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                        SNAPSHOT: dir_snapshot,
+                        USER_IS_ACTIVE: True,
+                        }
+    userdata[username] = single_user_data
+    save_userdata()
+    response = 'User "{}" activated.\n'.format(username), HTTP_OK
+
     logger.debug(response)
     return response
 
@@ -371,8 +363,9 @@ class UsersFacility(Resource):
                 reg_users_listr = ', '.join(userdata.keys())
             else:
                 reg_users_listr = 'no registered users'
-            if pending_users:
-                pending_users_listr = ', '.join(pending_users.keys())
+
+            if userdata[username][USER_IS_ACTIVE] is False:
+                pending_users_listr = ', '.join(userdata.keys())
             else:
                 pending_users_listr = 'no pending users'
             response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
@@ -399,9 +392,12 @@ class Users(Resource):
         :return: list
         """
         # Remove expired pending users.
-        to_remove = [username for (username, data) in pending_users.iteritems()
-                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
-        [pending_users.pop(username) for username in to_remove]
+
+        to_remove = [username for (username, data) in userdata.iteritems()
+                     if userdata[username][USER_IS_ACTIVE] is False and
+                     now_timestamp() - data[USER_ACTIVATION_DATA][USER_CREATION_TIME] >
+                     (USER_ACTIVATION_TIMEOUT * 10000)]
+        [userdata.pop(username) for username in to_remove]
         return to_remove
 
     @auth.login_required
@@ -428,9 +424,6 @@ class Users(Resource):
         A not-logged user is asking to register himself.
         NB: username must be a valid email address.
         """
-        if username in userdata:
-            abort(HTTP_CONFLICT)
-
         password = request.form['password']
         strength, improvements = passwordmeter.test(password)
         if strength <= 0.5:
@@ -463,32 +456,51 @@ the $appname Team
 
         send_email(subject, sender, recipients, text_body)
 
-        pending_users[username] = {
-            'timestamp': now_timestamp(),
-            'activation_code': activation_code,
-            PWD: password,
-        }
-        return 'User activation email sent to {}'.format(username), HTTP_OK
+        if username in userdata:
+            if userdata[username][USER_IS_ACTIVE] is True:
+                response = 'Error: username "{}" already active!\n'.format(username), HTTP_CONFLICT
+            else:
+                # if the user is still pending for activation receives a new activation mail
+                # and its equivalent activation_code is updated in userdata json file
+
+                send_email(subject, sender, recipients, text_body)
+                userdata[username][USER_ACTIVATION_DATA]['activation_code'] = activation_code
+                save_userdata()
+                response = 'User activation email sent to {}'.format(username), HTTP_OK
+        else:
+            userdata[username] = {USER_IS_ACTIVE: False,
+                                  USER_ACTIVATION_DATA: {'creation_timestamp': now_timestamp(),
+                                                         'activation_code': activation_code,
+                                                         PWD: password,
+                                                         },
+                                  }
+            save_userdata()
+            response = 'User activation email sent to {}'.format(username), HTTP_OK
+
+        return response
 
     def put(self, username):
         """
         Create user using activation code sent by email.
         """
+
+        # create a list of all username with flag activated: False
+        pending_users = [user for user in userdata if userdata[user][USER_IS_ACTIVE] is False]
+
         activation_code = request.form['activation_code']
+
         logger.debug('Got activation code: {}'.format(activation_code))
-        logger.debug('Pending users: {}'.format(pending_users.keys()))
+        logger.debug('Pending users: {}'.format(pending_users))
 
         # Pending users cleanup
         expired_pending_users = self._clean_pending_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
-        pending_user_data = pending_users.get(username)
-        if pending_user_data:
+        if username in pending_users:
             logger.debug('Activating user {}'.format(username))
-            if activation_code == pending_user_data['activation_code']:
-                # Actually create user
-                password = pending_user_data[PWD]
-                pending_users.pop(username)
+            if activation_code == userdata[username][USER_ACTIVATION_DATA]['activation_code']:
+                # Actually activate user
+                password = userdata[username][USER_ACTIVATION_DATA][PWD]
                 return activate_user(username, password)
             else:
                 abort(HTTP_NOT_FOUND)
@@ -510,6 +522,7 @@ the $appname Team
 
         userdata.pop(username)
         shutil.rmtree(userpath2serverpath(username))
+        save_userdata()
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
@@ -750,7 +763,7 @@ class Files(Resource):
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
-        save_userdata()    
+        save_userdata()
         return last_server_timestamp
 
     @auth.login_required
