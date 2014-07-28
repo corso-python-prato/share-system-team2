@@ -912,10 +912,10 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.app = server.app.test_client()
         self.app.testing = True
 
-        self.active_user = 'Attivo'
+        self.active_user = 'Actived'
         self.active_user_pw = pick_rand_pw(8)
         _manually_create_user(self.active_user, self.active_user_pw)
-        self.pending_user = 'Pendente'
+        self.pending_user = 'Pending'
         server.pending_users[self.pending_user] = {'timestamp': server.now_timestamp(),
                                                    'activation_code': 'fake-activation-code'}
 
