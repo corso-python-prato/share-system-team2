@@ -238,5 +238,9 @@ class TestRecoverpassEmailAndToken(unittest.TestCase):
         self.assertTrue(self.commandparser.do_recoverpass(self.valid_line))
 
 
+class TestValidateEmail(unittest.TestCase):
+    def test_too_many_dots_in_local_part(self):
+        self.assertFalse(client_cmdmanager.validate_email('too.many.dots@gmail.com'))
+
 if __name__ == '__main__':
     unittest.main()
