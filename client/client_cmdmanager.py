@@ -57,8 +57,7 @@ def validate_email(address):
     """
     if not re.search(EMAIL_REG_OBJ, address):
         return False
-    local_part, domain_part = address.split('@')
-    return local_part.count('.') <= 1 and '..' not in domain_part
+    return '..' not in address
 
 
 def _getpass():

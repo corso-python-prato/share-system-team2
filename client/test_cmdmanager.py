@@ -255,9 +255,6 @@ class TestValidateEmail(unittest.TestCase):
     def test_no_dots_in_domain(self):
         self.assertFalse(client_cmdmanager.validate_email('address@gmailcom'))
 
-    def test_too_many_dots_in_local_part(self):
-        self.assertFalse(client_cmdmanager.validate_email('too.many.dots@gmail.com'))
-
     def test_consecutive_dots_in_domain_part(self):
         self.assertFalse(client_cmdmanager.validate_email('address@gmail..com'))
 
