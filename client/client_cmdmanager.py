@@ -221,46 +221,46 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: recoverpass <e-mail> [<recoverpass_code>]'
             return False
-        else:
-            mail = args[0]
-            # must be a valid email
-            if not validate_email(mail):
-                print 'Error: invalid e-mail address.'
-                return False
 
-            if len(args) == 1:
-                req_message = {'reqrecoverpass': mail}
-                r = self._send_to_daemon(req_message)
-                if not r:
-                    print 'Error: the user does not exist or is not valid.'
+        mail = args[0]
+        # must be a valid email
+        if not validate_email(mail):
+            print 'Error: invalid e-mail address.'
+            return False
+
+        if len(args) == 1:
+            req_message = {'reqrecoverpass': mail}
+            r = self._send_to_daemon(req_message)
+            if not r:
+                print 'Error: the user does not exist or is not valid.'
+                return False
+            print 'Recover password email sent to {}, check your inbox!'.format(mail)
+            return True
+
+        if len(args) == 2:
+            # The command used with 2 parameters allow the user to enter the "recoverpass code"
+            # received by email and actually change the password.
+            # Usage: changepass <e-mail> <recoverpass_code>
+            recoverpass_code = args[1]
+
+            # Ask password without showing it:
+            new_password = _getpass()
+            if new_password:
+                message = {'recoverpass': (mail, recoverpass_code, new_password)}
+                resp = self._send_to_daemon(message)
+                if not resp:
+                    print 'Error: invalid recoverpass code.'
                     return False
-                print 'Recover password email sent to {}, check your inbox!'.format(mail)
+
+                print 'OK. Password changed successfully!'
                 return True
-            elif len(args) == 2:
-                # The command used with 2 parameters allow the user to enter the "recoverpass code"
-                # received by email and actually change the password.
-                # Usage: changepass <e-mail> <recoverpass_code>
-                recoverpass_code = args[1]
+            # Empty password or confirm password not matching
+            print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+            return False
 
-                # Ask password without showing it:
-                new_password = _getpass()
-                if new_password:
-                    message = {'recoverpass': (mail, recoverpass_code, new_password)}
-                    resp = self._send_to_daemon(message)
-                    if not resp:
-                        print 'Error: invalid recoverpass code.'
-                        return False
-                    else:
-                        print 'OK. Password changed successfully!'
-                        return True
-                else:
-                    # Empty password or confirm password not matching
-                    print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
-                    return False
-            else:
-                print 'Bad arguments:'
-                print 'usage: recoverpass <e-mail>  [<recoverpass_code>]'
-                return False
+        print 'Bad arguments:'
+        print 'usage: recoverpass <e-mail>  [<recoverpass_code>]'
+        return False
 
 
 if __name__ == '__main__':
