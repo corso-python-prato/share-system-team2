@@ -70,10 +70,6 @@ class Daemon(RegexMatchingEventHandler):
     DEF_CONF['cmd_port'] = 50001
     DEF_CONF['api_suffix'] = '/API/V1/'
     DEF_CONF['server_address'] = 'http://localhost:5000'
-    DEF_CONF['user'] = ''
-    DEF_CONF['pass'] = ''
-    DEF_CONF['activate'] = False
-
 
     IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
                      '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
@@ -744,7 +740,7 @@ class Daemon(RegexMatchingEventHandler):
         Starts the communication with the command_manager.
         """
         # If user is activated we can start observing.
-        if self.cfg['activate']:
+        if self.cfg.get('activate', False):
             self._initialize_observing()
 
         TIMEOUT_LISTENER_SOCK = 0.5
@@ -777,9 +773,9 @@ class Daemon(RegexMatchingEventHandler):
                                     self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
                                 else:
-                                    if not self.cfg['activate']:
+                                    if not self.cfg.get('activate', False):
                                         self._activation_check(s, cmd, data)
-                                    else: # client is already activated
+                                    else:  # client is already activated
                                         response = self.conn_mng.dispatch_request(cmd, data)
                                         # for now the protocol is that for request sent by
                                         # command manager, the server reply with a string
@@ -792,7 +788,7 @@ class Daemon(RegexMatchingEventHandler):
                             s.close()
                             r_list.remove(s)
 
-                if self.cfg['activate']:
+                if self.cfg.get('activate', False):
                     # synchronization polling
                     # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
                     # maybe optimizable but now functional
@@ -803,7 +799,7 @@ class Daemon(RegexMatchingEventHandler):
 
         except KeyboardInterrupt:
             self.stop(0)
-        if self.cfg['activate']:
+        if self.cfg.get('activate', False):
             self.observer.stop()
             self.observer.join()
         self.listener_socket.close()
@@ -853,7 +849,6 @@ class Daemon(RegexMatchingEventHandler):
         else:
             print "local_dir_state not found. Initialize new local_dir_state"
             _rebuild_local_dir_state()
-
 
     def md5_of_client_snapshot(self, verbose=0):
         """
