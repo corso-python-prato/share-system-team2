@@ -245,10 +245,10 @@ class TestValidateEmail(unittest.TestCase):
     def test_no_domain(self):
         self.assertFalse(client_cmdmanager.validate_email('address@'))
 
-    def too_many_at(self):
+    def test_too_many_at(self):
         self.assertFalse(client_cmdmanager.validate_email('address@@gmail.com'))
 
-    def dot_at_begin_or_end(self):
+    def test_dot_at_begin_or_end(self):
         self.assertFalse(client_cmdmanager.validate_email('.address@gmail.com'))
         self.assertFalse(client_cmdmanager.validate_email('address.@gmail.com'))
 
