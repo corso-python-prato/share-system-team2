@@ -162,7 +162,7 @@ class Daemon(RegexMatchingEventHandler):
             try:
                 with open(cfg_path, 'r') as fo:
                     loaded_config = OrderedDict()
-                    for k,v in json.load(fo).items():
+                    for k, v in json.load(fo).iteritems():
                         loaded_config[k] = v
             except ValueError:
                 print '\nImpossible to read "{0}"!' \
@@ -332,7 +332,7 @@ class Daemon(RegexMatchingEventHandler):
 
         def _check_md5(dir_tree, md5):
             result = []
-            for k, v in dir_tree.items():
+            for k, v in dir_tree.iteritems():
                 if md5 == v[1]:
                     result.append(k)
             return result
@@ -766,7 +766,7 @@ class Daemon(RegexMatchingEventHandler):
                         req = self._get_cmdmanager_request(s)
 
                         if req:
-                            for cmd, data in req.items():
+                            for cmd, data in req.iteritems():
                                 if cmd == 'shutdown':
                                     self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
@@ -860,7 +860,7 @@ class Daemon(RegexMatchingEventHandler):
             start = time.time()
         md5Hash = hashlib.md5()
 
-        for path, time_md5 in sorted(self.client_snapshot.items()):
+        for path, time_md5 in sorted(self.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
             if verbose:
                 print path

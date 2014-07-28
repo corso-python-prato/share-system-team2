@@ -308,7 +308,7 @@ class TestClientDaemon(unittest.TestCase):
 
         md5Hash = hashlib.md5()
 
-        for path, time_md5 in sorted(self.daemon.client_snapshot.items()):
+        for path, time_md5 in sorted(self.daemon.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
 
             md5Hash.update(time_md5[1])
