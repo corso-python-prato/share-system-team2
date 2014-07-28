@@ -403,7 +403,7 @@ class TestClientDaemon(unittest.TestCase):
         dst = 'move_folder/file1.txt'
 
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'move: src "+src+" dst: '+dst)
+        self.assertEqual(self.daemon.operation_happened, 'move: src '+src+' dst: '+dst)
 
     def test_sync_process_copy_on_server(self):
         """
@@ -434,7 +434,7 @@ class TestClientDaemon(unittest.TestCase):
         dst = 'copy_folder/file1.txt'
 
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'copy: src "+src+" dst: '+dst)
+        self.assertEqual(self.daemon.operation_happened, 'copy: src '+src+' dst: '+dst)
 
     def test_sync_process_new_on_server(self):
         """
