@@ -755,15 +755,17 @@ class TestUsersPost(unittest.TestCase):
         _manually_remove_inactive_user(USR)
         tear_down_test_dir()
 
-    def test_repeated_post(self):
+    def test_repeated_post_inactive_user(self):
         """
         Post a new user creation 3 times --> permitted.
         """
+        _manually_create_inactive_user(self.username, self.password)
+
         for i in range(3):
             # The Users.post (signup request) is repeatable
             test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                                  data={'password': self.password})
-            self.assertEqual(test.status_code, HTTP_OK)
+        self.assertEqual(test.status_code, HTTP_OK)
 
     def test_user_creation_with_weak_password(self):
         """
