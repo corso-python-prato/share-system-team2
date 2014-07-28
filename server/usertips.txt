@@ -56,6 +56,15 @@ User signup shortcut:
 
     curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
 
+User authentication:
+
+    curl localhost:5000/API/V1/users/<youruser> --user "<youruser>:<yourpassword>
+
+User delete (DELETE):
+
+    curl -X delete localhost:5000/API/V1/users/<youruser> --user "<youruser>:<yourpassword>"
+
+
 
 Automated testing with nose and coverage
 ========================================
