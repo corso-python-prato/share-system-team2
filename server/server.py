@@ -500,7 +500,7 @@ the $appname Team
                     response = 'Password changed succesfully', HTTP_OK
                 else:
                     # reset code not corresponding
-                    response = 'Code not corrisponding: {} vs {}'.format(recoverpass_code,
+                    response = 'Code not corresponding: {} vs {}'.format(recoverpass_code,
                                                                          request_recoverpass_code), HTTP_NOT_FOUND
                 return response
         else:
