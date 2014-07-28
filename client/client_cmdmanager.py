@@ -230,8 +230,7 @@ class CommandParser(cmd.Cmd):
 
         if len(args) == 1:
             req_message = {'reqrecoverpass': mail}
-            r = self._send_to_daemon(req_message)
-            if not r:
+            if not self._send_to_daemon(req_message):
                 print 'Error: the user does not exist or is not valid.'
                 return False
             print 'Recover password email sent to {}, check your inbox!'.format(mail)
