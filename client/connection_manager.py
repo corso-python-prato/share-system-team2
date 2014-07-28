@@ -81,12 +81,17 @@ class ConnectionManager(object):
 
         try:
             r = requests.post(url, data=req)
+            # this mean the password is not allowed, i must check before raise_for_status to not destroy response
+            if r.status_code == 403:
+                return {'improvements': json.loads(r.text)}
+            elif r.status_code == 409:
+                return {'content': 'Error! User already existent!'}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+            return {'content': 'Error during registration:\n{}'.format(e)}
         else:
-            return r.text
-        return False
+            return {'content': json.loads(r.text)}
 
     def do_activate(self, data):
         """
@@ -222,9 +227,6 @@ class ConnectionManager(object):
 
         else:
             return json.loads(r.text)
-
-    # logging.info('ConnectionManager: do_reguser: URL: {} - DATA: {} '.format(url, data))
-    # logging.error('ConnectionManager: do_reguser: URL: {} - EXCEPTIONS_CATCHED: {} '.format(url, e))
 
     def _default(self, method):
         print 'Received Unknown Command:', method

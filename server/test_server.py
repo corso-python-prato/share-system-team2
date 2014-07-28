@@ -42,7 +42,7 @@ server.logger.setLevel(server_verbosity)
 logging.basicConfig(level=logging.WARNING)
 
 # Test-user account details
-REGISTERED_TEST_USER = 'pyboxtestuser', 'pw'
+REGISTERED_TEST_USER = 'user@mail.com', 'Mail_85'
 USR, PW = REGISTERED_TEST_USER
 
 
@@ -208,6 +208,24 @@ class TestRequests(unittest.TestCase):
     def tearDown(self):
         _manually_remove_user(USR)
         tear_down_test_dir()
+
+    def test_update_passwordmeter_terms(self):
+        import passwordmeter
+        terms_file = tempfile.NamedTemporaryFile()
+
+        terms = ['dsgdfgsfgsr\n',
+                 'sdfdffdgdgfs\n',
+                 'sfsdgdhgdsdfgdg\n',
+                 'dsffdgdfgdfgdf\n'
+        ]
+        for term in terms:
+            terms_file.write(term)
+        # We have to give filename to the function update_passwordmeter_terms
+        name_of_file = terms_file.name
+        terms_file.seek(0)
+        server.update_passwordmeter_terms(name_of_file)
+        for term in terms:
+            self.assertIn(term, passwordmeter.common10k)
 
     def test_files_post_with_auth(self):
         """
@@ -701,8 +719,8 @@ class TestUsersPost(unittest.TestCase):
         self.app = server.app.test_client()
         self.app.testing = True
 
-        self.username = 'superpippo@topoliniamail.com'
-        self.password = 'superpass'
+        self.username = USR
+        self.password = PW
         self.user_dirpath = userpath2serverpath(self.username)
 
     def tearDown(self):
@@ -720,6 +738,18 @@ class TestUsersPost(unittest.TestCase):
             # Test that user is added to <pending_users>
             self.assertIn(self.username, server.pending_users.keys())
             self.assertEqual(test.status_code, HTTP_OK)
+
+    def test_user_creation_with_weak_password(self):
+        """
+        """
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                                 data={'password': 'weak_password'})
+
+        # Test that user is not added to <pendint_users>
+        self.assertNotIn(self.username, server.pending_users.keys())
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+        self.assertIsInstance(json.loads(test.get_data()), dict)
+
 
     def test_user_already_existing(self):
         """
@@ -756,9 +786,8 @@ class TestUsersPut(unittest.TestCase):
 
         self.app = server.app.test_client()
         self.app.testing = True
-
-        self.username = 'superpippo@topoliniamail.com'
-        self.password = 'superpass'
+        self.username = USR
+        self.password = PW
         self.user_dirpath = userpath2serverpath(self.username)
         assert self.username not in server.pending_users
         assert not os.path.exists(self.user_dirpath)
