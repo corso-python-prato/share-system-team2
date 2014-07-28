@@ -45,6 +45,9 @@ logging.basicConfig(level=logging.WARNING)
 REGISTERED_TEST_USER = 'user@mail.com', 'Mail_85'
 USR, PW = REGISTERED_TEST_USER
 
+USER_IS_ACTIVE = 'activated'
+USER_ACTIVATION_DATA = 'activation_data'
+
 
 def pick_rand_str(length, possible_chars=string.ascii_lowercase):
     return ''.join([random.choice(possible_chars) for _ in xrange(length)])
@@ -127,9 +130,9 @@ def build_tstuser_dir(username):
     return expected_timestamp, expected_snapshot
 
 
-def _manually_create_user(username, pw):
+def _manually_create_active_user(username, pw):
     """
-    Create an user, its server directory, and return its userdata dictionary.
+    Create an already active user, create its server directory, and return its userdata dictionary.
     :param username: str
     :param pw: str
     :return: dict
@@ -140,6 +143,7 @@ def _manually_create_user(username, pw):
     single_user_data = user_dir_state
     single_user_data[server.PWD] = enc_pass
     single_user_data[server.USER_CREATION_TIME] = server.now_timestamp()
+    single_user_data[server.USER_IS_ACTIVE] = True
     server.userdata[username] = single_user_data
     return single_user_data
 
@@ -150,7 +154,7 @@ def _manually_remove_user(username):  # TODO: make this from server module?
     and remove its directory from disk, if exist.
     :param username: str
     """
-    if USR in server.userdata:
+    if USR in server.userdata and server.userdata[USR][USER_IS_ACTIVE] is True:
         server.userdata.pop(username)
     # Remove user directory if exists!
     user_dirpath = userpath2serverpath(USR)
@@ -203,7 +207,7 @@ class TestRequests(unittest.TestCase):
         self.app.testing = True
 
         _manually_remove_user(USR)
-        _manually_create_user(USR, PW)
+        _manually_create_active_user(USR, PW)
 
     def tearDown(self):
         _manually_remove_user(USR)
@@ -601,7 +605,7 @@ class TestGetRequests(unittest.TestCase):
         self.app.testing = True
 
         _manually_remove_user(USR)
-        _manually_create_user(USR, PW)
+        _manually_create_active_user(USR, PW)
         _create_file(USR, self.USER_RELATIVE_DOWNLOAD_FILEPATH, 'some text')
 
     def tearDown(self):
@@ -734,9 +738,6 @@ class TestUsersPost(unittest.TestCase):
             # The Users.post (signup request) is repeatable
             test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                                  data={'password': self.password})
-
-            # Test that user is added to <pending_users>
-            self.assertIn(self.username, server.pending_users.keys())
             self.assertEqual(test.status_code, HTTP_OK)
 
     def test_user_creation_with_weak_password(self):
@@ -745,8 +746,7 @@ class TestUsersPost(unittest.TestCase):
         test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                                  data={'password': 'weak_password'})
 
-        # Test that user is not added to <pendint_users>
-        self.assertNotIn(self.username, server.pending_users.keys())
+        self.assertNotIn(self.username, server.userdata.keys())
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
         self.assertIsInstance(json.loads(test.get_data()), dict)
 
@@ -755,7 +755,7 @@ class TestUsersPost(unittest.TestCase):
         """
         Existing user --> 409.
         """
-        _manually_create_user(self.username, self.password)
+        _manually_create_active_user(self.username, self.password)
 
         test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                              data={'password': self.password})
@@ -770,7 +770,7 @@ class TestUsersPost(unittest.TestCase):
             resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                                  data={'password': self.password})
         # Retrieve the generated activation code
-        activation_code = server.pending_users[self.username]['activation_code']
+        activation_code = server.userdata[self.username][USER_ACTIVATION_DATA]['activation_code']
 
         self.assertEqual(len(outbox), 1)
         body = outbox[0].body
@@ -789,7 +789,7 @@ class TestUsersPut(unittest.TestCase):
         self.username = USR
         self.password = PW
         self.user_dirpath = userpath2serverpath(self.username)
-        assert self.username not in server.pending_users
+        #assert self.username not in server.pending_users
         assert not os.path.exists(self.user_dirpath)
 
         # The Users.post (signup request) is repeatable
@@ -797,7 +797,7 @@ class TestUsersPut(unittest.TestCase):
                              data={'password': self.password})
 
         # Retrieve the generated activation code
-        self.activation_code = server.pending_users[self.username]['activation_code']
+        self.activation_code = server.userdata[self.username][USER_ACTIVATION_DATA]['activation_code']
 
     def tearDown(self):
         tear_down_test_dir()
@@ -821,7 +821,6 @@ class TestUsersPut(unittest.TestCase):
         test = self.app.put(urlparse.urljoin(SERVER_API, 'users/' + self.username),
                             data={'activation_code': 'fake activation code'})
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
-        self.assertNotIn(self.username, server.userdata.keys())
         self.assertFalse(os.path.exists(self.user_dirpath))
 
     def test_ok(self):
@@ -834,8 +833,7 @@ class TestUsersPut(unittest.TestCase):
 
         self.assertIn(self.username, server.userdata.keys())
         self.assertTrue(os.path.exists(self.user_dirpath))
-        self.assertNotIn(self.username, server.pending_users.keys())
-        self.assertEqual(test.status_code, HTTP_CREATED)
+        self.assertEqual(test.status_code, HTTP_OK)
 
 
 class TestUsersDelete(unittest.TestCase):
@@ -854,7 +852,7 @@ class TestUsersDelete(unittest.TestCase):
         User deletion.
         """
         # Creating user to delete on-the-fly (TODO: pre-load instead)
-        _manually_create_user(USR, PW)
+        _manually_create_active_user(USR, PW)
         user_dirpath = userpath2serverpath(USR)
         # Really created?
         assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)
@@ -889,7 +887,7 @@ class TestUsersGet(unittest.TestCase):
     def test_get_self(self):
         username = 'pippo@topolinia.com'
         pw = pick_rand_pw()
-        _manually_create_user(username, pw)
+        _manually_create_active_user(username, pw)
         url = SERVER_API + 'users/' + username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
         self.assertEqual(test.status_code, HTTP_OK)
@@ -898,7 +896,7 @@ class TestUsersGet(unittest.TestCase):
         username = 'pippo@topolinia.com'
         other_username = 'a' + username
         pw = pick_rand_pw()
-        _manually_create_user(username, pw)
+        _manually_create_active_user(username, pw)
         url = SERVER_API + 'users/' + other_username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
@@ -939,7 +937,7 @@ class TestUserdataConsistence(unittest.TestCase):
         """
         # create user
         user = 'pippo'
-        _manually_create_user(user, 'pass')
+        _manually_create_active_user(user, 'pass')
 
         # i need to create the userdata.json to check consistency
         server.save_userdata()
