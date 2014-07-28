@@ -730,6 +730,8 @@ class Daemon(RegexMatchingEventHandler):
                     self.update_cfg()
                 elif cmd == 'activate':
                     self.cfg['activate'] = True
+                    # Update the information about cfg into connection manager
+                    self.conn_mng.load_cfg(self.cfg)
                     self.update_cfg()
                     # Now the client_daemon is ready to operate, we do the start activity
                     self._initialize_observing()
