@@ -31,15 +31,7 @@ class ConnectionManager(object):
                         )
 
     def __init__(self, cfg, logging_level=logging.ERROR):
-        self.cfg = cfg
-        self.auth = (self.cfg['user'], self.cfg['pass'])
-
-        # example of self.base_url = 'http://localhost:5000/API/V1/'
-        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
-        self.files_url = ''.join([self.base_url, 'files/'])
-        self.actions_url = ''.join([self.base_url, 'actions/'])
-        self.shares_url = ''.join([self.base_url, 'shares/'])
-        self.users_url = ''.join([self.base_url, 'users/'])
+        self.load_cfg(cfg)
 
         self.logger = logging.getLogger("ConMng")
         self.logger.setLevel(level=logging_level)
@@ -63,6 +55,21 @@ class ConnectionManager(object):
         console_handler.setFormatter(console_formatter)
 
         self.logger.addHandler(console_handler)
+
+    def load_cfg(self, cfg):
+        """
+        Load the configuration received from client_daemon
+        :param cfg: Dictionary where is contained the configuration
+        """
+        self.cfg = cfg
+        self.auth = (self.cfg.get('user', None), self.cfg.get('pass', None))
+
+        # example of self.base_url = 'http://localhost:5000/API/V1/'
+        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
+        self.files_url = ''.join([self.base_url, 'files/'])
+        self.actions_url = ''.join([self.base_url, 'actions/'])
+        self.shares_url = ''.join([self.base_url, 'shares/'])
+        self.users_url = ''.join([self.base_url, 'users/'])
 
     def dispatch_request(self, command, args=None):
         method_name = ''.join(['do_', command])
