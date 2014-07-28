@@ -38,9 +38,13 @@ HTTP_CONFLICT = 409
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
-WORKDIR = os.path.dirname(__file__)
+SERVER_DIRECTORY = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                                          'password_recovery_email_template.txt')
+SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                               'signup_email_template.txt')
 
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 
@@ -449,20 +453,7 @@ class Users(Resource):
         subject = '[{}] Confirm your email address'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
-        text_body_template = string.Template("""
-Thanks for signing up for $appname!
-
-As a final step of the $appname account creation process, please confirm the email address $email.
-Copy and paste the activation code below into the desktop application:
-
-$code
-
-If you don't know what this is about, then someone has probably entered your email address by mistake.
-Sorry about that. You don't need to do anything further. Just delete this message.
-
-Cheers,
-the $appname Team
-""")
+        text_body_template = string.Template(_read_file(SIGNUP_EMAIL_TEMPLATE_FILE_PATH))
         values = dict(code=activation_code,
                       email=username,
                       appname=__title__,
@@ -569,19 +560,7 @@ class UsersRecoverPassword(Resource):
         subject = '[{}] Password recovery'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
-        text_body_template = string.Template("""
-Hi there,
-
-There was recently a request to change the password on your $email account.
-If you requested this password change, please set a new password by using the code below:
-
-$code
-
-If you don't want to change your password, just ignore this message.
-
-Cheers,
-the $appname Team
-""")
+        text_body_template = string.Template(_read_file(PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH))
         values = dict(code=recoverpass_code,
                       email=username,
                       appname=__title__,
