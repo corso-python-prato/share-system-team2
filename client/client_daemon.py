@@ -132,7 +132,7 @@ class Daemon(RegexMatchingEventHandler):
         if sharing_path:
             building_cfg['sharing_path'] = sharing_path
         if self._build_directory(Daemon.CONFIG_DIR):
-            with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
+            with open(Daemon.CONFIG_FILEPATH, 'w') as daemon_config:
                 json.dump(building_cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
             return building_cfg
         else:
@@ -142,7 +142,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Update cfg with new state in self.cfg
         """
-        with open(Daemon.CONFIG_FILEPATH, 'wb') as daemon_config:
+        with open(Daemon.CONFIG_FILEPATH, 'w') as daemon_config:
             json.dump(self.cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
 
     def _load_cfg(self, cfg_path, sharing_path):
