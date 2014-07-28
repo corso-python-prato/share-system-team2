@@ -102,6 +102,7 @@ EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
 api = Api(app)
 auth = HTTPBasicAuth()
 
+
 def update_passwordmeter_terms(terms_file):
     """
     Added costume terms list into passwordmeter from words file
@@ -118,6 +119,7 @@ def update_passwordmeter_terms(terms_file):
         passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
     finally:
         del costume_password
+
 
 def _read_file(filename):
     """
@@ -557,8 +559,8 @@ class Actions(Resource):
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
-        jso
+        Copy a file from a given source path to a destination path and return the current server timestamp
+        in a json file.jso
         userdata[username]n format: {LAST_SERVER_TIMESTAMP: int}
         """
 
@@ -605,7 +607,6 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
-
 
         last_server_timestamp = now_timestamp()
 
@@ -750,7 +751,7 @@ class Files(Resource):
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
-        save_userdata()    
+        save_userdata()
         return last_server_timestamp
 
     @auth.login_required

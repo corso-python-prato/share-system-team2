@@ -45,12 +45,13 @@ TEST_CFG = {
     "activate": True,
 }
 
+
 def create_environment():
     if not os.path.exists(TEST_DIR):
         os.makedirs(CONFIG_DIR)
         os.mkdir(TEST_SHARING_FOLDER)
 
-    with open(CONFIG_FILEPATH,'w') as f:
+    with open(CONFIG_FILEPATH, 'w') as f:
             json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
 
 # Test-user account details
@@ -58,7 +59,6 @@ USR, PW = 'client_user@mail.com', 'Mail_85'
 
 
 class TestConnectionManager(unittest.TestCase):
-
 
     def setUp(self):
         httpretty.enable()

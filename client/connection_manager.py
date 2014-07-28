@@ -219,7 +219,6 @@ class ConnectionManager(object):
     def do_get_server_snapshot(self, data):
         url = self.files_url
 
-
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_get_server_snapshot', url, data))
 
         try:

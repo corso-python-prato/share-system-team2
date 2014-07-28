@@ -49,11 +49,13 @@ TEST_CFG = {
 # Test-user account details
 USR, PW = 'user@mail.com', 'Mail_85'
 
+
 def timestamp_generator():
     timestamp_generator.__test__ = False
     return long(time.time()*10000)
 
-def create_base_dir_tree(list_of_files = LIST_OF_TEST_FILES):
+
+def create_base_dir_tree(list_of_files=LIST_OF_TEST_FILES):
     global base_dir_tree
     base_dir_tree = {}
     for path in list_of_files:
@@ -61,13 +63,15 @@ def create_base_dir_tree(list_of_files = LIST_OF_TEST_FILES):
         md5 = hashlib.md5(path).hexdigest()
         base_dir_tree[path] = [time_stamp, md5]
 
+
 def create_environment():
     if not os.path.exists(TEST_DIR):
         os.makedirs(CONFIG_DIR)
         os.mkdir(TEST_SHARING_FOLDER)
 
-    with open(CONFIG_FILEPATH,'w') as f:
+    with open(CONFIG_FILEPATH, 'w') as f:
             json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
+
 
 def create_files(dir_tree):
 
@@ -79,18 +83,22 @@ def create_files(dir_tree):
         with open(file_path, 'w') as f:
             f.write(file_path)
 
+
 def destroy_folder():
     shutil.rmtree(TEST_DIR)
+
 
 def fake_make_move(self, src, dst, timestamp):
 
     self.operation_happened = "move: src "+src+" dst: "+dst
     return True
 
+
 def fake_make_copy(self, src, dst, timestamp):
 
     self.operation_happened = "copy: src "+src+" dst: "+dst
     return True
+
 
 def fake_set_cmdmanager_response(socket, message):
     response = {'message': message}
@@ -133,7 +141,7 @@ class TestClientDaemon(unittest.TestCase):
         """
         self.daemon.cfg['this_is_test_value'] = True
         self.daemon.update_cfg()
-        with open(self.daemon.CONFIG_FILEPATH, 'rb')  as cfg:
+        with open(self.daemon.CONFIG_FILEPATH, 'rb') as cfg:
             self.assertTrue(json.load(cfg)['this_is_test_value'])
 
     def test__create_cfg_with_default_configuration(self):
@@ -186,7 +194,7 @@ class TestClientDaemon(unittest.TestCase):
         Test creation of cfg and cfg directory in forbidden path.
         """
         forbidden_path = '/forbiden_path/cfg_file'
-        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path= forbidden_path)
+        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path)
 
     def test__init_sharing_path_with_default_configuration(self):
         """
@@ -262,7 +270,7 @@ class TestClientDaemon(unittest.TestCase):
         """
 
         # I expect some customize configuration is loaded
-        missing_key_cfg = {"local_dir_state_path": 'error_value','missing_key': False }
+        missing_key_cfg = {"local_dir_state_path": 'error_value', 'missing_key': False}
         with open(CONFIG_FILEPATH, 'wb') as cfg:
             json.dump(missing_key_cfg, cfg)
 
@@ -306,16 +314,16 @@ class TestClientDaemon(unittest.TestCase):
         time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
 
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
 
         for path, time_md5 in sorted(self.daemon.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
 
-            md5Hash.update(time_md5[1])
-            md5Hash.update(path)
+            md5hash.update(time_md5[1])
+            md5hash.update(path)
 
         self.daemon.md5_of_client_snapshot()
-        self.assertEqual(md5Hash.hexdigest(),self.daemon.md5_of_client_snapshot())
+        self.assertEqual(md5hash.hexdigest(), self.daemon.md5_of_client_snapshot())
 
     def test_is_directory_not_modified(self):
 
@@ -333,7 +341,6 @@ class TestClientDaemon(unittest.TestCase):
 
         self.assertFalse(is_dir_modified_result)
         self.assertEqual(old_global_md5, test_md5)
-
 
     def test_md5_of_client_snapshot_added_file(self):
         """
@@ -392,10 +399,8 @@ class TestClientDaemon(unittest.TestCase):
         src = 'file1.txt'
         dst = 'move_folder/file1.txt'
 
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                        [])
-        self.assertEqual(self.daemon.operation_happened,
-                        "move: src "+src+" dst: "+dst)
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'move: src "+src+" dst: '+dst)
 
     def test_sync_process_copy_on_server(self):
         """
@@ -425,10 +430,8 @@ class TestClientDaemon(unittest.TestCase):
         src = 'file1.txt'
         dst = 'copy_folder/file1.txt'
 
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                        [])
-        self.assertEqual(self.daemon.operation_happened,
-                        "copy: src "+src+" dst: "+dst)
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'copy: src "+src+" dst: '+dst)
 
     def test_sync_process_new_on_server(self):
         """
@@ -453,8 +456,7 @@ class TestClientDaemon(unittest.TestCase):
         new_global_md5_client = self.daemon.md5_of_client_snapshot()
 
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                         [('download', 'new_file_on_server.txt')]
-        )
+                         [('download', 'new_file_on_server.txt')])
         # Local Directory is NOT MODIFIED
         self.assertEqual(new_global_md5_client, old_global_md5_client)
 
@@ -477,7 +479,6 @@ class TestClientDaemon(unittest.TestCase):
 
         md5_before_copy = self.daemon.md5_of_client_snapshot()
         self.assertEqual(self.daemon._make_copy_on_client(file_to_copy, dst_file_of_copy, server_timestamp), True)
-
 
         self.assertIn('fake2/copy_file1.txt', self.daemon.client_snapshot)
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
@@ -505,7 +506,8 @@ class TestClientDaemon(unittest.TestCase):
         file_to_be_move_not_exists = 'i_do_not_exist.txt'
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
-        self.assertEqual(self.daemon._make_copy_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
+        self.assertEqual(
+            self.daemon._make_copy_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
         self.assertNotIn('fake2/move_file1.txt', self.daemon.client_snapshot)
 
         # if copy fail local dir state must be unchanged
@@ -528,7 +530,8 @@ class TestClientDaemon(unittest.TestCase):
         file_to_move_exists = 'file1.txt'
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
-        self.assertEqual(self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists, server_timestamp), True)
+        self.assertEqual(
+            self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists, server_timestamp), True)
         self.assertNotIn(file_to_move_exists, self.daemon.client_snapshot)
         self.assertIn(dst_file_that_not_exists, self.daemon.client_snapshot)
 
@@ -555,7 +558,8 @@ class TestClientDaemon(unittest.TestCase):
         file_to_be_move_not_exists = 'i_do_not_exist.txt'
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
-        self.assertEqual(self.daemon._make_move_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
+        self.assertEqual(
+            self.daemon._make_move_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
 
         # test local dir state after movement
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp - 5)
@@ -567,7 +571,7 @@ class TestClientDaemon(unittest.TestCase):
         :return:
         """
 
-        create_base_dir_tree(['file1.txt','move_folder/file1.txt'])
+        create_base_dir_tree(['file1.txt', 'move_folder/file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
 
         # Create the files in client_snapshot / base_dir_tree
@@ -577,7 +581,6 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_exists = 'move_folder/file1.txt'
 
         self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists, server_timestamp), True)
-
 
     ####################### DIRECTORY MODIFIED #####################################
     def test_sync_process_new_on_server_new_on_client(self):
@@ -595,7 +598,7 @@ class TestClientDaemon(unittest.TestCase):
         old_global_md5_client = self.daemon.md5_of_client_snapshot()
 
         # Daemon timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1,'global_md5': old_global_md5_client}
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1, 'global_md5': old_global_md5_client}
 
         # After that new file on server and new on client
         self.daemon.client_snapshot.update({'new_file_on_client.txt': (server_timestamp, '321456879')})
@@ -641,6 +644,7 @@ class TestClientDaemon(unittest.TestCase):
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
+
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
