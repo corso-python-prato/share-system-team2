@@ -566,7 +566,7 @@ class UsersRecoverPassword(Resource):
             abort(HTTP_NOT_FOUND)
 
         # Composing email
-        subject = '[{}] Password reset'.format(__title__)
+        subject = '[{}] Password recovery'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
         text_body_template = string.Template("""
