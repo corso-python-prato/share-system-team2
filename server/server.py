@@ -47,6 +47,7 @@ SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
                                                'signup_email_template.txt')
 
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
@@ -489,19 +490,19 @@ class Users(Resource):
                 abort(HTTP_BAD_REQUEST)
             else:
                 request_recoverpass_code = request.form['recoverpass_code']
-                recoverpass_code = userdata[username].get('recoverpass_code')
-                if request_recoverpass_code == recoverpass_code:
-                    userdata[PWD] = new_password
-                    #print('Updating password with "{}"'.format(new_password))
-                    enc_pass = _encrypt_password(new_password)
-                    userdata[username][PWD] = enc_pass
-                    userdata[username].pop('recoverpass_code')
-                    response = 'Password changed succesfully', HTTP_OK
-                else:
-                    # reset code not corresponding
-                    response = 'Code not corresponding: {} vs {}'.format(recoverpass_code,
-                                                                         request_recoverpass_code), HTTP_NOT_FOUND
-                return response
+                recoverpass_stuff = userdata[username].get('recoverpass_data')
+                if recoverpass_stuff:
+                    recoverpass_code, recoverpass_ctime = recoverpass_stuff
+                    if request_recoverpass_code == recoverpass_code and \
+                            (now_timestamp() - recoverpass_ctime < USER_RECOVERPASS_TIMEOUT):
+                        userdata[PWD] = new_password
+                        #print('Updating password with "{}"'.format(new_password))
+                        enc_pass = _encrypt_password(new_password)
+                        userdata[username][PWD] = enc_pass
+                        userdata[username].pop('recoverpass_data')
+                        return 'Password changed succesfully', HTTP_OK
+            # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
+            return 'Invalid code', HTTP_NOT_FOUND
         else:
             activation_code = request.form['activation_code']
             logger.debug('Got activation code: {}'.format(activation_code))
@@ -570,8 +571,8 @@ class UsersRecoverPassword(Resource):
         send_email(subject, sender, recipients, text_body)
 
         if username in userdata:
-            # create or update 'recoverpass_code' key. No expiration time.
-            userdata[username]['recoverpass_code'] = recoverpass_code
+            # create or update 'recoverpass_data' key.
+            userdata[username]['recoverpass_data'] = (recoverpass_code, now_timestamp())
         elif username in pending_users:
             pending_users[username] = {'timestamp': now_timestamp(),
                                        'activation_code': recoverpass_code}

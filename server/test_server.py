@@ -925,7 +925,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         test = self.app.post(url,
                              data={'password': new_password})
         self.assertEqual(test.status_code, HTTP_ACCEPTED)
-        self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_code'))
+        self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_data'))
 
     def test_pending_user(self):
         url = SERVER_API + 'users/{}/reset'.format(self.pending_user)
@@ -946,17 +946,32 @@ class TestUsersRecoverPassword(unittest.TestCase):
                              data={'password': 'okokokoko'})
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
 
-    def test_put(self):
+    def test_put_ok(self):
         old_password = server.userdata[self.active_user]['password']
         # first request a new password with post
         self.app.post(SERVER_API + 'users/{}/reset'.format(self.active_user))
-        recoverpass_code = server.userdata[self.active_user]['recoverpass_code']
+        recoverpass_code = server.userdata[self.active_user]['recoverpass_data'][0]
         # then, put with given code and new password
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                             data={'recoverpass_code': recoverpass_code,
                                   'password': pick_rand_pw(10)})
         self.assertEqual(test.status_code, HTTP_OK)
         self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
+
+    def test_put_recoverpass_code_timeout(self):
+        """
+        Test the same valid recoverpass code with both expiring and valid date.
+        """
+        not_recent = server.now_timestamp() - server.USER_RECOVERPASS_TIMEOUT - 1  # too ancient
+        recent = server.now_timestamp() - 1  # just now
+        test_responses = []
+        for recoverpass_ctime in (not_recent, recent):
+            # I change the creation time of the same recoverpass code:
+            server.userdata[self.active_user]['recoverpass_data'] = ('ok_code', recoverpass_ctime)
+            test_responses.append(self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                                               data={'recoverpass_code': 'ok_code', 'password': 'does not matter'}))
+        # The first must be expired, the second must be valid.
+        self.assertEqual([test.status_code for test in test_responses], [HTTP_NOT_FOUND, HTTP_OK])
 
     def test_password_recovery_email(self):
         """
@@ -965,7 +980,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         with server.mail.record_messages() as outbox:
             self.app.post(urlparse.urljoin(SERVER_API, 'users/{}/reset'.format(self.active_user)))
         # Retrieve the generated activation code
-        recoverpass_code = server.userdata[self.active_user]['recoverpass_code']
+        recoverpass_code, recoverpass_ctime10000 = server.userdata[self.active_user]['recoverpass_data']
         self.assertEqual(len(outbox), 1)
         body = outbox[0].body
         recipients = outbox[0].recipients
