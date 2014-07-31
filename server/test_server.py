@@ -960,14 +960,20 @@ class TestUsersRecoverPassword(unittest.TestCase):
 
     def test_put_recoverpass_code_timeout(self):
         """
-        Test the same valid recoverpass code with both expiring and valid date.
+        Test the put with the same valid "recoverpass" code but in 2 different times (late and in time).
         """
-        not_recent = server.now_timestamp() - server.USER_RECOVERPASS_TIMEOUT - 1  # too ancient
-        recent = server.now_timestamp() - 1  # just now
+        # First, test a PUT made too late, so the recoverpass code must be invalid,
+        # *then* (rewinding the clock to a time before expiration time) repeat the put with same recoverpass code,
+        # and this must return a success.
+        # NB: This is possible due to the fact that (TODO?) expired tokens are currently keep.
+        recoverpass_creation_time = 100  # 1970, less than a second after the midnight of 31 dec 1969 :p
+        server.userdata[self.active_user]['recoverpass_data'] = ('ok_code', recoverpass_creation_time)
+        recoverpass_expiration_time = recoverpass_creation_time + server.USER_RECOVERPASS_TIMEOUT
+        just_in_time = recoverpass_expiration_time - 1
+        too_late = recoverpass_expiration_time + 1
         test_responses = []
-        for recoverpass_ctime in (not_recent, recent):
-            # I change the creation time of the same recoverpass code:
-            server.userdata[self.active_user]['recoverpass_data'] = ('ok_code', recoverpass_ctime)
+        for now in (too_late, just_in_time):  # backward
+            server.now_timestamp = lambda: now  # Time machine Python powered :)
             test_responses.append(self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                                                data={'recoverpass_code': 'ok_code', 'password': 'does not matter'}))
         # The first must be expired, the second must be valid.
