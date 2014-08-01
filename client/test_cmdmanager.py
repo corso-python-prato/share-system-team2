@@ -12,6 +12,18 @@ import test_utils
 USR, PW = 'mail@hotmail.com', 'Hard_Password_Since_1985'
 
 
+class CmdParserMock(client_cmdmanager.CommandParser):
+    """
+    Mock method _send_to_daemon with fixed return value, set by passing it to the constructor.
+    """
+    def __init__(self, daemon_return_value=None):
+        client_cmdmanager.CommandParser.__init__(self)  # old style class
+        self.daemon_return_value = daemon_return_value
+
+    def _send_to_daemon(self, message=None):
+        return self.daemon_return_value
+
+
 def _fake_send_to_daemon(message):
     """
     This function emulate the send_to_daemon method of commandparser
@@ -175,6 +187,80 @@ class TestDoQuitDoEOF(unittest.TestCase):
         Verify do_EOF
         """
         self.assertTrue(self.commandparser.do_EOF(self.line))
+
+
+class TestRecoverpassEmail(unittest.TestCase):
+    """
+    Test 'recoverpass' command.
+    """
+    def setUp(self):
+        self.commandparser = CmdParserMock()
+
+    def test_recoverpass_empty_email(self):
+        self.assertFalse(self.commandparser.do_recoverpass(''))
+
+    def test_recoverpass_no_at_email(self):
+        self.assertFalse(self.commandparser.do_recoverpass('invalid.mail'))
+
+    def test_recoverpass_valid_mail(self):
+        self.commandparser.daemon_return_value = 'Ok'
+        self.assertTrue(self.commandparser.do_recoverpass('myemail@gmail.com'))
+
+
+class TestRecoverpassEmailAndToken(unittest.TestCase):
+    """
+    Test 'changepass' command.
+    """
+    def setUp(self):
+        self.valid_line = 'pippo.topolinia@gmail.com my_recoverpass_code'
+        self.commandparser = CmdParserMock()
+
+    def test_bad_args(self):
+        self.assertFalse(self.commandparser.do_recoverpass('myemail@gmail.com activationcode extra-arg'))
+
+    def test_password_unconfirmed(self):
+        """
+        If the new password is not confirmed, the command must fail.
+        """
+        client_cmdmanager._getpass = lambda: False
+        self.assertFalse(self.commandparser.do_recoverpass(self.valid_line))  # because _getpass fail (return False)
+
+    def test_invalid_code(self):
+        client_cmdmanager._getpass = lambda: 'mynewpassword'
+        # Assuming that a empty daemon return value means that the token is invalid.
+        self.commandparser.daemon_return_value = ''
+        self.assertFalse(self.commandparser.do_recoverpass(self.valid_line))
+
+    def test_ok(self):
+        # mock client_cmdmanager._getpass function
+        client_cmdmanager._getpass = lambda: 'mynewpassword'
+        self.commandparser.daemon_return_value = 'Password changed succesfully'
+        self.assertTrue(self.commandparser.do_recoverpass(self.valid_line))
+
+
+class TestValidateEmail(unittest.TestCase):
+    def test_no_local_part(self):
+        self.assertFalse(client_cmdmanager.validate_email('@gmail.com'))
+
+    def test_no_domain(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@'))
+
+    def test_too_many_at(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@@gmail.com'))
+
+    def test_dot_at_begin_or_end(self):
+        self.assertFalse(client_cmdmanager.validate_email('.address@gmail.com'))
+        self.assertFalse(client_cmdmanager.validate_email('address.@gmail.com'))
+
+    def test_no_dots_in_domain(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@gmailcom'))
+
+    def test_consecutive_dots_in_domain_part(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@gmail..com'))
+
+    def test_invalid_characters(self):
+        for invalid in '^$/:?#[]':
+            self.assertFalse(client_cmdmanager.validate_email('my{}address@gmail.com'.format(invalid)))
 
 
 if __name__ == '__main__':

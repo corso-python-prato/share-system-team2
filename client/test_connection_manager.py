@@ -132,6 +132,59 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.PUT, url, status=409)
         self.assertFalse(self.cm.do_activate(data))
 
+    @httpretty.activate
+    def test_post_recover_password_not_found(self):
+        """
+        Test that if /users/<email>/reset POST == 404 then cm return None
+        """
+        # An unknown user (neither registered nor pending) is a resource not found for the server...
+        email = 'unknown.user@gmail.com'
+        url = self.user_url + email + '/reset'
+        # ...so the server should return a 404:
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        # and the command manager must return None in this case
+        response = self.cm.do_reqrecoverpass(email)
+        self.assertIsNone(response)
+
+    @httpretty.activate
+    def test_post_recover_password_accept(self):
+        """
+        Test that if /users/<email>/reset POST == 202 then cm return True
+        """
+        email = 'pippo@gmail.com'
+        url = self.user_url + email + '/reset'
+        httpretty.register_uri(httpretty.POST, url, status=202)
+        response = self.cm.do_reqrecoverpass(email)
+        self.assertTrue(response)
+
+    @httpretty.activate
+    def test_put_recover_password_not_found(self):
+        """
+        Test that if /users/<email> PUT == 404 then cm return None
+        """
+        email = 'pippo@gmail.com'
+        recoverpass_code = os.urandom(16).encode('hex')
+        new_password = 'mynewpass'
+        url = self.user_url + email
+        httpretty.register_uri(httpretty.PUT, url, status=404)
+        data = email, recoverpass_code, new_password
+        response = self.cm.do_recoverpass(data)
+        self.assertFalse(response)
+
+    @httpretty.activate
+    def test_put_recover_password_ok(self):
+        """
+        Test that if /users/<email> PUT == 200 then cm return True
+        """
+        email = 'pippo@gmail.com'
+        recoverpass_code = os.urandom(16).encode('hex')
+        new_password = 'mynewpass'
+        url = self.user_url + email
+        httpretty.register_uri(httpretty.PUT, url, status=200)
+        data = email, recoverpass_code, new_password
+        response = self.cm.do_recoverpass(data)
+        self.assertTrue(response)
+
     # files:
     @httpretty.activate
     def test_download_normal_file(self):
