@@ -828,7 +828,7 @@ class Daemon(RegexMatchingEventHandler):
         """
         Save local_dir_state on disk
         """
-        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
+        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "w"), indent=4)
         print "local_dir_state saved"
 
     def load_local_dir_state(self):
@@ -839,10 +839,10 @@ class Daemon(RegexMatchingEventHandler):
 
         def _rebuild_local_dir_state():
             self.local_dir_state = {'last_timestamp': 0, 'global_md5': self.md5_of_client_snapshot()}
-            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "wb"), indent=4)
+            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "w"), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
-            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "rb"))
+            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "r"))
             print "Loaded local_dir_state"
         else:
             print "local_dir_state not found. Initialize new local_dir_state"
