@@ -113,7 +113,7 @@ class Daemon(RegexMatchingEventHandler):
                 print 'Created folder:\n', path
         return True
 
-    def _create_cfg(self, cfg_path, sharing_path=None):
+    def _create_cfg(self, cfg_path, sharing_path):
         """
         Create the configuration file of client_daemon.
         If is given custom path for cfg (cfg_path) or observed directory (sharing_path) the config file
@@ -125,12 +125,11 @@ class Daemon(RegexMatchingEventHandler):
         """
 
         building_cfg = Daemon.DEF_CONF
-        if cfg_path and cfg_path != Daemon.CONFIG_FILEPATH:
+        building_cfg['sharing_path'] = sharing_path
+        if cfg_path != Daemon.CONFIG_FILEPATH:
             Daemon.CONFIG_FILEPATH = cfg_path
             Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
             building_cfg['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
-        if sharing_path:
-            building_cfg['sharing_path'] = sharing_path
         if self._build_directory(Daemon.CONFIG_DIR):
             with open(Daemon.CONFIG_FILEPATH, 'w') as daemon_config:
                 json.dump(building_cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
@@ -152,8 +151,6 @@ class Daemon(RegexMatchingEventHandler):
         :param sharing_path: Indicate the path of observed directory
         :return: dictionary containing configuration
         """
-        if not cfg_path: cfg_path = Daemon.CONFIG_FILEPATH
-
         if os.path.isfile(cfg_path):
             try:
                 with open(cfg_path, 'r') as fo:
@@ -184,7 +181,6 @@ class Daemon(RegexMatchingEventHandler):
         If is impossible to create the directory exit error message is given.
         """
 
-        if not sharing_path: sharing_path = Daemon.DEF_CONF['sharing_path']
         if self._build_directory(sharing_path):
             self.cfg['sharing_path'] = sharing_path
             self.update_cfg()
