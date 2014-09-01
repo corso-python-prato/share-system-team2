@@ -21,6 +21,7 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+import passwordmeter
 
 __title__ = 'PyBOX'
 
@@ -37,11 +38,16 @@ HTTP_CONFLICT = 409
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
-WORKDIR = os.path.dirname(__file__)
+SERVER_DIRECTORY = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                                          'password_recovery_email_template.txt')
+SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                               'signup_email_template.txt')
 
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
 # json/dict key to access to the user directory snapshot:
 SNAPSHOT = 'files'
@@ -52,12 +58,22 @@ DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
 USER_IS_ACTIVE = 'activated'
 USER_ACTIVATION_DATA = 'activation_data'
 
+UNWANTED_PASS = 'words'
+
 
 class ServerError(Exception):
     pass
 
 
 class ServerConfigurationError(ServerError):
+    pass
+
+
+class ServerInternalError(ServerError):
+    """
+    Custom exception to raise programming errors
+    (i.e. when unexpected conditions are found).
+    """
     pass
 
 
@@ -102,6 +118,24 @@ api = Api(app)
 auth = HTTPBasicAuth()
 
 
+def update_passwordmeter_terms(terms_file):
+    """
+    Added costume terms list into passwordmeter from words file
+    :return:
+    """
+    costume_password = set()
+    try:
+        with open(terms_file, 'rb') as terms_file:
+            for term in terms_file:
+                costume_password.add(term)
+    except IOError:
+        logging.info('Impossible to load file ! loaded default setting.')
+    else:
+        passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
+    finally:
+        del costume_password
+
+
 def _read_file(filename):
     """
     This function reads and returns the content of the file.
@@ -143,19 +177,20 @@ def userpath2serverpath(username, path=''):
 def now_timestamp():
     """
     Return the current server timestamp as an int.
-    :return: int
+    :return: long
     """
-    return int(time.time())
+    return long(time.time()*10000)
 
 
 def file_timestamp(filepath):
     """
-    Return the int of last modification timestamp of <filepath> (i.e. int(os.path.getmtime(filepath))).
+    Return the long of last modification timestamp of <filepath> (i.e. long(os.path.getmtime(filepath))).
 
     :param filepath: str
-    :return: int
+    :return: long
     """
-    return int(os.path.getmtime(filepath))
+
+    return long(os.path.getmtime(filepath)*10000)
 
 
 def _encrypt_password(password):
@@ -397,7 +432,7 @@ class Users(Resource):
             user_data = userdata[username]
             creation_timestamp = user_data.get(USER_CREATION_TIME)
             if creation_timestamp:
-                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp/10000.0))
             else:
                 time_str = '<unknown time>'
             # TODO: return json?
@@ -415,27 +450,16 @@ class Users(Resource):
             abort(HTTP_CONFLICT)
 
         password = request.form['password']
-
+        strength, improvements = passwordmeter.test(password)
+        if strength <= 0.5:
+            return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
         # Composing email
         subject = '[{}] Confirm your email address'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
-        text_body_template = string.Template("""
-Thanks for signing up for $appname!
-
-As a final step of the $appname account creation process, please confirm the email address $email.
-Copy and paste the activation code below into the desktop application:
-
-$code
-
-If you don't know what this is about, then someone has probably entered your email address by mistake.
-Sorry about that. You don't need to do anything further. Just delete this message.
-
-Cheers,
-the $appname Team
-""")
+        text_body_template = string.Template(_read_file(SIGNUP_EMAIL_TEMPLATE_FILE_PATH))
         values = dict(code=activation_code,
                       email=username,
                       appname=__title__,
@@ -456,29 +480,54 @@ the $appname Team
 
     def put(self, username):
         """
-        Create user using activation code sent by email.
+        Create user using activation code sent by email, or reset its password.
         """
-        activation_code = request.form['activation_code']
-        logger.debug('Got activation code: {}'.format(activation_code))
         logger.debug('Pending users: {}'.format(pending_users.keys()))
 
         # Pending users cleanup
         expired_pending_users = self._clean_pending_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
-        pending_user_data = pending_users.get(username)
-        if pending_user_data:
-            logger.debug('Activating user {}'.format(username))
-            if activation_code == pending_user_data['activation_code']:
-                # Actually create user
-                password = pending_user_data[PWD]
-                pending_users.pop(username)
-                return create_user(username, password)
+        if username in userdata:
+            # The user is already active, so it should be a request of password resetting.
+            if username in pending_users:
+                raise ServerInternalError('User {} must\'n t be both pending and active'.format(username))
+            try:
+                new_password = request.form[PWD]
+            except KeyError:
+                abort(HTTP_BAD_REQUEST)
             else:
-                abort(HTTP_NOT_FOUND)
+                request_recoverpass_code = request.form['recoverpass_code']
+                recoverpass_stuff = userdata[username].get('recoverpass_data')
+                if recoverpass_stuff:
+                    recoverpass_code, recoverpass_ctime = recoverpass_stuff
+                    if request_recoverpass_code == recoverpass_code and \
+                            (now_timestamp() - recoverpass_ctime < USER_RECOVERPASS_TIMEOUT):
+                        userdata[PWD] = new_password
+                        #print('Updating password with "{}"'.format(new_password))
+                        enc_pass = _encrypt_password(new_password)
+                        userdata[username][PWD] = enc_pass
+                        userdata[username].pop('recoverpass_data')
+                        return 'Password changed succesfully', HTTP_OK
+            # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
+            return 'Invalid code', HTTP_NOT_FOUND
         else:
-            logger.info('{} is not pending'.format(username))
-            abort(HTTP_NOT_FOUND)
+            activation_code = request.form['activation_code']
+            logger.debug('Got activation code: {}'.format(activation_code))
+            logger.debug('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
+            pending_user_data = pending_users.get(username)
+            if pending_user_data:
+                logger.debug('Activating user {}'.format(username))
+                if activation_code == pending_user_data['activation_code']:
+                    # Actually create user
+                    password = pending_user_data[PWD]
+                    pending_users.pop(username)
+                    return create_user(username, password)
+                else:
+                    abort(HTTP_NOT_FOUND)
+            else:
+                logger.info('{} is not pending'.format(username))
+                abort(HTTP_NOT_FOUND)
 
     @auth.login_required
     def delete(self, username):
@@ -493,8 +542,51 @@ the $appname Team
             abort(HTTP_FORBIDDEN)
 
         userdata.pop(username)
+        # TODO: add save_userdata()
         shutil.rmtree(userpath2serverpath(username))
         return 'User "{}" removed.\n'.format(username), HTTP_OK
+
+
+class UsersRecoverPassword(Resource):
+    """
+    This class handles the recovering of a lost user's password by changing it.
+
+    Use case: the user has forgotten its password and wants to recover it.
+    NB: recover the old password is not even possible since it's stored encrypted.
+    """
+    def post(self, username):
+        """
+        Handle the request for change the user's password
+        by sending a 'recoverpass' token to its email address.
+        """
+        recoverpass_code = os.urandom(16).encode('hex')
+
+        # The password reset must be called from an active or inactive user
+        if not(username in userdata or username in pending_users):
+            abort(HTTP_NOT_FOUND)
+
+        # Composing email
+        subject = '[{}] Password recovery'.format(__title__)
+        sender = 'donotreply@{}.com'.format(__title__)
+        recipients = [username]
+        text_body_template = string.Template(_read_file(PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH))
+        values = dict(code=recoverpass_code,
+                      email=username,
+                      appname=__title__,
+                      )
+        text_body = text_body_template.substitute(values)
+
+        send_email(subject, sender, recipients, text_body)
+
+        if username in userdata:
+            # create or update 'recoverpass_data' key.
+            userdata[username]['recoverpass_data'] = (recoverpass_code, now_timestamp())
+        elif username in pending_users:
+            pending_users[username] = {'timestamp': now_timestamp(),
+                                       'activation_code': recoverpass_code}
+        # the else case is already covered in the first if
+
+        return 'Reset email sent to {}'.format(username), HTTP_ACCEPTED
 
 
 class Actions(Resource):
@@ -531,17 +623,18 @@ class Actions(Resource):
             # This error raises when the file is missing
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(abspath), username)
-        # File deleted, last_server_timestamp is set to current timestamp
 
+        # file deleted, last_server_timestamp is set to current timestamp
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
-        jso
+        Copy a file from a given source path to a destination path and return the current server timestamp
+        in a json file.jso
         userdata[username]n format: {LAST_SERVER_TIMESTAMP: int}
         """
 
@@ -561,9 +654,11 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
 
         last_server_timestamp = file_timestamp(server_dst)
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _move(self, username):
@@ -587,11 +682,13 @@ class Actions(Resource):
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
 
-        last_server_timestamp = file_timestamp(server_dst)
+        last_server_timestamp = now_timestamp()
+
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+        save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
     def _clear_dirs(self, path, root):
@@ -625,6 +722,7 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
         else:
             break
     res = h.hexdigest()
+    fp.seek(0)
     return res
 
 
@@ -637,7 +735,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     :return: dict.
     """
     snapshot = {}
-    last_timestamp = 0
+    last_timestamp = now_timestamp()
     for dirpath, dirs, files in os.walk(root_path):
         for filename in files:
             filepath = join(dirpath, filename)
@@ -649,10 +747,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
             except OSError as err:
                 logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
-                timestamp = file_timestamp(filepath)
-                if timestamp > last_timestamp:
-                    last_timestamp = timestamp
-                snapshot[filepath[len(root_path) + 1:]] = [timestamp, md5]
+                snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
@@ -799,6 +894,7 @@ class Files(Resource):
 api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.format(URL_PREFIX))
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
+api.add_resource(UsersRecoverPassword, '{}/users/<string:username>/reset'.format(URL_PREFIX))
 api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
@@ -835,10 +931,11 @@ def main():
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
+    update_passwordmeter_terms(UNWANTED_PASS)
+
     userdata.update(load_userdata())
     init_root_structure()
     app.run(host=args.host, debug=args.debug)
-
 
 if __name__ == '__main__':
     main()
