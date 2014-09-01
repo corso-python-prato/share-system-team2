@@ -888,17 +888,19 @@ class Daemon(RegexMatchingEventHandler):
             print e
             return None
 
+
 def is_valid_file(string):
-    if os.path.isfile(string):
-       return string
+    if os.path.isfile(string) or string == DEF_CFG_FILEPATH:
+        return string
     else:
-       parser.error('The path "%s" does not be a valid file!'%string)
+        parser.error('The path "%s" does not be a valid file!' % string)
+
 
 def is_valid_dir(string):
-    if os.path.isdir(string):
-       return string
+    if os.path.isdir(string) or string == DEF_SHARING_PATH:
+        return string
     else:
-       parser.error('The path "%s" does not be a valid directory!'%string)
+        parser.error('The path "%s" does not be a valid directory!' % string)
 
 if __name__ == '__main__':
     DEF_SHARING_PATH = Daemon.DEF_CONF['sharing_path']
