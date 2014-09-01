@@ -55,7 +55,7 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
-USER_IS_ACTIVE = 'activated'
+USER_IS_ACTIVE = 'active'
 USER_ACTIVATION_DATA = 'activation_data'
 
 UNWANTED_PASS = 'words'
@@ -290,6 +290,30 @@ def verify_password(username, password):
         logger.info('User "{}" does not exist'.format(username))
         res = False
     return res
+
+
+def activate_user(username, password):
+    """
+    Handle the activation of an existing user(with flag active: True).
+    """
+    logger.debug('Activating user...')
+
+    enc_pass = _encrypt_password(password)
+    temp = init_user_directory(username)
+    last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
+
+    single_user_data = {USER_ACTIVATION_TIME: now_timestamp(),
+                        PWD: enc_pass,
+                        LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                        SNAPSHOT: dir_snapshot,
+                        USER_IS_ACTIVE: True,
+                        }
+    userdata[username] = single_user_data
+    save_userdata()
+    response = 'User "{}" activated.\n'.format(username), HTTP_OK
+
+    logger.debug(response)
+    return response
 
 
 def create_user(username, password):
