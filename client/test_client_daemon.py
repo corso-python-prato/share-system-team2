@@ -168,7 +168,7 @@ class TestClientDaemon(unittest.TestCase):
 
     def test__create_cfg_with_custom_sharing_path(self):
         """
-        Test cfg creation with default configuration.
+        Test cfg creation with custom sharing folder.
         """
         # Set manually the configuration
         os.remove(CONFIG_FILEPATH)
@@ -177,7 +177,7 @@ class TestClientDaemon(unittest.TestCase):
         client_daemon.Daemon.DEF_CONF['local_dir_state_path'] = LOCAL_DIR_STATE_FOR_TEST
         new_sharing_path = os.path.join(CONFIG_DIR, 'new_sharing_path')
 
-        # Load configuration from default
+        # Load custom configuration
         self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH, new_sharing_path)
 
         self.assertEqual(self.daemon.cfg['sharing_path'], new_sharing_path)
