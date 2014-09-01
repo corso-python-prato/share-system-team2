@@ -853,19 +853,19 @@ class Daemon(RegexMatchingEventHandler):
 
         if verbose:
             start = time.time()
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
 
         for path, time_md5 in sorted(self.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
             if verbose:
                 print path
-            md5Hash.update(time_md5[1])
-            md5Hash.update(path)
+            md5hash.update(time_md5[1])
+            md5hash.update(path)
 
         if verbose:
             stop = time.time()
             print stop - start
-        return md5Hash.hexdigest()
+        return md5hash.hexdigest()
 
     def hash_file(self, file_path, chunk_size=1024):
         """
@@ -873,7 +873,7 @@ class Daemon(RegexMatchingEventHandler):
         :return the md5 hash of received file
         """
 
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
         try:
             f1 = open(file_path, 'rb')
             while 1:
@@ -881,9 +881,9 @@ class Daemon(RegexMatchingEventHandler):
                 buf = f1.read(chunk_size)
                 if not buf:
                     break
-                md5Hash.update(buf)
+                md5hash.update(buf)
             f1.close()
-            return md5Hash.hexdigest()
+            return md5hash.hexdigest()
         except (OSError, IOError) as e:
             print e
             return None
