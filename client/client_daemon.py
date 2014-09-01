@@ -907,8 +907,8 @@ if __name__ == '__main__':
     DEF_CFG_FILEPATH = Daemon.CONFIG_FILEPATH
     parser = argparse.ArgumentParser()
     parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
-    parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir, default=DEF_SHARING_PATH,
-                        dest='custom_sharing_path')
+    parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir,
+                        default=DEF_SHARING_PATH, dest='custom_sharing_path')
 
     args = parser.parse_args()
     daemon = Daemon(args.cfg, args.custom_sharing_path)

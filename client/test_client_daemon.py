@@ -672,8 +672,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
     def test_set_cmdmanager_response(self):
         response = 'testtestetst'
-        self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response),
-                         json.dumps({'message': response}))
+        self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response), json.dumps({'message': response}))
 
     def test__activation_check_block_not_allowed_operation(self):
         """
