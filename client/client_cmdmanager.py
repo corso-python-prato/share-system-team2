@@ -193,7 +193,7 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             if 'improvements' in response:
                 print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['improvements'].items():
+                for k, v in response['improvements'].iteritems():
                     print '{}: {}'.format(k, v)
             else:
                 print response['content']
@@ -216,7 +216,7 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             response = self._send_to_daemon(message)
-            print response
+            print response['content']
             return response
 
     def do_recoverpass(self, line):

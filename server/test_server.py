@@ -218,7 +218,7 @@ class TestRequests(unittest.TestCase):
                  'sdfdffdgdgfs\n',
                  'sfsdgdhgdsdfgdg\n',
                  'dsffdgdfgdfgdf\n'
-        ]
+                ]
         for term in terms:
             terms_file.write(term)
         # We have to give filename to the function update_passwordmeter_terms
@@ -743,14 +743,12 @@ class TestUsersPost(unittest.TestCase):
     def test_user_creation_with_weak_password(self):
         """
         """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                                 data={'password': 'weak_password'})
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username), data={'password': 'weak_password'})
 
         # Test that user is not added to <pendint_users>
         self.assertNotIn(self.username, server.pending_users.keys())
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
         self.assertIsInstance(json.loads(test.get_data()), dict)
-
 
     def test_user_already_existing(self):
         """
@@ -1013,8 +1011,8 @@ def get_dic_dir_states():
         single_user_data.pop(server.USER_CREATION_TIME)  # not very beautiful
         dic_state[username] = single_user_data
         dir_state = json.load(open('userdata.json', "rb"))
-        dir_state[username].pop(server.PWD) # not very beatiful cit. ibidem
-        dir_state[username].pop(server.USER_CREATION_TIME) # not very beatiful cit. ibidem
+        dir_state[username].pop(server.PWD)  # not very beatiful cit. ibidem
+        dir_state[username].pop(server.USER_CREATION_TIME)  # not very beatiful cit. ibidem
     return dic_state, dir_state
 
 
@@ -1065,7 +1063,6 @@ class TestUserdataConsistence(unittest.TestCase):
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
-
 
         user, pw = 'pippo', 'pass'
         # delete new_file

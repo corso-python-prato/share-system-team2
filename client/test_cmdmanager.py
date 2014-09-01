@@ -32,20 +32,20 @@ def _fake_send_to_daemon(message):
     if 'register' in message:
         # User creation validated
         if 'Str0ng_Password' in message['register'][1]:
-            return {'content': 'Message relative successful user creation'}
+            return {'content': 'Message relative successful user creation', 'successful': True}
         # User creation failed for weak password
         elif 'password' in message['register'][1]:
-            return {'improvements': {'type_improvement': 'Relative info about this improvement'}}
+            return {'improvements': {'type_improvement': 'Relative info about this improvement'}, 'successful': False}
         # user creation of existent user
         elif 'existent_user' in message['register'][0]:
-            return {'content': 'Message relative already existent user creation'}
+            return {'content': 'Message relative already existent user creation', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
     elif 'activate' in message:
         if 'valid_token' in message['activate'][1]:
-            return 'Message relative successful activation of user'
+            return {'content': 'Message relative successful activation of user', 'successful': True}
         if 'bad_token' in message['activate'][1]:
-            return False
+            return {'content': 'Message relative failed activation', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
 
@@ -93,12 +93,13 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'Str0ng_Password')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
-        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
         self.assertNotIn('improvements', response)
+        self.assertTrue(response['successful'])
 
     def test_do_register_with_weak_password(self):
         """
-        Test a user registration with weak password.
+ò        Test a user registration with weak password.
         The server refuse registration and send a dictionary with inside the possible improvements for the password.
         :return: the response received from daemon
         """
@@ -106,7 +107,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
         self.assertNotIn('content', response)
-        self.assertIn('improvements', response)
+        self.assertIsInstance(response['improvements'], dict)
+        self.assertFalse(response['successful'])
 
     def test_do_register_with_user_already_existent(self):
         """
@@ -118,8 +120,9 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format('existent_user', PW)
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
-        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
         self.assertNotIn('improvements', response)
+        self.assertFalse(response['successful'])
 
     def test_do_register_with_bad_arguments(self):
         """
@@ -141,7 +144,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'valid_token')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_activate(self.line)
-        self.assertIsInstance(response, str)
+        self.assertIsInstance(response['content'], str)
+        self.assertTrue(response['successful'])
 
     def test_do_activate_with_bad_token(self):
         """
@@ -152,7 +156,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'bad_token')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_activate(self.line)
-        self.assertFalse(response)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
 
     def test_do_activate_with_bad_arguments(self):
         """

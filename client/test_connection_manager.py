@@ -8,6 +8,7 @@ import json
 import httpretty
 import time
 import shutil
+
 # API:
 # - GET /diffs, con parametro timestamp
 #
@@ -25,18 +26,44 @@ import shutil
 #  - DELETE /shares/<root_path> - elimina del tutto lo share
 #  - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
 
+TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
+CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+LOCAL_DIR_STATE_FOR_TEST = os.path.join(CONFIG_DIR, 'local_dir_state')
+TEST_SHARING_FOLDER = os.path.join(TEST_DIR, 'test_sharing_folder')
+
+TEST_CFG = {
+    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
+    "sharing_path": TEST_SHARING_FOLDER,
+    "cmd_address": "localhost",
+    "cmd_port": 60001,
+    "api_suffix": "/API/V1/",
+    # no server_address to be sure
+    "server_address": "",
+    "user": "user",
+    "pass": "pass",
+    "activate": True,
+}
+
+
+def create_environment():
+    if not os.path.exists(TEST_DIR):
+        os.makedirs(CONFIG_DIR)
+        os.mkdir(TEST_SHARING_FOLDER)
+
+    with open(CONFIG_FILEPATH, 'w') as f:
+            json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
+
 # Test-user account details
 USR, PW = 'client_user@mail.com', 'Mail_85'
 
+
 class TestConnectionManager(unittest.TestCase):
-    CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
-    CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
-    LOCAL_DIR_STATE_PATH = os.path.join(CONFIG_DIR, 'dir_state')
 
     def setUp(self):
         httpretty.enable()
-
-        with open(TestConnectionManager.CONFIG_FILEPATH, 'r') as fo:
+        create_environment()
+        with open(CONFIG_FILEPATH, 'r') as fo:
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
@@ -68,7 +95,7 @@ class TestConnectionManager(unittest.TestCase):
         url = ''.join((self.user_url, USR))
         content = 'user activated'
         content_jsoned = json.dumps(content)
-        httpretty.register_uri(httpretty.POST, url, status=200, body= content_jsoned)
+        httpretty.register_uri(httpretty.POST, url, status=200, body=content_jsoned)
         response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertEqual(response['content'], content)
@@ -104,13 +131,30 @@ class TestConnectionManager(unittest.TestCase):
         # This is the only case where server doesn't send data with the message error
         httpretty.register_uri(httpretty.POST, url, status=409)
         response = self.cm.do_register(data)
-        response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
+    def test_fail_to_register_user(self):
+        """
+        Test failed register request
+        Test activate user api:
+        method = POST
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = ''.join((self.user_url, USR))
+        httpretty.register_uri(httpretty.POST, url, status=500)
+
+        response = self.cm.do_register(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
     def test_activate_user(self):
         """
+        Test successful activation
         Test activate user api:
         method = PUT
         resource = <user>
@@ -120,17 +164,70 @@ class TestConnectionManager(unittest.TestCase):
         token = '6c9fb345c317ad1d31ab9d6445d1a820'
         data = (user, token)
         url = ''.join((self.user_url, user))
+        answer = 'user activated'
+        answer_jsoned = json.dumps(answer)
+        httpretty.register_uri(httpretty.PUT, url, status=201, body=answer_jsoned)
 
-        httpretty.register_uri(httpretty.PUT, url, status=201, body='user activated')
         response = self.cm.do_activate(data)
-        self.assertNotEqual(response, False)
-        self.assertIsInstance(response, unicode)
+        self.assertIsInstance(response['content'], unicode)
+        self.assertTrue(response['successful'])
 
-        httpretty.register_uri(httpretty.PUT, url, status=404)
-        self.assertFalse(self.cm.do_activate(data))
-
+    @httpretty.activate
+    def test_activate_user_already_existent(self):
+        """
+        Test activate user already existent
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = 'bad_token'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
         httpretty.register_uri(httpretty.PUT, url, status=409)
-        self.assertFalse(self.cm.do_activate(data))
+
+        response = self.cm.do_activate(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
+    def test_activate_user_not_existent(self):
+        """
+        Test activate user not existent
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = 'bad_token'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
+        httpretty.register_uri(httpretty.PUT, url, status=404)
+
+        response = self.cm.do_activate(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
+    def test_fail_to_activate_user(self):
+        """
+        Test failed activation request
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        token = 'bad_token'
+        data = (user, token)
+        url = ''.join((self.user_url, user))
+        httpretty.register_uri(httpretty.PUT, url, status=500)
+
+        response = self.cm.do_activate(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
 
     @httpretty.activate
     def test_post_recover_password_not_found(self):
