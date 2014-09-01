@@ -316,35 +316,23 @@ def activate_user(username, password):
     return response
 
 
-def create_user(username, password):
+def create_user(username, password, activation_code):
     """
-    Handle the creation of a new user.
+    Handle the creation of a new user(with flag active: False).
     """
-    # Example of creation using requests:
-    # requests.post('http://127.0.0.1:5000/API/V1/signup',
-    # data={'username': 'Pippo', 'password': 'ciao'})
+
     logger.debug('Creating user...')
-    if username and password:
-        if username in userdata:
-            # user already exists!
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
-            enc_pass = _encrypt_password(password)
 
-            temp = init_user_directory(username)
-            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
+    single_user_data = {USER_IS_ACTIVE: False,
+                        USER_CREATION_DATA: {'creation_timestamp': now_timestamp(),
+                                             'activation_code': activation_code,
+                                             PWD: password,
+                                             },
+                        }
+    userdata[username] = single_user_data
+    save_userdata()
+    response = 'User activation email sent to {}'.format(username), HTTP_CREATED
 
-            single_user_data = {USER_CREATION_TIME: now_timestamp(),
-                                PWD: enc_pass,
-                                LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: dir_snapshot,
-                                }
-            userdata[username] = single_user_data
-
-            save_userdata()
-            response = 'User "{}" created.\n'.format(username), HTTP_CREATED
-    else:
-        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
     logger.debug(response)
     return response
 
