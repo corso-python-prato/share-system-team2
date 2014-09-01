@@ -5,11 +5,40 @@ import cmd
 import socket
 import struct
 import json
-import os.path
+import os
 
 
-DAEMON_HOST = 'localhost'
-DAEMON_PORT = 50001
+# The path for configuration directory and daemon configuration file
+CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
+CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
+# Default configuration for socket
+daemon_host = 'localhost'
+daemon_port = 50001
+
+
+def load_cfg(cfg_path=CONFIG_FILEPATH):
+    """
+    Load config file with socket configuration
+    :param cfg_path: filepath of cfg file
+    :return:
+    """
+    try:
+        with open(cfg_path, 'r') as fo:
+            loaded_config = json.load(fo)
+    except (ValueError, IOError, OSError):
+        pass
+    else:
+        try:
+            global daemon_host
+            daemon_host = loaded_config['cmd_address']
+            global daemon_port
+            daemon_port = loaded_config['cmd_port']
+            return
+        except KeyError:
+            pass
+    # If all go right i will not do this print
+    print 'Impossible to load cfg, client_daemon already loaded?'
+    print 'Loaded default configuration for socket'
 
 
 class CommandParser(cmd.Cmd):
@@ -53,10 +82,6 @@ class CommandParser(cmd.Cmd):
 
                 response = json.loads(response_packet)
 
-                if show:
-                    print response['message']
-
-                # to improve testing
                 return response['message']
             else:
                 raise Exception('Error: lost connection with daemon')
@@ -69,7 +94,7 @@ class CommandParser(cmd.Cmd):
         """
         setup before the looping start
         """
-        self.sock.connect((DAEMON_HOST, DAEMON_PORT))
+        self.sock.connect((daemon_host, daemon_port))
 
     def postloop(self):
         """
@@ -77,12 +102,23 @@ class CommandParser(cmd.Cmd):
         """
         self.sock.close()
 
+    def postcmd(self, stop, line):
+        """
+        This function is called after any do_<something>.
+        If the last operation called return 'exit' the program will be closed
+        :param stop: Is the returning value of the last cmd executed
+        :param line: Is the last line received from the last cmd executed
+        :return:
+        """
+        if stop == 'exit':
+            return True
+
     def do_quit(self, line):
         """Exit Command"""
-        return True
+        return 'exit'
 
     def do_EOF(self, line):
-        return True
+        return 'exit'
 
     def do_shutdown(self, line):
         """
@@ -102,9 +138,19 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'Bad arguments:'
             print 'usage: register <e-mail> <password>'
+            # for testing purpose
+            return False
         else:
             message = {'register': (mail, password)}
-            self._send_to_daemon(message)
+            response = self._send_to_daemon(message)
+            if 'improvements' in response:
+                print '\nThe password you entered is weak, possible improvements:'
+                for k, v in response['improvements'].items():
+                    print '{}: {}'.format(k, v)
+            else:
+                print response['content']
+            # for testing purpose
+            return response
 
     def do_activate(self, line):
         """
@@ -117,9 +163,13 @@ class CommandParser(cmd.Cmd):
         except ValueError:
             print 'Bad arguments:'
             print 'usage: activate <e-mail> <token>'
+            # for testing purpose
+            return False
         else:
             message = {'activate': (mail, token)}
-            self._send_to_daemon(message)
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_addshare(self, line):
         """
@@ -130,14 +180,12 @@ class CommandParser(cmd.Cmd):
             shared_folder, user = line.split()
         except ValueError:
             print 'Bad arguments:'
-            print 'usage: share <share_folder> <user>'
+            print 'usage: addshare <share_folder> <user>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'addshare': (shared_folder, user)}
-                self._send_to_daemon(message)
+            message = {'addshare': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_removeshare(self, line):
         """
@@ -148,14 +196,12 @@ class CommandParser(cmd.Cmd):
             shared_folder = line.split()[0]
         except ValueError:
             print 'Bad arguments:'
-            print 'usage: share <share_folder>'
+            print 'usage: removeshare <share_folder>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'removeshare': (shared_folder, )}
-                self._send_to_daemon(message)
+            message = {'removeshare': (shared_folder, )}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_removeshareduser(self, line):
         """
@@ -168,15 +214,12 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: removeshareduser <share_folder> <user>'
         else:
-            sharing_path = self._send_to_daemon({'daemon_config': 'sharing_path'}, False)
-            if not os.path.exists(''.join([sharing_path, os.sep, shared_folder])):
-                print '"%s" not exists' % shared_folder
-            else:
-                message = {'removeshareduser': (shared_folder, user)}
-                self._send_to_daemon(message)
+            message = {'removeshareduser': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
 
 if __name__ == '__main__':
+    load_cfg()
     CommandParser().cmdloop()
-
-

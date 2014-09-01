@@ -23,6 +23,7 @@ from flask.ext.restful import Resource, Api
 from flask.ext.mail import Mail, Message
 from werkzeug import secure_filename
 from passlib.hash import sha256_crypt
+import passwordmeter
 
 __title__ = 'PyBOX'
 
@@ -54,6 +55,8 @@ LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+
+UNWANTED_PASS = 'words'
 
 
 class ServerError(Exception):
@@ -104,6 +107,22 @@ EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
 api = Api(app)
 auth = HTTPBasicAuth()
 
+def update_passwordmeter_terms(terms_file):
+    """
+    Added costume terms list into passwordmeter from words file
+    :return:
+    """
+    costume_password = set()
+    try:
+        with open(terms_file, 'rb') as terms_file:
+            for term in terms_file:
+                costume_password.add(term)
+    except IOError:
+        logging.info('Impossible to load file ! loaded default setting.')
+    else:
+        passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
+    finally:
+        del costume_password
 
 def _read_file(filename):
     """
@@ -420,7 +439,9 @@ class Users(Resource):
             abort(HTTP_CONFLICT)
 
         password = request.form['password']
-
+        strength, improvements = passwordmeter.test(password)
+        if strength <= 0.5:
+            return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
         # Composing email
@@ -634,6 +655,7 @@ def calculate_file_md5(fp, chunk_len=2 ** 16):
         else:
             break
     res = h.hexdigest()
+    fp.seek(0)
     return res
 
 
@@ -662,6 +684,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
              SNAPSHOT: snapshot}
     return state
+
 
 class Shares(Resource):
     """
@@ -706,11 +729,11 @@ class Shares(Resource):
         return False
 
     def _share(self, path, username, owner):
-        if not (owner in  userdata[username]['shared_with_me']):
-            userdata[username]['shared_with_me'][owner]=[]
+        if not (owner in userdata[username]['shared_with_me']):
+            userdata[username]['shared_with_me'][owner] = []
 
         if not (path in userdata[owner]['shared_with_others']):
-            userdata[owner]['shared_with_others'][path]=[]
+            userdata[owner]['shared_with_others'][path] = []
 
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
@@ -724,9 +747,8 @@ class Shares(Resource):
         root_path = os.path.abspath(join(FILE_ROOT, owner))
         sharing_path = os.path.abspath(join(FILE_ROOT, owner, path))
         if os.path.split(sharing_path)[0] == root_path:
-           return True
+            return True
         return False
-
 
 
 class Files(Resource):
@@ -792,7 +814,6 @@ class Files(Resource):
             if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
                 return True
         return False
-
     
     def _get_dirname_filename(self, path):
         """
@@ -896,6 +917,7 @@ api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFI
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', default=False, action='store_true',
@@ -925,6 +947,8 @@ def main():
     if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
+
+    update_passwordmeter_terms(UNWANTED_PASS)
 
     userdata.update(load_userdata())
     init_root_structure()

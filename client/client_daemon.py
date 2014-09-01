@@ -104,7 +104,9 @@ class Daemon(RegexMatchingEventHandler):
         self.conn_mng = ConnectionManager(self.cfg)
 
         self.INTERNAL_COMMANDS = {
-            'daemon_config': self._daemon_config,
+            'addshare': self._add_share,
+            'removeshare': self._remove_share,
+            'removeshareduser': self._remove_shared_user,
             'activate': self._activate_user,
         }
 
@@ -471,7 +473,7 @@ class Daemon(RegexMatchingEventHandler):
 
             elif command == 'modify' or command == 'upload':
 
-                new_md5 = self.hash_file(self.relativize_path(path))
+                new_md5 = self.hash_file(self.absolutize_path(path))
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if event_timestamp:
                     last_operation_timestamp = event_timestamp['server_timestamp']
@@ -738,13 +740,41 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.join()
         self.listener_socket.close()
 
-    def _daemon_config(self, data):
+    def _validate_path(self, path):
+
+        if os.path.exists(''.join([self.cfg['sharing_path'], os.sep, path])):
+            return True
+        return False
+
+    def _add_share(self, data):
         """
-        get daemon configuration informations like sharing folder path etc.
-        Used by cmd manager to get daemon configuration informations
+        handle the adding of shared folder with a user
         """
-        # now it manages only sharing folder path
-        return self.cfg[data]
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('addshare', data)
+
+    def _remove_share(self, data):
+        """
+        handle the removing of a shared folder
+        """
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('removeshare', data)
+
+    def _remove_shared_user(self, data):
+        """
+        handle the removing of an user from a shared folder
+        """
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('removeshareduser', data)
 
     def _activate_user(self, data):
         """
