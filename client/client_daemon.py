@@ -892,13 +892,26 @@ class Daemon(RegexMatchingEventHandler):
             print e
             return None
 
+def is_valid_file(string):
+    if os.path.isfile(string):
+       return string
+    else:
+       parser.error('The path "%s" does not be a valid file!'%string)
+
+def is_valid_dir(string):
+    if os.path.isdir(string):
+       return string
+    else:
+       parser.error('The path "%s" does not be a valid directory!'%string)
 
 if __name__ == '__main__':
+    DEF_SHARING_PATH = Daemon.DEF_CONF['sharing_path']
+    DEF_CFG_FILEPATH = Daemon.CONFIG_FILEPATH
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cfg", help="the configuration file filepath", type=str)
-    parser.add_argument("-sh", help="the sharing path that we will observing", type=str)
+    parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
+    parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir, default=DEF_SHARING_PATH,
+                        dest='custom_sharing_path')
 
     args = parser.parse_args()
-
-    daemon = Daemon(args.cfg, args.sh)
+    daemon = Daemon(args.cfg, args.custom_sharing_path)
     daemon.start()
