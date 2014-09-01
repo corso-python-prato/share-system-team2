@@ -379,6 +379,7 @@ class Users(Resource):
             if app.debug:
                 if username == '__all__':
                     # Easter egg to see a list of registered and pending users.
+                    logger.warn('WARNING: showing the list of all users (debug mode)!!!')
                     if userdata:
                         reg_users_listr = ', '.join(userdata.keys())
                     else:
@@ -390,6 +391,7 @@ class Users(Resource):
                     response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
                                HTTP_OK
                 else:
+                    logger.warn('WARNING: showing {}\'s info (debug mode)!!!'.format(username))
                     if username in userdata:
                         user_data = userdata[username]
                         creation_timestamp = user_data.get(USER_CREATION_TIME)
@@ -503,8 +505,8 @@ the $appname Team
                 # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
                 if app.debug and activation_code == 'BACKDOOR':
                     password = 'debug-password'
-                    logger.debug('Creating user "{}" (password="{}") '
-                                 'without email confirmation via backdoor.'.format(username, password))
+                    logger.warn('WARNING: Creating user "{}" (password="{}") '
+                                 'without email confirmation via backdoor!!!'.format(username, password))
                     return create_user(username, password)
                 #### DEBUG-MODE BACKDOOR ####
 
