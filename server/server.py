@@ -43,12 +43,14 @@ USERDATA_FILENAME = 'userdata.json'
 
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 
-# json key to access to the user directory snapshot:
+# json/dict key to access to the user directory snapshot:
 SNAPSHOT = 'files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+USER_IS_ACTIVE = 'activated'
+USER_ACTIVATION_DATA = 'activation_data'
 
 
 class ServerError(Exception):
@@ -279,6 +281,7 @@ def create_user(username, password):
                                 SNAPSHOT: dir_snapshot,
                                 }
             userdata[username] = single_user_data
+
             save_userdata()
             response = 'User "{}" created.\n'.format(username), HTTP_CREATED
     else:
@@ -441,6 +444,9 @@ the $appname Team
 
         send_email(subject, sender, recipients, text_body)
 
+        # userdata[username][USER_IS_ACTIVE] = False
+        # userdata[username][USER_ACTIVATION_DATA] = {'timestamp': now_timestamp(),
+        #                                             'code': activation_code}
         pending_users[username] = {
             'timestamp': now_timestamp(),
             'activation_code': activation_code,
