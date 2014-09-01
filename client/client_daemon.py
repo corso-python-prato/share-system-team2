@@ -254,7 +254,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.skip(abs_dst)
         try:
             copy2(abs_src, abs_dst)
-        except IOError as e:
+        except IOError:
             return False
 
         self.client_snapshot[dst] = self.client_snapshot[src]
@@ -281,7 +281,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.skip(abs_dst)
         try:
             move(abs_src, abs_dst)
-        except IOError as e:
+        except IOError:
             return False
 
         self.client_snapshot[dst] = self.client_snapshot[src]
