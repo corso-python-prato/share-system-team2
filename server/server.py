@@ -684,33 +684,26 @@ class Shares(Resource):
 
         return HTTP_OK
 
-    def  delete(self, root_path, username=''):
-        return HTTP_DELETED
-    
     @auth.login_required
-    def get(self, root_path, username=''):
-        """"
-        Just for testing.
-        """
+    def  delete(self, root_path, username=''):
         owner = auth.username()
-        #Check if the path is in the owner root
-        if not check_path(root_path, owner):
-            abort(HTTP_FORBIDDEN)
-        #Cheks if the path exists
-        path = os.path.abspath(join(FILE_ROOT, owner, root_path))   
-        if not os.path.exists(path):
+        if not _is_shared(root_path, owner):
             abort(HTTP_NOT_FOUND)
-        #Check if the path is sharable
-        #print root_path
-        #print username
-        #print '#'*20
-        #print self._is_sharable(root_path, owner)
-        if not self._is_sharable(root_path, owner):
-            abort(HTTP_FORBIDDEN)    
-        self._share(root_path, username, owner)
-        #pprint.pprint (userdata)
 
-        return HTTP_OK
+        if username == '':
+            del userdata[owner]['shared_with_others'][path]
+            return HTTP_DELETED
+   
+        if username in userdata[owner]['shared_with_others'][path]:
+            userdata[owner]['shared_with_others'][path].remove(username)
+            return HTTP_DELETED
+
+        abort(HTTP_NOT_FOUND)
+
+    def _is_shared(self, path, owner):
+        if root_path in userdata[owner]['shared_with_others']:
+            return True
+        return False
 
     def _share(self, path, username, owner):
         if not (owner in  userdata[username]['shared_with_me']):
