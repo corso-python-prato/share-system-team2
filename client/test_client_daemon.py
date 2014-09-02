@@ -664,8 +664,8 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.socket = test_utils.FakeSocket()
 
     def tearDown(self):
-        self.client_daemon.observer.stop()
-        self.client_daemon.observer.join()
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
 
     def test_get_cmdmanager_request(self):
         command = {'shutdown': ()}
