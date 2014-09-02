@@ -122,7 +122,7 @@ class TestClientDaemon(unittest.TestCase):
             md5Hash.update(path)
 
         self.daemon.md5_of_client_snapshot()
-        self.assertEqual(md5Hash.hexdigest(),self.daemon.md5_of_client_snapshot())
+        self.assertEqual(md5Hash.hexdigest(), self.daemon.md5_of_client_snapshot())
 
     def test_is_directory_not_modified(self):
 
@@ -753,7 +753,6 @@ def replace_conn_mng(daemon, fake):
 class FakeConnMng(object):
 
     def __init__(self):
-        print "FakeConnMng created"
         self.data_cmd = ''
         self.data_file = ''
 
@@ -766,7 +765,7 @@ class FakeConnMng(object):
 class FileFakeEvent(object):
     """
     Class that simulates a file related event sent from watchdog.
-    Actually create <src_path> and <dest_path> attributes and the file in disk.
+    Actually create <src_path> and <dest_path> attributes and the file on disk.
     """
 
     def __init__(self, src_path, content='', dest_path=None):
