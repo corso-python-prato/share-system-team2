@@ -8,6 +8,7 @@ import time
 import random
 import client_daemon
 import test_utils
+from contextlib import contextmanager
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -676,11 +677,10 @@ class TestClientDaemon(unittest.TestCase):
         some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
 
         # replace connection manager in the client instance
-        self.daemon.conn_mng = FakeConnMng()
-
-        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
-        self.assertIn('file.txt', self.daemon.client_snapshot)
-        self.assertEqual(self.daemon.conn_mng.data_cmd, 'upload')
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
+            self.assertIn('file.txt', self.daemon.client_snapshot)
+            self.assertEqual(self.daemon.conn_mng.data_cmd, 'upload')
 
     def test_on_created_modify(self):
         """"
@@ -690,18 +690,17 @@ class TestClientDaemon(unittest.TestCase):
         some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
 
         # replace connection manager in the client instance
-        self.daemon.conn_mng = FakeConnMng()
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            create_base_dir_tree(['file.txt'])
+            self.daemon.client_snapshot = base_dir_tree.copy()
 
-        create_base_dir_tree(['file.txt'])
-        self.daemon.client_snapshot = base_dir_tree.copy()
+            # the file it's in client_snapshot so when i create it the event it's detected as modify
+            self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
+            self.assertIn('file.txt', self.daemon.client_snapshot)
 
-        # the file it's in client_snapshot so when i create it the event it's detected as modify
-        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
-        self.assertIn('file.txt', self.daemon.client_snapshot)
-
-        # check md5. must be the same
-        self.assertEqual(self.daemon.client_snapshot['file.txt'][1], hashlib.md5('Un po di testo').hexdigest())
-        self.assertEqual(self.daemon.conn_mng.data_cmd, 'modify')
+            # check md5. must be the same
+            self.assertEqual(self.daemon.client_snapshot['file.txt'][1], hashlib.md5('Un po di testo').hexdigest())
+            self.assertEqual(self.daemon.conn_mng.data_cmd, 'modify')
 
     def test_on_created_copy(self):
         """"
@@ -711,19 +710,18 @@ class TestClientDaemon(unittest.TestCase):
         some_file = os.path.join(TEST_SHARING_FOLDER, 'another_file.txt')
 
         # replace connection manager in the client instance
-        self.daemon.conn_mng = FakeConnMng()
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # creating client_snapshot {filepath:(timestamp, md5)}
+            create_base_dir_tree(['file.txt'])
+            self.daemon.client_snapshot = base_dir_tree.copy()
 
-        # creating client_snapshot {filepath:(timestamp, md5)}
-        create_base_dir_tree(['file.txt'])
-        self.daemon.client_snapshot = base_dir_tree.copy()
+            # putting the filepath in the content generate the same md5 so must be a copy event
+            self.daemon.on_created(FileFakeEvent(src_path=some_file, content='file.txt'))
+            self.assertEqual(self.daemon.conn_mng.data_cmd, 'copy')
+            self.assertEqual(self.daemon.conn_mng.data_file['dst'], 'another_file.txt')
 
-        # putting the filepath in the content generate the same md5 so must be a copy event
-        self.daemon.on_created(FileFakeEvent(src_path=some_file, content='file.txt'))
-        self.assertEqual(self.daemon.conn_mng.data_cmd, 'copy')
-        self.assertEqual(self.daemon.conn_mng.data_file['dst'], 'another_file.txt')
-
-        # the copy must be in the snapshot
-        self.assertIn('another_file.txt', self.daemon.client_snapshot)
+            # the copy must be in the snapshot
+            self.assertIn('another_file.txt', self.daemon.client_snapshot)
 
     def test_on_moved(self):
         """
@@ -732,20 +730,25 @@ class TestClientDaemon(unittest.TestCase):
         some_file = os.path.join(TEST_SHARING_FOLDER, 'a_file.txt')
 
         # replace connection manager in the client instance
-        self.daemon.conn_mng = FakeConnMng()
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # creating client_snapshot {filepath:(timestamp, md5)}
+            create_base_dir_tree(['a_file.txt'])
+            self.daemon.client_snapshot = base_dir_tree.copy()
 
-        # creating client_snapshot {filepath:(timestamp, md5)}
-        create_base_dir_tree(['a_file.txt'])
-        self.daemon.client_snapshot = base_dir_tree.copy()
+            self.daemon.on_moved(
+                FileFakeEvent(src_path=some_file,
+                              content="a_file.txt",
+                              dest_path=os.path.join(TEST_SHARING_FOLDER, 'folder/a_file.txt')))
+            self.assertEqual(self.daemon.conn_mng.data_cmd, 'move')
+            self.assertIn('folder/a_file.txt', self.daemon.client_snapshot)
+            self.assertNotIn('a_file.txt', self.daemon.client_snapshot)
 
-        self.daemon.on_moved(
-            FileFakeEvent(src_path=some_file,
-                          content="a_file.txt",
-                          dest_path=os.path.join(TEST_SHARING_FOLDER, 'folder/a_file.txt')))
-        self.assertEqual(self.daemon.conn_mng.data_cmd, 'move')
-        self.assertIn('folder/a_file.txt', self.daemon.client_snapshot)
-        self.assertNotIn('a_file.txt', self.daemon.client_snapshot)
-
+@contextmanager
+def replace_conn_mng(daemon, fake):
+    original = daemon.conn_mng
+    daemon.conn_mng = fake
+    yield
+    daemon.conn_mng = original
 
 class FakeConnMng(object):
 
