@@ -23,6 +23,7 @@ from server import userpath2serverpath
 
 HTTP_OK = 200
 HTTP_CREATED = 201
+HTTP_ACCEPTED = 202
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
@@ -217,7 +218,7 @@ class TestRequests(unittest.TestCase):
                  'sdfdffdgdgfs\n',
                  'sfsdgdhgdsdfgdg\n',
                  'dsffdgdfgdfgdf\n'
-        ]
+                ]
         for term in terms:
             terms_file.write(term)
         # We have to give filename to the function update_passwordmeter_terms
@@ -742,14 +743,12 @@ class TestUsersPost(unittest.TestCase):
     def test_user_creation_with_weak_password(self):
         """
         """
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                                 data={'password': 'weak_password'})
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username), data={'password': 'weak_password'})
 
         # Test that user is not added to <pendint_users>
         self.assertNotIn(self.username, server.pending_users.keys())
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
         self.assertIsInstance(json.loads(test.get_data()), dict)
-
 
     def test_user_already_existing(self):
         """
@@ -767,8 +766,8 @@ class TestUsersPost(unittest.TestCase):
         Activation mail must be sent to the right recipient and *a line* of its body must be the activation code.
         """
         with server.mail.record_messages() as outbox:
-            resp = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                                 data={'password': self.password})
+            self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                          data={'password': self.password})
         # Retrieve the generated activation code
         activation_code = server.pending_users[self.username]['activation_code']
 
@@ -857,8 +856,8 @@ class TestUsersDelete(unittest.TestCase):
         _manually_create_user(USR, PW)
         user_dirpath = userpath2serverpath(USR)
         # Really created?
-        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)
-        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)
+        assert USR in server.userdata, 'Utente "{}" non risulta tra i dati'.format(USR)  # TODO: translate
+        assert os.path.exists(user_dirpath), 'Directory utente "{}" non trovata'.format(USR)  # TODO: translate
 
         # Test FORBIDDEN case (removing other users)
         url = SERVER_API + 'users/' + 'otheruser'
@@ -904,6 +903,100 @@ class TestUsersGet(unittest.TestCase):
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
 
 
+class TestUsersRecoverPassword(unittest.TestCase):
+    def setUp(self):
+        setup_test_dir()
+        server.reset_userdata()
+        self.app = server.app.test_client()
+        self.app.testing = True
+
+        self.active_user = 'Actived'
+        self.active_user_pw = pick_rand_pw(8)
+        _manually_create_user(self.active_user, self.active_user_pw)
+        self.pending_user = 'Pending'
+        server.pending_users[self.pending_user] = {'timestamp': server.now_timestamp(),
+                                                   'activation_code': 'fake-activation-code'}
+
+    def test_active_user(self):
+        url = SERVER_API + 'users/{}/reset'.format(self.active_user)
+        new_password = pick_rand_pw(10)
+        test = self.app.post(url,
+                             data={'password': new_password})
+        self.assertEqual(test.status_code, HTTP_ACCEPTED)
+        self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_data'))
+
+    def test_pending_user(self):
+        url = SERVER_API + 'users/{}/reset'.format(self.pending_user)
+        new_password = pick_rand_pw(10)
+        previous_pending_activation = server.pending_users[self.pending_user]['activation_code']
+        previous_pending_timestamp = server.pending_users[self.pending_user]['timestamp']
+        test = self.app.post(url,
+                             data={'password': new_password})
+        self.assertEqual(test.status_code, HTTP_ACCEPTED)
+        self.assertNotEqual(previous_pending_activation,
+                            server.pending_users[self.pending_user]['activation_code'])
+        self.assertLess(previous_pending_timestamp,
+                        server.pending_users[self.pending_user]['timestamp'])
+
+    def test_unknown_user(self):
+        url = SERVER_API + 'users/{}/reset'.format('unknown@pippo.it')
+        test = self.app.post(url,
+                             data={'password': 'okokokoko'})
+        self.assertEqual(test.status_code, HTTP_NOT_FOUND)
+
+    def test_put_ok(self):
+        old_password = server.userdata[self.active_user]['password']
+        # first request a new password with post
+        self.app.post(SERVER_API + 'users/{}/reset'.format(self.active_user))
+        recoverpass_code = server.userdata[self.active_user]['recoverpass_data'][0]
+        # then, put with given code and new password
+        test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                            data={'recoverpass_code': recoverpass_code,
+                                  'password': pick_rand_pw(10)})
+        self.assertEqual(test.status_code, HTTP_OK)
+        self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
+
+    def test_put_recoverpass_code_timeout(self):
+        """
+        Test the put with the same valid "recoverpass" code but in 2 different times (late and in time).
+        """
+        # First, test a PUT made too late, so the recoverpass code must be invalid,
+        # *then* (rewinding the clock to a time before expiration time) repeat the put with same recoverpass code,
+        # and this must return a success.
+        # NB: This is possible due to the fact that (TODO?) expired tokens are currently keep.
+        recoverpass_creation_time = 100  # 1970, less than a second after the midnight of 31 dec 1969 :p
+        server.userdata[self.active_user]['recoverpass_data'] = ('ok_code', recoverpass_creation_time)
+        recoverpass_expiration_time = recoverpass_creation_time + server.USER_RECOVERPASS_TIMEOUT
+        just_in_time = recoverpass_expiration_time - 1
+        too_late = recoverpass_expiration_time + 1
+        test_responses = []
+        for now in (too_late, just_in_time):  # backward
+            server.now_timestamp = lambda: now  # Time machine Python powered :)
+            test_responses.append(self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                                               data={'recoverpass_code': 'ok_code', 'password': 'does not matter'}))
+        # The first must be expired, the second must be valid.
+        self.assertEqual([test.status_code for test in test_responses], [HTTP_NOT_FOUND, HTTP_OK])
+
+    def test_password_recovery_email(self):
+        """
+        Test recovery email recipient, subject and body.
+        """
+        with server.mail.record_messages() as outbox:
+            self.app.post(urlparse.urljoin(SERVER_API, 'users/{}/reset'.format(self.active_user)))
+        # Retrieve the generated activation code
+        recoverpass_code, recoverpass_ctime10000 = server.userdata[self.active_user]['recoverpass_data']
+        self.assertEqual(len(outbox), 1)
+        body = outbox[0].body
+        recipients = outbox[0].recipients
+        subject = outbox[0].subject
+        self.assertEqual(recipients, [self.active_user])
+        # A line must be the recoverpass code
+        self.assertIn(recoverpass_code, body.splitlines())
+        # The email subject and body must contain some "keywords".
+        self.assertIn('password', subject.lower())
+        self.assertTrue('change' in body and 'password' in body)
+
+
 def get_dic_dir_states():
     """
     Return a tuple with dictionary state and directory state of all users.
@@ -918,8 +1011,8 @@ def get_dic_dir_states():
         single_user_data.pop(server.USER_CREATION_TIME)  # not very beautiful
         dic_state[username] = single_user_data
         dir_state = json.load(open('userdata.json', "rb"))
-        dir_state[username].pop(server.PWD) # not very beatiful cit. ibidem
-        dir_state[username].pop(server.USER_CREATION_TIME) # not very beatiful cit. ibidem
+        dir_state[username].pop(server.PWD)  # not very beatiful cit. ibidem
+        dir_state[username].pop(server.USER_CREATION_TIME)  # not very beatiful cit. ibidem
     return dic_state, dir_state
 
 
@@ -970,7 +1063,6 @@ class TestUserdataConsistence(unittest.TestCase):
         # intermediate check
         dic_state, dir_state = get_dic_dir_states()
         self.assertEqual(dic_state, dir_state)
-
 
         user, pw = 'pippo', 'pass'
         # delete new_file
