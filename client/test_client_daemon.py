@@ -98,10 +98,13 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH)
         self.daemon.operation_happened = 'initial'
         self.daemon.create_observer()
+        self.daemon.observer.start()
 
     def tearDown(self):
         global base_dir_tree
         base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
         destroy_folder()
 
     def test_md5_of_client_snapshot(self):
@@ -453,7 +456,12 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.client_daemon = client_daemon.Daemon()
         self.client_daemon.create_observer()
+        self.client_daemon.observer.start()
         self.socket = test_utils.FakeSocket()
+
+    def tearDown(self):
+        self.client_daemon.observer.stop()
+        self.client_daemon.observer.join()
 
     def test_get_cmdmanager_request(self):
         command = {'shutdown': ()}
