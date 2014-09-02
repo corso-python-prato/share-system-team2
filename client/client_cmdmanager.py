@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import cmd
+import sys
 import socket
 import struct
 import json
@@ -102,7 +103,10 @@ class CommandParser(cmd.Cmd):
 
     def __init__(self):
         cmd.Cmd.__init__(self)
+
+    def init_cmdparser(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((daemon_host, daemon_port))
 
     def _send_to_daemon(self, message=None):
         """
@@ -138,18 +142,6 @@ class CommandParser(cmd.Cmd):
             # log exception message
             print 'Socket Error: ', ex
 
-    def preloop(self):
-        """
-        setup before the looping start
-        """
-        self.sock.connect((daemon_host, daemon_port))
-
-    def postloop(self):
-        """
-        Closures when looping stop
-        """
-        self.sock.close()
-
     def postcmd(self, stop, line):
         """
         This function is called after any do_<something>.
@@ -159,6 +151,7 @@ class CommandParser(cmd.Cmd):
         :return:
         """
         if stop == 'exit':
+            self.sock.close()
             return True
 
     def do_quit(self, line):
@@ -275,4 +268,10 @@ class CommandParser(cmd.Cmd):
 
 if __name__ == '__main__':
     load_cfg()
-    CommandParser().cmdloop()
+    parser = CommandParser()
+    parser.init_cmdparser()
+    if '--no-interactive' in sys.argv:
+        sys.argv.remove('--no-interactive')
+        parser.onecmd(' '.join(sys.argv[1:]))
+    else:
+        parser.cmdloop()
