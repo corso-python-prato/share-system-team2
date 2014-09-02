@@ -925,6 +925,7 @@ class TestClientDaemon(unittest.TestCase):
 
             # the copy must be in the snapshot
             self.assertIn('another_file.txt', self.daemon.client_snapshot)
+            self.assertIn('file.txt', self.daemon.client_snapshot)
 
     def test_on_moved(self):
         """
@@ -935,7 +936,7 @@ class TestClientDaemon(unittest.TestCase):
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
             # creating client_snapshot {filepath:(timestamp, md5)}
-            create_base_dir_tree(['a_file.txt'])
+            create_base_dir_tree(['a_file.txt', 'file.avi'])
             self.daemon.client_snapshot = base_dir_tree.copy()
 
             self.daemon.on_moved(
@@ -944,6 +945,7 @@ class TestClientDaemon(unittest.TestCase):
                               dest_path=os.path.join(TEST_SHARING_FOLDER, 'folder/a_file.txt')))
             self.assertEqual(self.daemon.conn_mng.data_cmd, 'move')
             self.assertIn('folder/a_file.txt', self.daemon.client_snapshot)
+            self.assertIn('file.avi', self.daemon.client_snapshot)
             self.assertNotIn('a_file.txt', self.daemon.client_snapshot)
 
 @contextmanager
