@@ -12,6 +12,18 @@ import test_utils
 USR, PW = 'mail@hotmail.com', 'Hard_Password_Since_1985'
 
 
+class CmdParserMock(client_cmdmanager.CommandParser):
+    """
+    Mock method _send_to_daemon with fixed return value, set by passing it to the constructor.
+    """
+    def __init__(self, daemon_return_value=None):
+        client_cmdmanager.CommandParser.__init__(self)  # old style class
+        self.daemon_return_value = daemon_return_value
+
+    def _send_to_daemon(self, message=None):
+        return self.daemon_return_value
+
+
 def _fake_send_to_daemon(message):
     """
     This function emulate the send_to_daemon method of commandparser
@@ -20,20 +32,20 @@ def _fake_send_to_daemon(message):
     if 'register' in message:
         # User creation validated
         if 'Str0ng_Password' in message['register'][1]:
-            return {'content': 'Message relative successful user creation'}
+            return {'content': 'Message relative successful user creation', 'successful': True}
         # User creation failed for weak password
         elif 'password' in message['register'][1]:
-            return {'improvements': {'type_improvement': 'Relative info about this improvement'}}
+            return {'improvements': {'type_improvement': 'Relative info about this improvement'}, 'successful': False}
         # user creation of existent user
         elif 'existent_user' in message['register'][0]:
-            return {'content': 'Message relative already existent user creation'}
+            return {'content': 'Message relative already existent user creation', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
     elif 'activate' in message:
         if 'valid_token' in message['activate'][1]:
-            return 'Message relative successful activation of user'
+            return {'content': 'Message relative successful activation of user', 'successful': True}
         if 'bad_token' in message['activate'][1]:
-            return False
+            return {'content': 'Message relative failed activation', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
 
@@ -81,12 +93,13 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'Str0ng_Password')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
-        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
         self.assertNotIn('improvements', response)
+        self.assertTrue(response['successful'])
 
     def test_do_register_with_weak_password(self):
         """
-        Test a user registration with weak password.
+ò        Test a user registration with weak password.
         The server refuse registration and send a dictionary with inside the possible improvements for the password.
         :return: the response received from daemon
         """
@@ -94,7 +107,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
         self.assertNotIn('content', response)
-        self.assertIn('improvements', response)
+        self.assertIsInstance(response['improvements'], dict)
+        self.assertFalse(response['successful'])
 
     def test_do_register_with_user_already_existent(self):
         """
@@ -106,8 +120,9 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format('existent_user', PW)
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_register(self.line)
-        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
         self.assertNotIn('improvements', response)
+        self.assertFalse(response['successful'])
 
     def test_do_register_with_bad_arguments(self):
         """
@@ -129,7 +144,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'valid_token')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_activate(self.line)
-        self.assertIsInstance(response, str)
+        self.assertIsInstance(response['content'], str)
+        self.assertTrue(response['successful'])
 
     def test_do_activate_with_bad_token(self):
         """
@@ -140,7 +156,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.line = '{} {}'.format(USR, 'bad_token')
         self.commandparser._send_to_daemon = _fake_send_to_daemon
         response = self.commandparser.do_activate(self.line)
-        self.assertFalse(response)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
 
     def test_do_activate_with_bad_arguments(self):
         """
@@ -175,6 +192,80 @@ class TestDoQuitDoEOF(unittest.TestCase):
         Verify do_EOF
         """
         self.assertTrue(self.commandparser.do_EOF(self.line))
+
+
+class TestRecoverpassEmail(unittest.TestCase):
+    """
+    Test 'recoverpass' command.
+    """
+    def setUp(self):
+        self.commandparser = CmdParserMock()
+
+    def test_recoverpass_empty_email(self):
+        self.assertFalse(self.commandparser.do_recoverpass(''))
+
+    def test_recoverpass_no_at_email(self):
+        self.assertFalse(self.commandparser.do_recoverpass('invalid.mail'))
+
+    def test_recoverpass_valid_mail(self):
+        self.commandparser.daemon_return_value = 'Ok'
+        self.assertTrue(self.commandparser.do_recoverpass('myemail@gmail.com'))
+
+
+class TestRecoverpassEmailAndToken(unittest.TestCase):
+    """
+    Test 'changepass' command.
+    """
+    def setUp(self):
+        self.valid_line = 'pippo.topolinia@gmail.com my_recoverpass_code'
+        self.commandparser = CmdParserMock()
+
+    def test_bad_args(self):
+        self.assertFalse(self.commandparser.do_recoverpass('myemail@gmail.com activationcode extra-arg'))
+
+    def test_password_unconfirmed(self):
+        """
+        If the new password is not confirmed, the command must fail.
+        """
+        client_cmdmanager._getpass = lambda: False
+        self.assertFalse(self.commandparser.do_recoverpass(self.valid_line))  # because _getpass fail (return False)
+
+    def test_invalid_code(self):
+        client_cmdmanager._getpass = lambda: 'mynewpassword'
+        # Assuming that a empty daemon return value means that the token is invalid.
+        self.commandparser.daemon_return_value = ''
+        self.assertFalse(self.commandparser.do_recoverpass(self.valid_line))
+
+    def test_ok(self):
+        # mock client_cmdmanager._getpass function
+        client_cmdmanager._getpass = lambda: 'mynewpassword'
+        self.commandparser.daemon_return_value = 'Password changed succesfully'
+        self.assertTrue(self.commandparser.do_recoverpass(self.valid_line))
+
+
+class TestValidateEmail(unittest.TestCase):
+    def test_no_local_part(self):
+        self.assertFalse(client_cmdmanager.validate_email('@gmail.com'))
+
+    def test_no_domain(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@'))
+
+    def test_too_many_at(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@@gmail.com'))
+
+    def test_dot_at_begin_or_end(self):
+        self.assertFalse(client_cmdmanager.validate_email('.address@gmail.com'))
+        self.assertFalse(client_cmdmanager.validate_email('address.@gmail.com'))
+
+    def test_no_dots_in_domain(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@gmailcom'))
+
+    def test_consecutive_dots_in_domain_part(self):
+        self.assertFalse(client_cmdmanager.validate_email('address@gmail..com'))
+
+    def test_invalid_characters(self):
+        for invalid in '^$/:?#[]':
+            self.assertFalse(client_cmdmanager.validate_email('my{}address@gmail.com'.format(invalid)))
 
 
 if __name__ == '__main__':
