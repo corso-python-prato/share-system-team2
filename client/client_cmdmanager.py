@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import cmd
-import sys
+import argparse
 import socket
 import struct
 import json
@@ -17,6 +17,14 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 # Default configuration for socket
 daemon_host = 'localhost'
 daemon_port = 50001
+
+# Allowed operation directly from console
+ALLOWED_COMMAND = {
+    'register': 'do_register',
+    'activate': 'do_activate',
+    'recoverpass': 'do_recoverpass'
+    }
+
 
 # A regular expression to check if an email address is valid or not.
 # WARNING: it seems a not 100%-exhaustive email address validation.
@@ -266,12 +274,26 @@ class CommandParser(cmd.Cmd):
         return False
 
 
-if __name__ == '__main__':
+def main():
     load_cfg()
-    parser = CommandParser()
-    parser.init_cmdparser()
-    if '--no-interactive' in sys.argv:
-        sys.argv.remove('--no-interactive')
-        parser.onecmd(' '.join(sys.argv[1:]))
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-ni', '--no-interactive', dest='interact', default=False, action='store_true',
+                        help="Execute a single command from console")
+    for command, method in ALLOWED_COMMAND.iteritems():
+        parser.add_argument('-' + command, nargs='+', required=False,
+                            help=getattr(CommandParser, method).__doc__)
+    args = parser.parse_args()
+    cmd_parser = CommandParser()
+    cmd_parser.init_cmdparser()
+    # This list comprehension search any command from ALLOWED_COMMAND that the user enter in console
+    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command)]
+    if args.interact and console_command:
+        for command in console_command:
+            cmd_name = ALLOWED_COMMAND[command]
+            cmd_line = ' '.join(getattr(args, command))
+            getattr(cmd_parser, cmd_name)(cmd_line)
     else:
-        parser.cmdloop()
+        cmd_parser.cmdloop()
+
+if __name__ == '__main__':
+    main()
