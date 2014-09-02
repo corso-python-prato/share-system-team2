@@ -43,11 +43,16 @@ HTTP_DELETED = 204
 FILE_ROOT = 'filestorage'
 
 URL_PREFIX = '/API/V1'
-WORKDIR = os.path.dirname(__file__)
+SERVER_DIRECTORY = os.path.dirname(__file__)
 # Users login data are stored in a json file in the server
 USERDATA_FILENAME = 'userdata.json'
+PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                                          'password_recovery_email_template.txt')
+SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
+                                               'signup_email_template.txt')
 
 USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
@@ -64,6 +69,14 @@ class ServerError(Exception):
 
 
 class ServerConfigurationError(ServerError):
+    pass
+
+
+class ServerInternalError(ServerError):
+    """
+    Custom exception to raise programming errors
+    (i.e. when unexpected conditions are found).
+    """
     pass
 
 
@@ -107,6 +120,7 @@ EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
 api = Api(app)
 auth = HTTPBasicAuth()
 
+
 def update_passwordmeter_terms(terms_file):
     """
     Added costume terms list into passwordmeter from words file
@@ -123,6 +137,7 @@ def update_passwordmeter_terms(terms_file):
         passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
     finally:
         del costume_password
+
 
 def _read_file(filename):
     """
@@ -314,16 +329,6 @@ def create_user(username, password):
     return response
 
 
-@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
-def signup():
-    """
-    Old simpler and immediate signup method (no mail) temporarily maintained only for testing purposes.
-    """
-    username = request.form.get('username')
-    password = request.form.get('password')
-    return create_user(username, password)
-
-
 def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
@@ -363,41 +368,6 @@ def send_email(subject, sender, recipients, text_body):
     return msg
 
 
-class UsersFacility(Resource):
-    """
-    Debug facility/backdoor to get all users (and pending users) info and without authentication.
-    """
-
-    def get(self, username):
-        """
-        Show some info about users.
-        """
-        if username == '__all__':
-            # Easter egg to see a list of registered and pending users.
-            if userdata:
-                reg_users_listr = ', '.join(userdata.keys())
-            else:
-                reg_users_listr = 'no registered users'
-            if pending_users:
-                pending_users_listr = ', '.join(pending_users.keys())
-            else:
-                pending_users_listr = 'no pending users'
-            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
-                       HTTP_OK
-        else:
-            if username in userdata:
-                user_data = userdata[username]
-                creation_timestamp = user_data.get(USER_CREATION_TIME)
-                if creation_timestamp:
-                    time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
-                else:
-                    time_str = '<unknown time>'
-                response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
-            else:
-                response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
-        return response
-
-
 class Users(Resource):
     def _clean_pending_users(self):
         """
@@ -428,6 +398,34 @@ class Users(Resource):
             response = 'You joined on {}.'.format(time_str), HTTP_OK
             return response
         else:
+            if app.debug:
+                if username == '__all__':
+                    # Easter egg to see a list of registered and pending users.
+                    logger.warn('WARNING: showing the list of all users (debug mode)!!!')
+                    if userdata:
+                        reg_users_listr = ', '.join(userdata.keys())
+                    else:
+                        reg_users_listr = 'no registered users'
+                    if pending_users:
+                        pending_users_listr = ', '.join(pending_users.keys())
+                    else:
+                        pending_users_listr = 'no pending users'
+                    response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
+                               HTTP_OK
+                else:
+                    logger.warn('WARNING: showing {}\'s info (debug mode)!!!'.format(username))
+                    if username in userdata:
+                        user_data = userdata[username]
+                        creation_timestamp = user_data.get(USER_CREATION_TIME)
+                        if creation_timestamp:
+                            time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                        else:
+                            time_str = '<unknown time>'
+                        response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
+                    else:
+                        response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
+                return response
+
             abort(HTTP_FORBIDDEN)
 
     def post(self, username):
@@ -448,20 +446,7 @@ class Users(Resource):
         subject = '[{}] Confirm your email address'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
         recipients = [username]
-        text_body_template = string.Template("""
-Thanks for signing up for $appname!
-
-As a final step of the $appname account creation process, please confirm the email address $email.
-Copy and paste the activation code below into the desktop application:
-
-$code
-
-If you don't know what this is about, then someone has probably entered your email address by mistake.
-Sorry about that. You don't need to do anything further. Just delete this message.
-
-Cheers,
-the $appname Team
-""")
+        text_body_template = string.Template(_read_file(SIGNUP_EMAIL_TEMPLATE_FILE_PATH))
         values = dict(code=activation_code,
                       email=username,
                       appname=__title__,
@@ -479,10 +464,8 @@ the $appname Team
 
     def put(self, username):
         """
-        Create user using activation code sent by email.
+        Create user using activation code sent by email, or reset its password.
         """
-        activation_code = request.form['activation_code']
-        logger.debug('Got activation code: {}'.format(activation_code))
         logger.debug('Pending users: {}'.format(pending_users.keys()))
 
         pending_user_data = pending_users.get(username)
@@ -491,18 +474,55 @@ the $appname Team
         expired_pending_users = self._clean_pending_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
-        if pending_user_data:
-            logger.debug('Activating user {}'.format(username))
-            if activation_code == pending_user_data['activation_code']:
-                # Actually create user
-                password = pending_user_data[PWD]
-                pending_users.pop(username)
-                return create_user(username, password)
+        if username in userdata:
+            # The user is already active, so it should be a request of password resetting.
+            if username in pending_users:
+                raise ServerInternalError('User {} must\'n t be both pending and active'.format(username))
+            try:
+                new_password = request.form[PWD]
+            except KeyError:
+                abort(HTTP_BAD_REQUEST)
             else:
-                abort(HTTP_NOT_FOUND)
+                request_recoverpass_code = request.form['recoverpass_code']
+                recoverpass_stuff = userdata[username].get('recoverpass_data')
+                if recoverpass_stuff:
+                    recoverpass_code, recoverpass_ctime = recoverpass_stuff
+                    if request_recoverpass_code == recoverpass_code and \
+                            (now_timestamp() - recoverpass_ctime < USER_RECOVERPASS_TIMEOUT):
+                        userdata[PWD] = new_password
+                        #print('Updating password with "{}"'.format(new_password))
+                        enc_pass = _encrypt_password(new_password)
+                        userdata[username][PWD] = enc_pass
+                        userdata[username].pop('recoverpass_data')
+                        return 'Password changed succesfully', HTTP_OK
+            # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
+            return 'Invalid code', HTTP_NOT_FOUND
         else:
-            logger.info('{} is not pending'.format(username))
-            abort(HTTP_NOT_FOUND)
+            activation_code = request.form['activation_code']
+            logger.debug('Got activation code: {}'.format(activation_code))
+            logger.debug('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
+            pending_user_data = pending_users.get(username)
+            if pending_user_data:
+                logger.debug('Activating user {}'.format(username))
+                if activation_code == pending_user_data['activation_code']:
+                    # Actually create user
+                    password = pending_user_data[PWD]
+                    pending_users.pop(username)
+                    return create_user(username, password)
+                else:
+                    abort(HTTP_NOT_FOUND)
+            else:
+                #### DEBUG-MODE BACKDOOR ####
+                # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
+                if app.debug and activation_code == 'BACKDOOR':
+                    password = 'debug-password'
+                    logger.warn('WARNING: Creating user "{}" (password="{}") '
+                                 'without email confirmation via backdoor!!!'.format(username, password))
+                    return create_user(username, password)
+                #### DEBUG-MODE BACKDOOR ####
+
+                logger.info('{} is not pending'.format(username))
+                abort(HTTP_NOT_FOUND)
 
     @auth.login_required
     def delete(self, username):
@@ -517,8 +537,51 @@ the $appname Team
             abort(HTTP_FORBIDDEN)
 
         userdata.pop(username)
+        # TODO: add save_userdata()
         shutil.rmtree(userpath2serverpath(username))
         return 'User "{}" removed.\n'.format(username), HTTP_OK
+
+
+class UsersRecoverPassword(Resource):
+    """
+    This class handles the recovering of a lost user's password by changing it.
+
+    Use case: the user has forgotten its password and wants to recover it.
+    NB: recover the old password is not even possible since it's stored encrypted.
+    """
+    def post(self, username):
+        """
+        Handle the request for change the user's password
+        by sending a 'recoverpass' token to its email address.
+        """
+        recoverpass_code = os.urandom(16).encode('hex')
+
+        # The password reset must be called from an active or inactive user
+        if not(username in userdata or username in pending_users):
+            abort(HTTP_NOT_FOUND)
+
+        # Composing email
+        subject = '[{}] Password recovery'.format(__title__)
+        sender = 'donotreply@{}.com'.format(__title__)
+        recipients = [username]
+        text_body_template = string.Template(_read_file(PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH))
+        values = dict(code=recoverpass_code,
+                      email=username,
+                      appname=__title__,
+                      )
+        text_body = text_body_template.substitute(values)
+
+        send_email(subject, sender, recipients, text_body)
+
+        if username in userdata:
+            # create or update 'recoverpass_data' key.
+            userdata[username]['recoverpass_data'] = (recoverpass_code, now_timestamp())
+        elif username in pending_users:
+            pending_users[username] = {'timestamp': now_timestamp(),
+                                       'activation_code': recoverpass_code}
+        # the else case is already covered in the first if
+
+        return 'Reset email sent to {}'.format(username), HTTP_ACCEPTED
 
 
 class Actions(Resource):
@@ -565,8 +628,8 @@ class Actions(Resource):
 
     def _copy(self, username):
         """
-        Copy a file from a given source path to a destination path and return the current server timestamp in a json file.
-        jso
+        Copy a file from a given source path to a destination path and return the current server timestamp
+        in a json file.jso
         userdata[username]n format: {LAST_SERVER_TIMESTAMP: int}
         """
 
@@ -613,7 +676,6 @@ class Actions(Resource):
         else:
             abort(HTTP_NOT_FOUND)
         self._clear_dirs(os.path.dirname(server_src), username)
-
 
         last_server_timestamp = now_timestamp()
 
@@ -842,7 +904,7 @@ class Files(Resource):
         last_server_timestamp = file_timestamp(filepath)
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
-        save_userdata()    
+        save_userdata()
         return last_server_timestamp
 
     @auth.login_required
@@ -912,7 +974,7 @@ api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.f
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Shares, '{}/shares/<path:root_path>/<string:username>'.format(URL_PREFIX), '{}/shares/<path:root_path>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
-api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
+api.add_resource(UsersRecoverPassword, '{}/users/<string:username>/reset'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()

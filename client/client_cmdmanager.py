@@ -5,6 +5,8 @@ import cmd
 import socket
 import struct
 import json
+import getpass
+import re
 import os
 
 
@@ -14,6 +16,19 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 # Default configuration for socket
 daemon_host = 'localhost'
 daemon_port = 50001
+
+# A regular expression to check if an email address is valid or not.
+# WARNING: it seems a not 100%-exhaustive email address validation.
+# source: http://www.regular-expressions.info/email.html (modified)
+EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9]'  # the first char must be alphanumeric (no dots etc...)
+                           r'[A-Z0-9._%+-]+'  # allowed characters in the "local part"
+                           # NB: many email providers allow letters, numbers, and '.', '-' and '_' only.
+                           # GMail even allows letters, numbers and dots only (no '-' nor underscores).
+                           r'[A-Z0-9_-]'  # no dots before the '@'
+                           r'@'
+                           r'[A-Z0-9.-]+'  # domain part before the last dot ('.' and '-' allowed too)
+                           r'\.[A-Z]{2,4}$',  # domain extension: 2, 3 or 4 letters
+                           re.IGNORECASE | re.VERBOSE)
 
 
 def load_cfg(cfg_path=CONFIG_FILEPATH):
@@ -39,6 +54,41 @@ def load_cfg(cfg_path=CONFIG_FILEPATH):
     # If all go right i will not do this print
     print 'Impossible to load cfg, client_daemon already loaded?'
     print 'Loaded default configuration for socket'
+
+
+def validate_email(address):
+    """
+    Validate an email address according to http://www.regular-expressions.info/email.html.
+    In addition, at most one '.' before the '@' and no '..' in the domain part are allowed.
+    :param address: str
+    :return: bool
+    """
+    if not re.search(EMAIL_REG_OBJ, address):
+        return False
+    return '..' not in address
+
+
+def _getpass():
+    """
+    Ask the user for a new password. He must type it 2 times for confirmation.
+    If successful, return the string of new password,
+    else (empty or wrong confirmation) return False.
+    """
+    for attempt in range(3):
+        new_password = getpass.getpass('Please enter a new password: ')
+        if not new_password:
+            # It empty, assume the user has changed mind
+            print 'Aborted'
+            return False
+        new_password_confirmation = getpass.getpass('Please re-enter the new password: ')
+        if new_password == new_password_confirmation:
+            return new_password
+        else:
+            print 'Error: passwords doesn\'t match.'
+    else:
+        print 'No more attempts. '
+        # The user have to re-enter the 'recoverpass' command to retry.
+        return False
 
 
 class CommandParser(cmd.Cmd):
@@ -145,7 +195,7 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             if 'improvements' in response:
                 print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['improvements'].items():
+                for k, v in response['improvements'].iteritems():
                     print '{}: {}'.format(k, v)
             else:
                 print response['content']
@@ -168,7 +218,7 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             response = self._send_to_daemon(message)
-            print response
+            print response['content']
             return response
 
     def do_addshare(self, line):
@@ -218,6 +268,59 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             print response
             return response
+
+    def do_recoverpass(self, line):
+        """
+        This command allows you to recover (i.e. change) a lost password,
+        in 2 steps:
+            1st step: (PyBox)>>> recoverpass <e-mail>
+            (wait for the email containing the <recoverpass_code>)
+            2nd step: (PyBox)>>> recoverpass <e-mail> <recoverpass_code>
+        """
+        args = line.split()
+        if not args:
+            print 'Bad arguments:'
+            print 'usage: recoverpass <e-mail> [<recoverpass_code>]'
+            return False
+
+        mail = args[0]
+        # must be a valid email
+        if not validate_email(mail):
+            print 'Error: invalid e-mail address.'
+            return False
+
+        if len(args) == 1:
+            req_message = {'reqrecoverpass': mail}
+            if not self._send_to_daemon(req_message):
+                print 'Error: the user does not exist or is not valid.'
+                return False
+            print 'Recover password email sent to {}, check your inbox!'.format(mail)
+            return True
+
+        if len(args) == 2:
+            # The command used with 2 parameters allow the user to enter the "recoverpass code"
+            # received by email and actually change the password.
+            # Usage: changepass <e-mail> <recoverpass_code>
+            recoverpass_code = args[1]
+
+            # Ask password without showing it:
+            new_password = _getpass()
+            if new_password:
+                message = {'recoverpass': (mail, recoverpass_code, new_password)}
+                resp = self._send_to_daemon(message)
+                if not resp:
+                    print 'Error: invalid recoverpass code.'
+                    return False
+
+                print 'OK. Password changed successfully!'
+                return True
+            # Empty password or confirm password not matching
+            print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+            return False
+
+        print 'Bad arguments:'
+        print 'usage: recoverpass <e-mail>  [<recoverpass_code>]'
+        return False
 
 
 if __name__ == '__main__':
