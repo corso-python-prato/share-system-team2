@@ -80,7 +80,7 @@ class Daemon(RegexMatchingEventHandler):
     INT_SIZE = struct.calcsize('!i')
 
     # Allowed operation before user is activated
-    ALLOWED_OPERATION = {'register', 'activate'}
+    ALLOWED_OPERATION = {'register', 'activate', 'login'}
 
     def __init__(self, cfg_path=None, sharing_path=None):
         RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
@@ -707,6 +707,7 @@ class Daemon(RegexMatchingEventHandler):
         This method allow only registration and activation of user until this will be accomplished.
         In case of bad cmd this will be refused otherwise if the server response are successful
         we update the daemon_config and after activation of user start the observing.
+        In case of login we do registration and activation together
         :param s: connection socket with client_cmdmanager
         :param cmd: received cmd from client_cmdmanager
         :param data: received data from client_cmdmanager
@@ -739,6 +740,9 @@ class Daemon(RegexMatchingEventHandler):
                 if cmd == 'register':
                     register()
                 elif cmd == 'activate':
+                    activate()
+                elif cmd == 'login':
+                    register()
                     activate()
             self._set_cmdmanager_response(s, response)
 
