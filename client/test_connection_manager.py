@@ -93,12 +93,13 @@ class TestConnectionManager(unittest.TestCase):
         """
         data = (USR, PW)
         url = ''.join((self.user_url, USR))
-        content = 'user activated'
+        content = 'user created'
         content_jsoned = json.dumps(content)
         httpretty.register_uri(httpretty.POST, url, status=200, body=content_jsoned)
         response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertEqual(response['content'], content)
+        self.assertTrue(response['successful'])
 
     @httpretty.activate
     def test_register_user_with_weak_password(self):
@@ -117,6 +118,7 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_register(data)
         self.assertIn('improvements', response)
         self.assertEqual(response['improvements'], content)
+        self.assertFalse(response['successful'])
 
     @httpretty.activate
     def test_register_user_with_already_existent_user(self):
@@ -133,6 +135,7 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_register(data)
         self.assertIn('content', response)
         self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
 
     @httpretty.activate
     def test_fail_to_register_user(self):
