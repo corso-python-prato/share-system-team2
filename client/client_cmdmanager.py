@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import cmd
+import argparse
 import socket
 import struct
 import json
+import getpass
+import re
 import os
 
 
@@ -14,6 +17,27 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 # Default configuration for socket
 daemon_host = 'localhost'
 daemon_port = 50001
+
+# Allowed operation directly from console
+ALLOWED_COMMAND = {
+    'register': 'do_register',
+    'activate': 'do_activate',
+    'recoverpass': 'do_recoverpass'
+    }
+
+
+# A regular expression to check if an email address is valid or not.
+# WARNING: it seems a not 100%-exhaustive email address validation.
+# source: http://www.regular-expressions.info/email.html (modified)
+EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9]'  # the first char must be alphanumeric (no dots etc...)
+                           r'[A-Z0-9._%+-]+'  # allowed characters in the "local part"
+                           # NB: many email providers allow letters, numbers, and '.', '-' and '_' only.
+                           # GMail even allows letters, numbers and dots only (no '-' nor underscores).
+                           r'[A-Z0-9_-]'  # no dots before the '@'
+                           r'@'
+                           r'[A-Z0-9.-]+'  # domain part before the last dot ('.' and '-' allowed too)
+                           r'\.[A-Z]{2,4}$',  # domain extension: 2, 3 or 4 letters
+                           re.IGNORECASE | re.VERBOSE)
 
 
 def load_cfg(cfg_path=CONFIG_FILEPATH):
@@ -41,6 +65,41 @@ def load_cfg(cfg_path=CONFIG_FILEPATH):
     print 'Loaded default configuration for socket'
 
 
+def validate_email(address):
+    """
+    Validate an email address according to http://www.regular-expressions.info/email.html.
+    In addition, at most one '.' before the '@' and no '..' in the domain part are allowed.
+    :param address: str
+    :return: bool
+    """
+    if not re.search(EMAIL_REG_OBJ, address):
+        return False
+    return '..' not in address
+
+
+def _getpass():
+    """
+    Ask the user for a new password. He must type it 2 times for confirmation.
+    If successful, return the string of new password,
+    else (empty or wrong confirmation) return False.
+    """
+    for attempt in range(3):
+        new_password = getpass.getpass('Please enter a new password: ')
+        if not new_password:
+            # It empty, assume the user has changed mind
+            print 'Aborted'
+            return False
+        new_password_confirmation = getpass.getpass('Please re-enter the new password: ')
+        if new_password == new_password_confirmation:
+            return new_password
+        else:
+            print 'Error: passwords doesn\'t match.'
+    else:
+        print 'No more attempts. '
+        # The user have to re-enter the 'recoverpass' command to retry.
+        return False
+
+
 class CommandParser(cmd.Cmd):
     """
     Command line interpreter
@@ -52,7 +111,10 @@ class CommandParser(cmd.Cmd):
 
     def __init__(self):
         cmd.Cmd.__init__(self)
+
+    def init_cmdparser(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((daemon_host, daemon_port))
 
     def _send_to_daemon(self, message=None):
         """
@@ -88,18 +150,6 @@ class CommandParser(cmd.Cmd):
             # log exception message
             print 'Socket Error: ', ex
 
-    def preloop(self):
-        """
-        setup before the looping start
-        """
-        self.sock.connect((daemon_host, daemon_port))
-
-    def postloop(self):
-        """
-        Closures when looping stop
-        """
-        self.sock.close()
-
     def postcmd(self, stop, line):
         """
         This function is called after any do_<something>.
@@ -109,6 +159,7 @@ class CommandParser(cmd.Cmd):
         :return:
         """
         if stop == 'exit':
+            self.sock.close()
             return True
 
     def do_quit(self, line):
@@ -143,7 +194,7 @@ class CommandParser(cmd.Cmd):
             response = self._send_to_daemon(message)
             if 'improvements' in response:
                 print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['improvements'].items():
+                for k, v in response['improvements'].iteritems():
                     print '{}: {}'.format(k, v)
             else:
                 print response['content']
@@ -166,10 +217,83 @@ class CommandParser(cmd.Cmd):
         else:
             message = {'activate': (mail, token)}
             response = self._send_to_daemon(message)
-            print response
+            print response['content']
             return response
 
+    def do_recoverpass(self, line):
+        """
+        This command allows you to recover (i.e. change) a lost password,
+        in 2 steps:
+            1st step: (PyBox)>>> recoverpass <e-mail>
+            (wait for the email containing the <recoverpass_code>)
+            2nd step: (PyBox)>>> recoverpass <e-mail> <recoverpass_code>
+        """
+        args = line.split()
+        if not args:
+            print 'Bad arguments:'
+            print 'usage: recoverpass <e-mail> [<recoverpass_code>]'
+            return False
+
+        mail = args[0]
+        # must be a valid email
+        if not validate_email(mail):
+            print 'Error: invalid e-mail address.'
+            return False
+
+        if len(args) == 1:
+            req_message = {'reqrecoverpass': mail}
+            if not self._send_to_daemon(req_message):
+                print 'Error: the user does not exist or is not valid.'
+                return False
+            print 'Recover password email sent to {}, check your inbox!'.format(mail)
+            return True
+
+        if len(args) == 2:
+            # The command used with 2 parameters allow the user to enter the "recoverpass code"
+            # received by email and actually change the password.
+            # Usage: changepass <e-mail> <recoverpass_code>
+            recoverpass_code = args[1]
+
+            # Ask password without showing it:
+            new_password = _getpass()
+            if new_password:
+                message = {'recoverpass': (mail, recoverpass_code, new_password)}
+                resp = self._send_to_daemon(message)
+                if not resp:
+                    print 'Error: invalid recoverpass code.'
+                    return False
+
+                print 'OK. Password changed successfully!'
+                return True
+            # Empty password or confirm password not matching
+            print 'Error: password not confirmed. Just recall the recoverpass command to retry.'
+            return False
+
+        print 'Bad arguments:'
+        print 'usage: recoverpass <e-mail>  [<recoverpass_code>]'
+        return False
+
+
+def main():
+    load_cfg()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-ni', '--no-interactive', dest='interact', default=False, action='store_true',
+                        help="Execute a single command from console")
+    for command, method in ALLOWED_COMMAND.iteritems():
+        parser.add_argument('-' + command, nargs='+', required=False,
+                            help=getattr(CommandParser, method).__doc__)
+    args = parser.parse_args()
+    cmd_parser = CommandParser()
+    cmd_parser.init_cmdparser()
+    # This list comprehension search any command from ALLOWED_COMMAND that the user enter in console
+    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command)]
+    if args.interact and console_command:
+        for command in console_command:
+            cmd_name = ALLOWED_COMMAND[command]
+            cmd_line = ' '.join(getattr(args, command))
+            getattr(cmd_parser, cmd_name)(cmd_line)
+    else:
+        cmd_parser.cmdloop()
 
 if __name__ == '__main__':
-    load_cfg()
-    CommandParser().cmdloop()
+    main()
