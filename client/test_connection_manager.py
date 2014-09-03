@@ -233,6 +233,42 @@ class TestConnectionManager(unittest.TestCase):
         self.assertFalse(response['successful'])
 
     @httpretty.activate
+    def test_login_user(self):
+        """
+        Test login user api:
+        method = get
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = self.files_url
+        content = {'file1': 'foo.txt', 'file2': 'dir/foo.txt'}
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.GET, url, status=200, body=content_jsoned)
+        response = self.cm.do_login(data)
+        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
+        self.assertTrue(response['successful'])
+
+    @httpretty.activate
+    def test_login_user_failed(self):
+        """
+        Test login user api with weak password:
+        method = GET
+        resource = <user>
+        data = password=<password>
+        """
+        data = ('bad_user', 'bad_pass')
+        url = self.files_url
+        content = {'file1': 'foo.txt', 'file2': 'dir/foo.txt'}
+        content_jsoned = json.dumps(content)
+        httpretty.register_uri(httpretty.GET, url, status=401)
+        response = self.cm.do_login(data)
+        self.assertIn('content', response)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
     def test_post_recover_password_not_found(self):
         """
         Test that if /users/<email>/reset POST == 404 then cm return None
