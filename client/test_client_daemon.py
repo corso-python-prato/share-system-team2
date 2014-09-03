@@ -162,7 +162,7 @@ class TestClientDaemon(unittest.TestCase):
         client_daemon.Daemon.DEF_CONF['sharing_path'] = TEST_SHARING_FOLDER
 
         # Load configuration from default
-        self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH)
+        self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
 
         self.assertEqual(self.daemon.CONFIG_FILEPATH, CONFIG_FILEPATH)
         self.assertEqual(self.daemon.CONFIG_DIR, CONFIG_DIR)
@@ -171,7 +171,7 @@ class TestClientDaemon(unittest.TestCase):
 
     def test__create_cfg_with_custom_sharing_path(self):
         """
-        Test cfg creation with default configuration.
+        Test cfg creation with custom sharing folder.
         """
         # Set manually the configuration
         os.remove(CONFIG_FILEPATH)
@@ -180,7 +180,7 @@ class TestClientDaemon(unittest.TestCase):
         client_daemon.Daemon.DEF_CONF['local_dir_state_path'] = LOCAL_DIR_STATE_FOR_TEST
         new_sharing_path = os.path.join(CONFIG_DIR, 'new_sharing_path')
 
-        # Load configuration from default
+        # Load custom configuration
         self.daemon.cfg = self.daemon._create_cfg(CONFIG_FILEPATH, new_sharing_path)
 
         self.assertEqual(self.daemon.cfg['sharing_path'], new_sharing_path)
@@ -200,7 +200,7 @@ class TestClientDaemon(unittest.TestCase):
         Test creation of cfg and cfg directory in forbidden path.
         """
         forbidden_path = '/forbiden_path/cfg_file'
-        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path)
+        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path, sharing_path=TEST_SHARING_FOLDER)
 
     def test__init_sharing_path_with_default_configuration(self):
         """
@@ -210,8 +210,8 @@ class TestClientDaemon(unittest.TestCase):
         shutil.rmtree(TEST_SHARING_FOLDER)
         client_daemon.Daemon.DEF_CONF['sharing_path'] = TEST_SHARING_FOLDER
 
-        # Load configuration from default
-        self.daemon._init_sharing_path(sharing_path=None)
+        # Initialize configuration from default
+        self.daemon._init_sharing_path(sharing_path=TEST_SHARING_FOLDER)
 
         with open(CONFIG_FILEPATH, 'r') as cfg:
             saved_sharing_path = json.load(cfg)['sharing_path']
@@ -222,6 +222,12 @@ class TestClientDaemon(unittest.TestCase):
         Test Initialization of sharing folder done with customization.
         I can test this with customization happens by create_environment() during setUp.
         """
+        #Create new sharing_path
+        new_sharing_path= os.path.join(TEST_SHARING_FOLDER, 'test_sharing')
+
+        # Initialize configuration with custom sharing_path
+        self.daemon._init_sharing_path(sharing_path=new_sharing_path)
+
         with open(CONFIG_FILEPATH, 'r') as cfg:
             saved_sharing_path = json.load(cfg)['sharing_path']
         self.assertEqual(self.daemon.cfg['sharing_path'], saved_sharing_path, TEST_SHARING_FOLDER)
@@ -654,8 +660,7 @@ class TestClientDaemon(unittest.TestCase):
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
-
-        self.daemon = client_daemon.Daemon()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
         self.daemon.create_observer()
         self.daemon.observer.start()
         self.daemon.cfg['user'] = ''
@@ -676,8 +681,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
     def test_set_cmdmanager_response(self):
         response = 'testtestetst'
-        self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response),
-                         json.dumps({'message': response}))
+        self.assertEqual(self.daemon._set_cmdmanager_response(self.socket, response), json.dumps({'message': response}))
 
     def test__activation_check_block_not_allowed_operation(self):
         """

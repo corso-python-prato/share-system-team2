@@ -113,7 +113,7 @@ class Daemon(RegexMatchingEventHandler):
                 print 'Created folder:\n', path
         return True
 
-    def _create_cfg(self, cfg_path, sharing_path=None):
+    def _create_cfg(self, cfg_path, sharing_path):
         """
         Create the configuration file of client_daemon.
         If is given custom path for cfg (cfg_path) or observed directory (sharing_path) the config file
@@ -125,12 +125,11 @@ class Daemon(RegexMatchingEventHandler):
         """
 
         building_cfg = Daemon.DEF_CONF
-        if cfg_path and cfg_path != Daemon.CONFIG_FILEPATH:
+        building_cfg['sharing_path'] = sharing_path
+        if cfg_path != Daemon.CONFIG_FILEPATH:
             Daemon.CONFIG_FILEPATH = cfg_path
             Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
             building_cfg['local_dir_state_path'] = os.path.join(Daemon.CONFIG_DIR, 'local_dir_state')
-        if sharing_path:
-            building_cfg['sharing_path'] = sharing_path
         if self._build_directory(Daemon.CONFIG_DIR):
             with open(Daemon.CONFIG_FILEPATH, 'w') as daemon_config:
                 json.dump(building_cfg, daemon_config, skipkeys=True, ensure_ascii=True, indent=4)
@@ -152,8 +151,6 @@ class Daemon(RegexMatchingEventHandler):
         :param sharing_path: Indicate the path of observed directory
         :return: dictionary containing configuration
         """
-        if not cfg_path: cfg_path = Daemon.CONFIG_FILEPATH
-
         if os.path.isfile(cfg_path):
             try:
                 with open(cfg_path, 'r') as fo:
@@ -184,7 +181,6 @@ class Daemon(RegexMatchingEventHandler):
         If is impossible to create the directory exit error message is given.
         """
 
-        if not sharing_path: sharing_path = Daemon.DEF_CONF['sharing_path']
         if self._build_directory(sharing_path):
             self.cfg['sharing_path'] = sharing_path
             self.update_cfg()
@@ -258,7 +254,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.skip(abs_dst)
         try:
             copy2(abs_src, abs_dst)
-        except IOError as e:
+        except IOError:
             return False
 
         self.client_snapshot[dst] = self.client_snapshot[src]
@@ -285,7 +281,7 @@ class Daemon(RegexMatchingEventHandler):
         self.observer.skip(abs_dst)
         try:
             move(abs_src, abs_dst)
-        except IOError as e:
+        except IOError:
             return False
 
         self.client_snapshot[dst] = self.client_snapshot[src]
@@ -333,7 +329,7 @@ class Daemon(RegexMatchingEventHandler):
 
         if self._is_directory_modified():
             if local_timestamp == server_timestamp:
-                print "local_timestamp == server_timestamp and directory IS modified"
+                print 'local_timestamp == server_timestamp and directory IS modified'
                 # simple case: the client has the command
                 # it sends all folder modifications to server
 
@@ -352,7 +348,7 @@ class Daemon(RegexMatchingEventHandler):
                     # self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
             else:  # local_timestamp < server_timestamp
-                print "local_timestamp < server_timestamp and directory IS modified"
+                print 'local_timestamp < server_timestamp and directory IS modified'
                 assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
                                                             'local_timestamp > di server_timestamp '
                 # the server has the command
@@ -370,13 +366,13 @@ class Daemon(RegexMatchingEventHandler):
                                     tree_diff['new_on_client'].remove(path)
                                     break
                                 else:
-                                    self.stop(0, "move failed on in SYNC: src_path: {}, dest_path: {}".format(path,
+                                    self.stop(0, 'move failed on in SYNC: src_path: {}, dest_path: {}'.format(path,
                                                                                                               filepath))
                         # we haven't found files deleted on server so it's a copy
                         else:
                             if not self._make_copy_on_client(path, filepath, server_timestamp):
                                 self.stop(0,
-                                          "copy failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
+                                          'copy failed on in SYNC: src_path: {}, dest_path: {}'.format(path, filepath))
 
                     # the daemon don't know filepath, i will search if the file_timestamp is more recent then local_timestamp
                     else:
@@ -412,11 +408,11 @@ class Daemon(RegexMatchingEventHandler):
 
         else:  # directory not modified
             if local_timestamp == server_timestamp:
-                print "local_timestamp == server_timestamp and directory IS NOT modified"
+                print 'local_timestamp == server_timestamp and directory IS NOT modified'
                 # it's the best case. Client and server are already synchronized
                 return []
             else:  # local_timestamp < server_timestamp
-                print "local_timestamp < server_timestamp and directory IS NOT modified"
+                print 'local_timestamp < server_timestamp and directory IS NOT modified'
                 assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
                                                             'local_timestamp > di server_timestamp '
                 # the server has the command
@@ -434,13 +430,13 @@ class Daemon(RegexMatchingEventHandler):
                                     tree_diff['new_on_client'].remove(path)
                                     break
                                 else:
-                                    self.stop(0, "move failed on in SYNC: src_path: {}, dest_path: {}".format(path,
+                                    self.stop(0, 'move failed on in SYNC: src_path: {}, dest_path: {}'.format(path,
                                                                                                               filepath))
                         # we haven't found files deleted on server so it's a copy
                         else:
                             if not self._make_copy_on_client(path, filepath, server_timestamp):
                                 self.stop(0,
-                                          "copy failed on in SYNC: src_path: {}, dest_path: {}".format(path, filepath))
+                                          'copy failed on in SYNC: src_path: {}, dest_path: {}'.format(path, filepath))
                     else:
                         # it's a new file
                         sync_commands.append(('download', filepath))
@@ -457,7 +453,7 @@ class Daemon(RegexMatchingEventHandler):
                     try:
                         os.remove(abs_filepath)
                     except OSError as e:
-                        print "Delete EXEPTION INTO SYNC : {}".format(e)
+                        print 'Delete EXEPTION INTO SYNC : {}'.format(e)
 
                     self.client_snapshot.pop(filepath)
                     self.update_local_dir_state(server_timestamp)
@@ -828,8 +824,8 @@ class Daemon(RegexMatchingEventHandler):
         """
         Save local_dir_state on disk
         """
-        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "w"), indent=4)
-        print "local_dir_state saved"
+        json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], 'w'), indent=4)
+        print 'local_dir_state saved'
 
     def load_local_dir_state(self):
         """
@@ -839,13 +835,13 @@ class Daemon(RegexMatchingEventHandler):
 
         def _rebuild_local_dir_state():
             self.local_dir_state = {'last_timestamp': 0, 'global_md5': self.md5_of_client_snapshot()}
-            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], "w"), indent=4)
+            json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], 'w'), indent=4)
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
-            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], "r"))
-            print "Loaded local_dir_state"
+            self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], 'r'))
+            print 'Loaded local_dir_state'
         else:
-            print "local_dir_state not found. Initialize new local_dir_state"
+            print 'local_dir_state not found. Initialize new local_dir_state'
             _rebuild_local_dir_state()
 
     def md5_of_client_snapshot(self, verbose=0):
@@ -857,19 +853,19 @@ class Daemon(RegexMatchingEventHandler):
 
         if verbose:
             start = time.time()
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
 
         for path, time_md5 in sorted(self.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
             if verbose:
                 print path
-            md5Hash.update(time_md5[1])
-            md5Hash.update(path)
+            md5hash.update(time_md5[1])
+            md5hash.update(path)
 
         if verbose:
             stop = time.time()
             print stop - start
-        return md5Hash.hexdigest()
+        return md5hash.hexdigest()
 
     def hash_file(self, file_path, chunk_size=1024):
         """
@@ -877,7 +873,7 @@ class Daemon(RegexMatchingEventHandler):
         :return the md5 hash of received file
         """
 
-        md5Hash = hashlib.md5()
+        md5hash = hashlib.md5()
         try:
             f1 = open(file_path, 'rb')
             while 1:
@@ -885,20 +881,35 @@ class Daemon(RegexMatchingEventHandler):
                 buf = f1.read(chunk_size)
                 if not buf:
                     break
-                md5Hash.update(buf)
+                md5hash.update(buf)
             f1.close()
-            return md5Hash.hexdigest()
+            return md5hash.hexdigest()
         except (OSError, IOError) as e:
             print e
             return None
 
 
+def is_valid_file(string):
+    if os.path.isfile(string) or string == DEF_CFG_FILEPATH:
+        return string
+    else:
+        parser.error('The path "%s" does not be a valid file!' % string)
+
+
+def is_valid_dir(string):
+    if os.path.isdir(string) or string == DEF_SHARING_PATH:
+        return string
+    else:
+        parser.error('The path "%s" does not be a valid directory!' % string)
+
 if __name__ == '__main__':
+    DEF_SHARING_PATH = Daemon.DEF_CONF['sharing_path']
+    DEF_CFG_FILEPATH = Daemon.CONFIG_FILEPATH
     parser = argparse.ArgumentParser()
-    parser.add_argument("-cfg", help="the configuration file filepath", type=str)
-    parser.add_argument("-sh", help="the sharing path that we will observing", type=str)
+    parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
+    parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir,
+                        default=DEF_SHARING_PATH, dest='custom_sharing_path')
 
     args = parser.parse_args()
-
-    daemon = Daemon(args.cfg, args.sh)
+    daemon = Daemon(args.cfg, args.custom_sharing_path)
     daemon.start()
