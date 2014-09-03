@@ -46,7 +46,7 @@ PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
 SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
                                                'signup_email_template.txt')
 
-USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3 * 10000 # expires after 3 days
 USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
 # json/dict key to access to the user directory snapshot:
@@ -396,7 +396,7 @@ class Users(Resource):
         to_remove = [username for (username, data) in userdata.iteritems()
                      if userdata[username][USER_IS_ACTIVE] is False and
                      now_timestamp() - data[USER_CREATION_DATA][USER_CREATION_TIME] >
-                     (USER_ACTIVATION_TIMEOUT * 10000)]
+                     USER_ACTIVATION_TIMEOUT]
         [userdata.pop(username) for username in to_remove]
         return to_remove
 
