@@ -22,7 +22,8 @@ daemon_port = 50001
 ALLOWED_COMMAND = {
     'register': 'do_register',
     'activate': 'do_activate',
-    'recoverpass': 'do_recoverpass'
+    'recoverpass': 'do_recoverpass',
+    'login': 'do_login'
     }
 
 
@@ -216,6 +217,25 @@ class CommandParser(cmd.Cmd):
             return False
         else:
             message = {'activate': (mail, token)}
+            response = self._send_to_daemon(message)
+            print response['content']
+            return response
+
+    def do_login(self, line):
+        """
+        Login the user:
+        Verify user data entered by user
+        Usage: activate <e-mail> <token>
+        """
+        try:
+            mail, token = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: login <e-mail> <token>'
+            # for testing purpose
+            return False
+        else:
+            message = {'login': (mail, token)}
             response = self._send_to_daemon(message)
             print response['content']
             return response
