@@ -976,7 +976,6 @@ class TestUsersRecoverPassword(unittest.TestCase):
         """
         Test the password recovery with correct PUT parameters.
         """
-        print 'server.userdata["{}"] = {}'.format(self.active_user, server.userdata[self.active_user])
         old_password = server.userdata[self.active_user]['password']
 
         # Now we create an arbitrary recoverpass_code,
