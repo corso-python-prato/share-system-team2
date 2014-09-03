@@ -711,22 +711,35 @@ class Daemon(RegexMatchingEventHandler):
         :param cmd: received cmd from client_cmdmanager
         :param data: received data from client_cmdmanager
         """
+        def register():
+            """
+            update cfg with userdata
+            """
+            self.cfg['user'] = data[0]
+            self.cfg['pass'] = data[1]
+            self.update_cfg()
+
+        def activate():
+            """
+            activate observing and update cfg['activate'] state at True in all loaded cfg
+            """
+            self.cfg['activate'] = True
+            # Update the information about cfg into connection manager and cfg file
+            self.conn_mng.load_cfg(self.cfg)
+            self.update_cfg()
+            # Now the client_daemon is ready to operate, we do the start activity
+            self._initialize_observing()
+
+
         if cmd not in Daemon.ALLOWED_OPERATION:
             self._set_cmdmanager_response(s, 'Operation not allowed! Authorization required.')
         else:
             response = self.conn_mng.dispatch_request(cmd, data)
             if response['successful']:
                 if cmd == 'register':
-                    self.cfg['user'] = data[0]
-                    self.cfg['pass'] = data[1]
-                    self.update_cfg()
+                    register()
                 elif cmd == 'activate':
-                    self.cfg['activate'] = True
-                    # Update the information about cfg into connection manager
-                    self.conn_mng.load_cfg(self.cfg)
-                    self.update_cfg()
-                    # Now the client_daemon is ready to operate, we do the start activity
-                    self._initialize_observing()
+                    activate()
             self._set_cmdmanager_response(s, response)
 
     def start(self):
