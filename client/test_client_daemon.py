@@ -117,10 +117,13 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
         self.daemon.operation_happened = 'initial'
         self.daemon.create_observer()
+        self.daemon.observer.start()
 
     def tearDown(self):
         global base_dir_tree
         base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
         destroy_folder()
 
     def test__build_directory(self):
@@ -651,11 +654,18 @@ class TestClientDaemon(unittest.TestCase):
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
+
         self.daemon = client_daemon.Daemon()
+        self.daemon.create_observer()
+        self.daemon.observer.start()
         self.daemon.cfg['user'] = ''
         self.daemon.cfg['pass'] = ''
         self.daemon.cfg['activate'] = False
         self.socket = test_utils.FakeSocket()
+
+    def tearDown(self):
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
 
     def test_get_cmdmanager_request(self):
         command = {'shutdown': ()}
