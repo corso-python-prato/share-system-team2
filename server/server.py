@@ -556,6 +556,7 @@ class Users(Resource):
         userdata.pop(username)
         # TODO: add save_userdata()
         shutil.rmtree(userpath2serverpath(username))
+        save_userdata()
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
