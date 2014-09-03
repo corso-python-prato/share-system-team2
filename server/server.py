@@ -770,23 +770,23 @@ class Shares(Resource):
         return HTTP_OK
 
     @auth.login_required
-    def  delete(self, root_path, username=''):
+    def delete(self, root_path, username=''):
         owner = auth.username()
-        if not _is_shared(root_path, owner):
+        if not self._is_shared(root_path, owner):
             abort(HTTP_NOT_FOUND)
 
         if username == '':
-            del userdata[owner]['shared_with_others'][path]
+            del userdata[owner]['shared_with_others'][root_path]
             return HTTP_DELETED
    
-        if username in userdata[owner]['shared_with_others'][path]:
-            userdata[owner]['shared_with_others'][path].remove(username)
+        if username in userdata[owner]['shared_with_others'][root_path]:
+            userdata[owner]['shared_with_others'][root_path].remove(username)
             return HTTP_DELETED
 
         abort(HTTP_NOT_FOUND)
 
     def _is_shared(self, path, owner):
-        if root_path in userdata[owner]['shared_with_others']:
+        if path in userdata[owner]['shared_with_others']:
             return True
         return False
 
