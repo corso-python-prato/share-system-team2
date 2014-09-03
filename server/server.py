@@ -84,8 +84,6 @@ if not os.path.isdir('log'):
     os.mkdir('log')
 
 logger = logging.getLogger('Server log')
-# Set the default logging level, actually used if the module is imported:
-logger.setLevel(logging.WARN)
 
 # It's useful to log all messages of all severities to a text file while simultaneously
 # logging errors or above to the console. You set this up simply configuring the appropriate handlers.
@@ -347,16 +345,6 @@ def create_user(username, password, activation_code):
     return response
 
 
-@app.route('{}/signup'.format(URL_PREFIX), methods=['POST'])
-def signup():
-    """
-    Old simpler and immediate signup method (no mail) temporarily maintained only for testing purposes.
-    """
-    username = request.form.get('username')
-    password = request.form.get('password')
-    return activate_user(username, password)
-
-
 def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
@@ -396,42 +384,6 @@ def send_email(subject, sender, recipients, text_body):
     return msg
 
 
-class UsersFacility(Resource):
-    """
-    Debug facility/backdoor to get all users (and pending users) info and without authentication.
-    """
-
-    def get(self, username):
-        """
-        Show some info about users.
-        """
-        if username == '__all__':
-            # Easter egg to see a list of registered and pending users.
-            if userdata:
-                reg_users_listr = ', '.join(userdata.keys())
-            else:
-                reg_users_listr = 'no registered users'
-
-            if userdata[username][USER_IS_ACTIVE] is False:
-                pending_users_listr = ', '.join(userdata.keys())
-            else:
-                pending_users_listr = 'no pending users'
-            response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
-                       HTTP_OK
-        else:
-            if username in userdata:
-                user_data = userdata[username]
-                creation_timestamp = user_data.get(USER_CREATION_TIME)
-                if creation_timestamp:
-                    time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
-                else:
-                    time_str = '<unknown time>'
-                response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
-            else:
-                response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
-        return response
-
-
 class Users(Resource):
     def _clean_inactive_users(self):
         """
@@ -465,6 +417,34 @@ class Users(Resource):
             response = 'You joined on {}.'.format(time_str), HTTP_OK
             return response
         else:
+            if app.debug:
+                if username == '__all__':
+                    # Easter egg to see a list of registered and pending users.
+                    logger.warn('WARNING: showing the list of all users (debug mode)!!!')
+                    if userdata:
+                        reg_users_listr = ', '.join(userdata.keys())
+                    else:
+                        reg_users_listr = 'no registered users'
+                    if pending_users:
+                        pending_users_listr = ', '.join(pending_users.keys())
+                    else:
+                        pending_users_listr = 'no pending users'
+                    response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
+                               HTTP_OK
+                else:
+                    logger.warn('WARNING: showing {}\'s info (debug mode)!!!'.format(username))
+                    if username in userdata:
+                        user_data = userdata[username]
+                        creation_timestamp = user_data.get(USER_CREATION_TIME)
+                        if creation_timestamp:
+                            time_str = time.strftime('%Y-%m-%d at %H:%M:%S', time.localtime(creation_timestamp))
+                        else:
+                            time_str = '<unknown time>'
+                        response = 'User {} joined on {}.'.format(username, time_str), HTTP_OK
+                    else:
+                        response = 'The user {} does not exist.'.format(username), HTTP_NOT_FOUND
+                return response
+
             abort(HTTP_FORBIDDEN)
 
     def post(self, username):
@@ -542,25 +522,30 @@ class Users(Resource):
                 # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
                 return 'Invalid code', HTTP_NOT_FOUND
             else:
-                # User activation
+                # User inactive -> activation
                 activation_code = request.form['activation_code']
                 logger.debug('Got activation code: {}'.format(activation_code))
-                #logger.debug('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
-                user_data = userdata.get(username)
-                if user_data:
-                    logger.debug('Creating user {}'.format(username))
-                    if activation_code == user_data[USER_CREATION_DATA]['activation_code']:
-                        # Actually activate user
-                        password = user_data[PWD]
-                        return activate_user(username, password)
-                    else:
-                        abort(HTTP_NOT_FOUND)
+
+                user_data = userdata[username]
+                logger.debug('Creating user {}'.format(username))
+                if activation_code == user_data[USER_CREATION_DATA]['activation_code']:
+                    # Actually activate user
+                    password = user_data[PWD]
+                    return activate_user(username, password)
                 else:
-                    logger.info('{} not found as inactive'.format(username))
                     abort(HTTP_NOT_FOUND)
         else:
-            return 'Error: username not found!\n', HTTP_NOT_FOUND
+            # Not-existing user --> 404 (OR create it in debug mode with a backdoor)
+            #### DEBUG-MODE BACKDOOR ####
+            # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
+            if app.debug and activation_code == 'BACKDOOR':
+                password = 'debug-password'
+                logger.warn('WARNING: Creating user "{}" (password="{}") '
+                             'without email confirmation via backdoor!!!'.format(username, password))
+                return create_user(username, password)
+            #### DEBUG-MODE BACKDOOR ####
 
+            return 'Error: username not found!\n', HTTP_NOT_FOUND
 
     @auth.login_required
     def delete(self, username):
@@ -934,7 +919,6 @@ api.add_resource(Files, '{}/files/<path:path>'.format(URL_PREFIX), '{}/files/'.f
 api.add_resource(Actions, '{}/actions/<string:cmd>'.format(URL_PREFIX))
 api.add_resource(Users, '{}/users/<string:username>'.format(URL_PREFIX))
 api.add_resource(UsersRecoverPassword, '{}/users/<string:username>/reset'.format(URL_PREFIX))
-api.add_resource(UsersFacility, '{}/getusers/<string:username>'.format(URL_PREFIX))
 
 # Set the flask.ext.mail.Mail instance
 mail = configure_email()

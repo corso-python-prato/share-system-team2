@@ -51,9 +51,22 @@ User info (GET):
 
     curl localhost:5000/API/V1/users/<youruser> --user "<youruser>:<yourpassword>"
 
-User signup shortcut (deprecated):
 
-    curl localhost:5000/API/V1/signup --data "username=<youruser>&password=<yourpassword>"
+## Backdoors
+NB: The server needs to be started with --debug option!
+
+Create directly a new user without the email confirmation (PUT):
+
+    curl -X PUT localhost:5000/API/V1/users/<youruser> --data "activation_code=BACKDOOR"
+
+Users' info (GET):
+    NB: you must be authenticated.
+
+    All users' info:
+    $ curl -X GET localhost:5000/API/V1/users/__all__ --user "<youruser>:<yourpassword>"
+
+    Specific user's info:
+    $ curl -X GET localhost:5000/API/V1/users/<any_username> --user "<youruser>:<yourpassword>"
 
 User delete (DELETE):
 
