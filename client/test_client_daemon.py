@@ -768,8 +768,10 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         # Call _activation_check with failed response from server
         self.daemon._activation_check(self.socket, command, data)
 
-        self.assertEqual(old_user, self.daemon.cfg['user'])
-        self.assertEqual(old_pass, self.daemon.cfg['pass'])
+        self.assertNotEqual(self.daemon.cfg['user'], USR)
+        self.assertEqual(self.daemon.cfg['user'], old_user)
+        self.assertNotEqual(self.daemon.cfg['pass'], PW)
+        self.assertEqual(self.daemon.cfg['pass'], old_pass)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
