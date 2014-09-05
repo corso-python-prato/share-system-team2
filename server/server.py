@@ -419,18 +419,17 @@ class Users(Resource):
         else:
             if app.debug:
                 if username == '__all__':
-                    # Easter egg to see a list of registered and pending users.
+                    # Easter egg to see a list of active and pending (inactive) users.
                     logger.warn('WARNING: showing the list of all users (debug mode)!!!')
                     if userdata:
-                        reg_users_listr = ', '.join(userdata.keys())
+                        active_users = [username for username in userdata if userdata[username][USER_IS_ACTIVE]]
+                        active_users_str = ', '.join(active_users)
+                        inactive_users = [username for username in userdata if not userdata[username][USER_IS_ACTIVE]]
+                        inactive_users_str = ', '.join(inactive_users)
                     else:
-                        reg_users_listr = 'no registered users'
-                    if pending_users:
-                        pending_users_listr = ', '.join(pending_users.keys())
-                    else:
-                        pending_users_listr = 'no pending users'
-                    response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
-                               HTTP_OK
+                        reg_users_str = 'neither registered nor pending users'
+
+                    response = 'Activated users: {}. Inactive users: {}'.format(active_users_str, inactive_users_str), HTTP_OK
                 else:
                     logger.warn('WARNING: showing {}\'s info (debug mode)!!!'.format(username))
                     if username in userdata:
