@@ -23,8 +23,9 @@ ALLOWED_COMMAND = {
     'register': 'do_register',
     'activate': 'do_activate',
     'recoverpass': 'do_recoverpass',
-    'login': 'do_login'
-    }
+    'login': 'do_login',
+    'shutdown': 'do_shutdown'
+}
 
 
 # A regular expression to check if an email address is valid or not.
@@ -175,7 +176,9 @@ class CommandParser(cmd.Cmd):
         Shutdown the daemon
         """
         message = {'shutdown': ()}
-        self._send_to_daemon(message)
+        response = self._send_to_daemon(message)
+        print response['content']
+        return 'exit'
 
     def do_register(self, line):
         """
