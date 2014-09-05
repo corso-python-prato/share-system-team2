@@ -396,7 +396,8 @@ class Users(Resource):
                      if userdata[username][USER_IS_ACTIVE] is False and
                      now_timestamp() - data[USER_CREATION_DATA][USER_CREATION_TIME] >
                      USER_ACTIVATION_TIMEOUT]
-        [userdata.pop(username) for username in to_remove]
+        for username in to_remove:
+            userdata.pop(username)
         return to_remove
 
     @auth.login_required
