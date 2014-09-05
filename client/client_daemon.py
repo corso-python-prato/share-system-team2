@@ -731,9 +731,9 @@ class Daemon(RegexMatchingEventHandler):
             # Now the client_daemon is ready to operate, we do the start activity
             self._initialize_observing()
 
-
         if cmd not in Daemon.ALLOWED_OPERATION:
-            self._set_cmdmanager_response(s, 'Operation not allowed! Authorization required.')
+            response = {'content': 'Operation not allowed! Authorization required.',
+                        'successful': False}
         else:
             response = self.conn_mng.dispatch_request(cmd, data)
             if response['successful']:
@@ -744,7 +744,7 @@ class Daemon(RegexMatchingEventHandler):
                 elif cmd == 'login':
                     store_registration_data()
                     activate_daemon()
-            self._set_cmdmanager_response(s, response)
+        return response
 
     def start(self):
         """
@@ -790,8 +790,7 @@ class Daemon(RegexMatchingEventHandler):
                                     self._set_cmdmanager_response(s, response)
                                 else:
                                     if not self.cfg.get('activate', False):
-                                        self._activation_check(s, cmd, data)
-
+                                        response = self._activation_check(s, cmd, data)
                                     else:  # client is already activated
                                         response = self.conn_mng.dispatch_request(cmd, data)
                                         # for now the protocol is that for request sent by
@@ -800,7 +799,7 @@ class Daemon(RegexMatchingEventHandler):
                                         # daemon and cmdmanager comunications, it rebuild a json
                                         # to send like response
                                         # TODO it's advisable to make attention to this assertion or refact the architecture
-                                        self._set_cmdmanager_response(s, response)
+                                    self._set_cmdmanager_response(s, response)
                         else:  # it receives the FIN packet that close the connection
                             s.close()
                             r_list.remove(s)
