@@ -330,8 +330,9 @@ def create_user(username, password, activation_code):
             # user already exists!
             response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
+            enc_pass = _encrypt_password(password)
             single_user_data = {USER_IS_ACTIVE: False,
-                                PWD: password,
+                                PWD: enc_pass,
                                 USER_CREATION_DATA: {'creation_timestamp': now_timestamp(),
                                                      'activation_code': activation_code}
                                 }
