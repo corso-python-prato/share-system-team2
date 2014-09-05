@@ -312,9 +312,9 @@ def activate_user(username, password):
 
         response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
         if not username:
-            response = 'Error: username is empty: {}'.format(repr(username)), HTTP_BAD_REQUEST
+            response = 'Error: username is empty', HTTP_BAD_REQUEST
         else:
-            response = 'Error: password is empty: {}'.format(repr(password)), HTTP_BAD_REQUEST
+            response = 'Error: password is empty', HTTP_BAD_REQUEST
 
     logger.debug(response)
     return response
