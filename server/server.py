@@ -511,7 +511,7 @@ class Users(Resource):
                     recoverpass_timestamp = recoverpass_stuff['timestamp']
                     if request_recoverpass_code == recoverpass_code and \
                             (now_timestamp() - recoverpass_timestamp < USER_RECOVERPASS_TIMEOUT):
-                        userdata[PWD] = new_password
+                        userdata[username][PWD] = new_password
                         enc_pass = _encrypt_password(new_password)
                         userdata[username][PWD] = enc_pass
                         userdata[username].pop('recoverpass_data')
