@@ -783,9 +783,15 @@ class Daemon(RegexMatchingEventHandler):
                                 if cmd == 'shutdown':
                                     self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
+                                elif cmd == 'login' and self.cfg['activate']:
+                                    response = {'content': 'Warning! There is a user already autenthicated on this '
+                                                           'computer. Impossible to login account',
+                                                'successful': False}
+                                    self._set_cmdmanager_response(s, response)
                                 else:
                                     if not self.cfg.get('activate', False):
                                         self._activation_check(s, cmd, data)
+
                                     else:  # client is already activated
                                         response = self.conn_mng.dispatch_request(cmd, data)
                                         # for now the protocol is that for request sent by
