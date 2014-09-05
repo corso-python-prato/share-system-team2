@@ -781,9 +781,9 @@ class Daemon(RegexMatchingEventHandler):
                         if req:
                             for cmd, data in req.iteritems():
                                 if cmd == 'shutdown':
-                                    self._set_cmdmanager_response(s, 'Deamon is shuting down')
-                                    raise KeyboardInterrupt
+                                    response = {'content': 'Daemon is shutting down', 'successful': True}
                                     self._set_cmdmanager_response(s, response)
+                                    raise KeyboardInterrupt
                                 else:
                                     if not self.cfg.get('activate'):
                                         response = self._activation_check(s, cmd, data)
