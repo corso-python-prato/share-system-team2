@@ -546,7 +546,7 @@ class Users(Resource):
     @auth.login_required
     def delete(self, username):
         """
-        Delete all logged user's files and data.
+        Delete all logged user's files and data. Remove also inactive users.
         The same user won't more log in, but it can be recreated with the signup procedure.
         """
         logged = auth.username()
@@ -554,9 +554,12 @@ class Users(Resource):
         if username != logged:
             # I mustn't delete other users!
             abort(HTTP_FORBIDDEN)
+
+        if userdata[username][USER_IS_ACTIVE]:
+            # Remove also the user's folder
+            shutil.rmtree(userpath2serverpath(username))
+
         userdata.pop(username)
-        # TODO: add save_userdata()
-        shutil.rmtree(userpath2serverpath(username))
         save_userdata()
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 
