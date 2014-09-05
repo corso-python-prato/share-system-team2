@@ -391,8 +391,6 @@ class Users(Resource):
         and return a list of them.
         :return: list
         """
-        # Remove expired  inactive users.
-
         to_remove = [username for (username, data) in userdata.iteritems()
                      if userdata[username][USER_IS_ACTIVE] is False and
                      now_timestamp() - data[USER_CREATION_DATA][USER_CREATION_TIME] >
