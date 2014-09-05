@@ -18,7 +18,7 @@ from shutil import copy2, move
 # we import PollingObserver instead of Observer because the deleted event
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
-from watchdog.events import RegexMatchingEventHandler
+from watchdog.events import FileSystemEventHandler
 from connection_manager import ConnectionManager
 
 
@@ -57,7 +57,7 @@ class SkipObserver(Observer):
         event_queue.task_done()
 
 
-class Daemon(RegexMatchingEventHandler):
+class Daemon(FileSystemEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
     CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
@@ -83,8 +83,8 @@ class Daemon(RegexMatchingEventHandler):
     ALLOWED_OPERATION = {'register', 'activate'}
 
     def __init__(self, cfg_path=None, sharing_path=None):
-        RegexMatchingEventHandler.__init__(self, ignore_regexes=Daemon.IGNORED_REGEX, ignore_directories=True)
-
+        FileSystemEventHandler.__init__(self)
+        self.ignore_directories=True
         # Just Initialize variable the Daemon.start() do the other things
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
