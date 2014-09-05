@@ -712,7 +712,7 @@ class Daemon(RegexMatchingEventHandler):
         :param cmd: received cmd from client_cmdmanager
         :param data: received data from client_cmdmanager
         """
-        def register():
+        def store_registration_data():
             """
             update cfg with userdata
             """
@@ -720,7 +720,7 @@ class Daemon(RegexMatchingEventHandler):
             self.cfg['pass'] = data[1]
             self.update_cfg()
 
-        def activate():
+        def activate_daemon():
             """
             activate observing and update cfg['activate'] state at True in all loaded cfg
             """
@@ -738,12 +738,12 @@ class Daemon(RegexMatchingEventHandler):
             response = self.conn_mng.dispatch_request(cmd, data)
             if response['successful']:
                 if cmd == 'register':
-                    register()
+                    store_registration_data()
                 elif cmd == 'activate':
-                    activate()
+                    activate_daemon()
                 elif cmd == 'login':
-                    register()
-                    activate()
+                    store_registration_data()
+                    activate_daemon()
             self._set_cmdmanager_response(s, response)
 
     def start(self):
