@@ -527,6 +527,17 @@ class Daemon(RegexMatchingEventHandler):
 
         self.update_local_dir_state(last_operation_timestamp)
 
+    def _is_shared_file(self, path):
+        """
+        Check if the given path is a shared file.(Check if is located in 'shared' folder)
+        :param path:
+        :return: True, False
+        """
+
+        if path.split('/')[0] == 'shared':
+            return True
+        return False
+
     def relativize_path(self, abs_path):
         """
         This function relativize the path watched by daemon:
