@@ -490,7 +490,6 @@ class Users(Resource):
         Activate user using activation code sent by email, or reset its password.
         """
         # create a list of all usernames with flag active: False
-        pending_users = [user for user in userdata if userdata[user][USER_IS_ACTIVE] is False]
 
         # Pending users cleanup
         expired_pending_users = self._clean_inactive_users()
