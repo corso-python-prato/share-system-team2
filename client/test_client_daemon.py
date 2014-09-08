@@ -109,21 +109,13 @@ def fake_set_cmdmanager_response(socket, message):
     return response_packet
 
 
-class TestClientDaemon(unittest.TestCase):
-
+class TestClientDaemonConfig(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
-        self.daemon.operation_happened = 'initial'
-        self.daemon.create_observer()
-        self.daemon.observer.start()
 
     def tearDown(self):
-        global base_dir_tree
-        base_dir_tree = {}
-        self.daemon.observer.stop()
-        self.daemon.observer.join()
         destroy_folder()
 
     def test__build_directory(self):
@@ -316,6 +308,24 @@ class TestClientDaemon(unittest.TestCase):
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
             self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+
+
+class TestClientDaemon(unittest.TestCase):
+
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+        self.daemon.operation_happened = 'initial'
+        self.daemon.create_observer()
+        self.daemon.observer.start()
+
+    def tearDown(self):
+        global base_dir_tree
+        base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
+        destroy_folder()
 
     def test_md5_of_client_snapshot(self):
         """
