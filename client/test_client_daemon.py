@@ -11,7 +11,7 @@ import time
 import random
 # import httpretty
 import client_daemon
-import test_utils
+import tstutils
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -666,7 +666,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.cfg['user'] = ''
         self.daemon.cfg['pass'] = ''
         self.daemon.cfg['activate'] = False
-        self.socket = test_utils.FakeSocket()
+        self.socket = tstutils.FakeSocket()
 
     def tearDown(self):
         self.daemon.observer.stop()

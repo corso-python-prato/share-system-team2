@@ -5,7 +5,7 @@ import unittest
 import json
 
 import client_cmdmanager
-import test_utils
+import tstutils
 
 
 # Test-user account details
@@ -56,7 +56,7 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
     """
     def setUp(self):
         self.commandparser = client_cmdmanager.CommandParser()
-        self.commandparser.sock = test_utils.FakeSocket()
+        self.commandparser.sock = tstutils.FakeSocket()
 
     def test_sent_to_daemon_input(self):
         """
