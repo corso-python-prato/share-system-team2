@@ -812,3 +812,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Test the observing is started
         self.assertTrue(self.init_observing_called)
+
+
+if __name__ == '__main__':
+    unittest.main()
