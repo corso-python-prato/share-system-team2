@@ -410,6 +410,8 @@ class Daemon(RegexMatchingEventHandler):
             if local_timestamp == server_timestamp:
                 print 'local_timestamp == server_timestamp and directory IS NOT modified'
                 # it's the best case. Client and server are already synchronized
+                for key in tree_diff:
+                    assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty"
                 return []
             else:  # local_timestamp < server_timestamp
                 print 'local_timestamp < server_timestamp and directory IS NOT modified'
@@ -584,9 +586,9 @@ class Daemon(RegexMatchingEventHandler):
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
-        print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
+        print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp['server_timestamp'])
         if event_timestamp:
-            self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
+            self.client_snapshot[rel_new_path] = [event_timestamp['server_timestamp'], new_md5]
             self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
@@ -609,9 +611,9 @@ class Daemon(RegexMatchingEventHandler):
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('move', data)
-        print 'event_timestamp di "move" =', event_timestamp
+        print 'event_timestamp di "move" =', event_timestamp['server_timestamp']
         if event_timestamp:
-            self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
+            self.client_snapshot[rel_dest_path] = [event_timestamp['server_timestamp'], md5]
             # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
             self.client_snapshot.pop(rel_src_path)
             self.update_local_dir_state(event_timestamp['server_timestamp'])
@@ -633,8 +635,8 @@ class Daemon(RegexMatchingEventHandler):
         # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('modify', data)
         if event_timestamp:
-            print 'event_timestamp di "modified" =', event_timestamp
-            self.client_snapshot[rel_path] = [event_timestamp, new_md5]
+            print 'event_timestamp di "modified" =', event_timestamp['server_timestamp']
+            self.client_snapshot[rel_path] = [event_timestamp['server_timestamp'], new_md5]
             self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
             self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
@@ -649,7 +651,7 @@ class Daemon(RegexMatchingEventHandler):
         # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
         if event_timestamp:
-            print 'event_timestamp di "delete" =', event_timestamp
+            print 'event_timestamp di "delete" =', event_timestamp['server_timestamp']
             # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
             if self.client_snapshot.pop(rel_deleted_path, 'ERROR') == 'ERROR':
                 print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(
