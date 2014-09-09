@@ -1065,6 +1065,13 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.assertIn('password', subject.lower())
         self.assertTrue('change' in body and 'password' in body)
 
+    def test_put_active_user_with_no_password(self):
+        """
+        Test a PUT request made by an active user with a wrong password
+        """
+        test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user))
+        self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
+
 
 def get_dic_dir_states():
     """
