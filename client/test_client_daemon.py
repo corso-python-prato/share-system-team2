@@ -349,8 +349,6 @@ class TestClientDaemonDirState(unittest.TestCase):
 
         test_md5 = self.daemon.local_dir_state['global_md5']
 
-        print self.daemon.local_dir_state
-
         self.assertFalse(is_dir_modified_result)
         self.assertEqual(old_global_md5, test_md5)
 
@@ -837,7 +835,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
-        print self.init_observing_called
+
         self.assertEqual(self.daemon.cfg['user'], USR, old_user)
         self.assertEqual(self.daemon.cfg['pass'], PW, old_pass)
         self.assertTrue(self.daemon.cfg['activate'])
