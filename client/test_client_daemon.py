@@ -71,7 +71,7 @@ def create_environment():
         os.mkdir(TEST_SHARING_FOLDER)
 
     with open(CONFIG_FILEPATH, 'w') as f:
-            json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
+        json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
 
 
 def create_files(dir_tree):
