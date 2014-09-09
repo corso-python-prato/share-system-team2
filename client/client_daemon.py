@@ -599,18 +599,23 @@ class Daemon(FileSystemEventHandler):
                 'dst': rel_dest_path,
                 'md5': md5,
                 }
+        cmd = 'move'
+        if os.path.exists(e.src_path):
+            print 'WARNING this is copy event FROM MOVE EVENT!!'
+            cmd = 'copy'
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request('move', data)
-        print 'event_timestamp di "move" =', event_timestamp
+        event_timestamp = self.conn_mng.dispatch_request(cmd, data)
+        print 'event_timestamp di "{}" ='.format(cmd), event_timestamp
         if event_timestamp:
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
             # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
-            self.client_snapshot.pop(rel_src_path)
+            if cmd == 'move':
+                self.client_snapshot.pop(rel_src_path)
             self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(
-                e.src_path))
+            self.stop(1, 'Impossible to connect with the server. Failed during "{}" operation on "{}" file'
+                      .format(cmd, e.src_path))
 
     def on_modified(self, e):
 
