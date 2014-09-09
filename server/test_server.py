@@ -24,6 +24,7 @@ from server import userpath2serverpath
 HTTP_OK = 200
 HTTP_CREATED = 201
 HTTP_ACCEPTED = 202
+HTTP_BAD_REQUEST = 400
 HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
 HTTP_CONFLICT = 409
@@ -784,6 +785,15 @@ class TestUsersPost(unittest.TestCase):
         recipients = outbox[0].recipients
         self.assertEqual(recipients, [self.username])
         self.assertIn(activation_code, body.splitlines())
+
+    def test_create_user_without_password(self):
+        """
+        Test the creation of a new user without password.
+        """
+        _manually_create_user(self.username, self.password)
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                             data={'password': ''})
+        self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
 
 
 class TestUsersPut(unittest.TestCase):
