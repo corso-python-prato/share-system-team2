@@ -294,27 +294,19 @@ def activate_user(username, password):
     """
     logger.debug('Activating user...')
 
-    if username and password:
-        enc_pass = _encrypt_password(password)
-        temp = init_user_directory(username)
-        last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
+    enc_pass = _encrypt_password(password)
+    temp = init_user_directory(username)
+    last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
 
-        single_user_data = {USER_CREATION_TIME: now_timestamp(),
-                            PWD: enc_pass,
-                            LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                            SNAPSHOT: dir_snapshot,
-                            USER_IS_ACTIVE: True,
-                            }
-        userdata[username] = single_user_data
-        save_userdata()
-        response = 'User "{}" activated.\n'.format(username), HTTP_OK
-    else:
-
-        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
-        if not username:
-            response = 'Error: username is empty', HTTP_BAD_REQUEST
-        else:
-            response = 'Error: password is empty', HTTP_BAD_REQUEST
+    single_user_data = {USER_CREATION_TIME: now_timestamp(),
+                        PWD: enc_pass,
+                        LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                        SNAPSHOT: dir_snapshot,
+                        USER_IS_ACTIVE: True,
+                        }
+    userdata[username] = single_user_data
+    save_userdata()
+    response = 'User "{}" activated.\n'.format(username), HTTP_OK
 
     logger.debug(response)
     return response
