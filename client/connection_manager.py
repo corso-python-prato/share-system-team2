@@ -86,11 +86,10 @@ class ConnectionManager(object):
         try:
             r = requests.get(url, auth=(user, password))
             r.raise_for_status()
+            return {'content': 'User authenticated', 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_login', url, e))
             return {'content': 'Impossible to login, user unauthorized.', 'successful': False}
-        else:
-            return {'content': 'User authenticated', 'successful': True}
 
     def do_register(self, data):
         """
