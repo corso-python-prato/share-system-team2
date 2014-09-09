@@ -849,6 +849,23 @@ class TestUsersPut(unittest.TestCase):
         self.assertTrue(single_user_data[server.USER_IS_ACTIVE])
         self.assertEqual(test.status_code, HTTP_OK)
 
+    def test__clean_inactive_users(self):
+        """
+        Test the removal of users whose activation time is expired
+        """
+        EXPUSER = 'expireduser'
+        VALUSER = 'validuser'
+        EXP_CREATION_TIME = server.now_timestamp() - server.USER_ACTIVATION_TIMEOUT - 1
+        VALID_CREATION_TIME = server.now_timestamp()
+        server.userdata[EXPUSER] = {server.USER_IS_ACTIVE: False,
+                                    server.USER_CREATION_DATA: {server.USER_CREATION_TIME: EXP_CREATION_TIME}
+                                                                }
+                                    server.userdata[VALUSER] = {server.USER_IS_ACTIVE: False,
+                                    server.USER_CREATION_DATA: {server.USER_CREATION_TIME: VALID_CREATION_TIME}
+                                                                }
+        server.Users._clean_inactive_users()
+        self.assertNotIn(EXPUSER, server.userdata)
+
 
 class TestUsersDelete(unittest.TestCase):
     def setUp(self):
