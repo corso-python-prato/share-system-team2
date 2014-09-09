@@ -326,21 +326,18 @@ def create_user(username, password, activation_code):
     """
     logger.debug('Creating user...')
     if username and password:
-        if username in userdata:
-            # user already exists!
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
-            enc_pass = _encrypt_password(password)
-            single_user_data = {USER_IS_ACTIVE: False,
-                                PWD: enc_pass,
-                                USER_CREATION_DATA: {'creation_timestamp': now_timestamp(),
-                                                     'activation_code': activation_code}
-                                }
-            userdata[username] = single_user_data
-            save_userdata()
-            response = 'User activation email sent to {}'.format(username), HTTP_CREATED
+        enc_pass = _encrypt_password(password)
+        single_user_data = {USER_IS_ACTIVE: False,
+                            PWD: enc_pass,
+                            USER_CREATION_DATA: {'creation_timestamp': now_timestamp(),
+                                                 'activation_code': activation_code}
+                            }
+        userdata[username] = single_user_data
+        save_userdata()
+        response = 'User activation email sent to {}'.format(username), HTTP_CREATED
     else:
-        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
+        raise ServerInternalError('Unexpected error: username and password must not be empty here!!!\n'
+                                  'username: "%"" - password: "%"' % (username, password))
 
     logger.debug(response)
     return response
@@ -453,6 +450,9 @@ class Users(Resource):
         NB: username must be a valid email address.
         """
         password = request.form['password']
+        if not password:
+            return 'Error: the password mustn\'t be empty', HTTP_BAD_REQUEST
+
         strength, improvements = passwordmeter.test(password)
         if strength <= 0.5:
             return improvements, HTTP_FORBIDDEN
