@@ -228,17 +228,17 @@ class CommandParser(cmd.Cmd):
         """
         Login the user:
         Verify user data entered by user
-        Usage: activate <e-mail> <token>
+        Usage: activate <e-mail> <password>
         """
         try:
-            mail, token = line.split()
+            mail, password = line.split()
         except ValueError:
             print 'Bad arguments:'
-            print 'usage: login <e-mail> <token>'
+            print 'usage: login <e-mail> <password>'
             # for testing purpose
             return False
         else:
-            message = {'login': (mail, token)}
+            message = {'login': (mail, password)}
             response = self._send_to_daemon(message)
             print response['content']
             return response
