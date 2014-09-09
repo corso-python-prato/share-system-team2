@@ -904,7 +904,9 @@ class TestClientDaemon(unittest.TestCase):
 
     def test_on_created_copy(self):
         """"
-        Test EVENTS: test on created watchdog
+        Test EVENTS: test on_created watchdog:
+        on_created event must be detected as a copy event when a file
+        with the same md5 is already in the client_snapshot
         """
 
         some_file = os.path.join(TEST_SHARING_FOLDER, 'another_file.txt')
