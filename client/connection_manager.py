@@ -19,6 +19,7 @@
 # - DELETE /shares/<root_path>/<user> - elimina l’utente dallo share
 
 import requests
+from urllib import quote as urlquote
 import json
 import os
 import logging
@@ -87,7 +88,7 @@ class ConnectionManager(object):
         self.logger.info('do_register: URL: {} - DATA: {} '.format(url, data))
 
         try:
-            r = requests.post(url, data=req)
+            r = requests.post(urlquote(url, '+/: '), data=req)
             # i must check before raise_for_status to not destroy response
             if r.status_code == 403:
                 return {'improvements': json.loads(r.text), 'successful': False}
@@ -109,7 +110,7 @@ class ConnectionManager(object):
         self.logger.info('do_activate: URL: {} - DATA: {} '.format(url, data))
 
         try:
-            r = requests.put(url, data=req)
+            r = requests.put(urlquote(url, '+/: '), data=req)
             if r.status_code == 404:
                 return {'content': 'Error! Impossible to activate user! Unexistent user!', 'successful': False}
             elif r.status_code == 409:
@@ -128,7 +129,7 @@ class ConnectionManager(object):
         mail = data
         url = '{}{}/reset'.format(self.users_url, mail)
         try:
-            r = requests.post(url)
+            r = requests.post(urlquote(url, '+/: '))
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
@@ -142,7 +143,7 @@ class ConnectionManager(object):
         mail, recoverpass_code, new_password = data
         url = '{}{}'.format(self.users_url, mail)
         try:
-            r = requests.put(url,
+            r = requests.put(urlquote(url, '+/: '),
                              data={'password': new_password,
                                    'recoverpass_code': recoverpass_code})
             r.raise_for_status()
@@ -157,7 +158,7 @@ class ConnectionManager(object):
         url = ''.join([self.files_url, data['filepath']])
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_download', url, data))
         try:
-            r = requests.get(url, auth=self.auth)
+            r = requests.get(urlquote(url, '+/: '), auth=self.auth)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_download', url, e))
@@ -179,7 +180,7 @@ class ConnectionManager(object):
         _file = {'file': (open(filepath, 'rb'))}
 
         try:
-            r = requests.post(url, auth=self.auth, files=_file, data={'md5': data['md5']})
+            r = requests.post(urlquote(url, '+/: '), auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_upload', url, e))
@@ -197,7 +198,7 @@ class ConnectionManager(object):
 
         _file = {'file': (open(filepath, 'rb'))}
         try:
-            r = requests.put(url, auth=self.auth, files=_file, data={'md5': data['md5']})
+            r = requests.put(urlquote(url, '+/: '), auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_modify', url, e))
@@ -214,7 +215,7 @@ class ConnectionManager(object):
         d = {'src': data['src'], 'dst': data['dst']}
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_move', url, data))
         try:
-            r = requests.post(url, auth=self.auth, data=d)
+            r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_move', url, e))
@@ -229,7 +230,7 @@ class ConnectionManager(object):
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_delete', url, data))
         d = {'filepath': data['filepath']}
         try:
-            r = requests.post(url, auth=self.auth, data=d)
+            r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_delete', url, e))
@@ -243,7 +244,7 @@ class ConnectionManager(object):
         d = {'src': data['src'], 'dst': data['dst']}
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_copy', url, data))
         try:
-            r = requests.post(url, auth=self.auth, data=d)
+            r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_copy', url, e))
@@ -259,7 +260,7 @@ class ConnectionManager(object):
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_get_server_snapshot', url, data))
 
         try:
-            r = requests.get(url, auth=self.auth)
+            r = requests.get(urlquote(url, '+/: '), auth=self.auth)
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
 
