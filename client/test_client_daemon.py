@@ -121,9 +121,9 @@ class TestClientDaemonConfig(unittest.TestCase):
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
 
-    def test__build_directory_in_forbidend_path(self):
+    def test__build_directory_in_forbidden_path(self):
         """
-        Create directory in forbiden path
+        Create directory in forbidden path
         :return:boolean value, False if the path is not allowed
         """
         self.assertFalse(self.daemon._build_directory('/cartella_di_prova'))
@@ -182,11 +182,11 @@ class TestClientDaemonConfig(unittest.TestCase):
         self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
         self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
 
-    def test__create_cfg_in_forbiden_path(self):
+    def test__create_cfg_in_forbidden_path(self):
         """
         Test creation of cfg and cfg directory in forbidden path.
         """
-        forbidden_path = '/forbiden_path/cfg_file'
+        forbidden_path = '/forbidden_path/cfg_file'
         self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path, sharing_path=TEST_SHARING_FOLDER)
 
     def test__init_sharing_path_with_default_configuration(self):
@@ -244,7 +244,7 @@ class TestClientDaemonConfig(unittest.TestCase):
     def test_load_cfg_from_broken_file(self):
         """
         This test load broken config file.
-        We expect that default configuration is writen on file and loaded.
+        We expect that default configuration is written on file and loaded.
         """
         broken_json = '{"local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST, "sharing_path": TEST_SHARING_FOLDER'
 
@@ -256,7 +256,7 @@ class TestClientDaemonConfig(unittest.TestCase):
         # Loading of broken_cfg
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that broken file is overwrited with default configuration
+        # Check what is written to the file after load, i expect that broken file is overwritten with default configuration
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
@@ -276,7 +276,7 @@ class TestClientDaemonConfig(unittest.TestCase):
         # Loading of cfg with missing key
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        # Check what is written to the file after load, i expect that cfg is overwritten with default configuration
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
@@ -296,7 +296,7 @@ class TestClientDaemonConfig(unittest.TestCase):
         # Loading unexistent cfg
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        # Check what is written to the file after load, i expect that cfg is overwritten with default configuration
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
