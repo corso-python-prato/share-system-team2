@@ -384,7 +384,7 @@ class TestClientDaemonDirState(unittest.TestCase):
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp, msg="The timestamp i save is the save i load")
 
 
-class TestClientDaemon(unittest.TestCase):
+class TestClientDaemonActions(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
@@ -400,99 +400,7 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.observer.join()
         destroy_folder()
 
-    ####################### DIRECTORY NOT MODIFIED #####################################
-    def test_sync_process_move_on_server(self):
-
-        """
-        Test SYNC: Test only the calling of _make_move by _sync_process, server_timestamp > client_timestamp
-        Directory NOT modified
-        """
-
-        # Overriding sync methods of Class Daemon
-        client_daemon.Daemon._make_move_on_client = fake_make_move
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree starting with the same situation
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
-
-        # Added to copy of file1.txt
-        timestamp_and_md5_of_copied_file = server_dir_tree.pop('file1.txt')
-        server_dir_tree['move_folder/file1.txt'] = timestamp_and_md5_of_copied_file
-
-        # the src and destination of the file moved
-        src = 'file1.txt'
-        dst = 'move_folder/file1.txt'
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'move: src '+src+' dst: '+dst)
-
-    def test_sync_process_copy_on_server(self):
-        """
-        Test SYNC: Test only calling of _make_copy by sync, server_timestamp > client_timestamp
-        Directory NOT modified
-        """
-
-        # Overriding sync methods
-        client_daemon.Daemon._make_copy_on_client = fake_make_copy
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree starting with the same situation
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
-
-        # Added to copy of file1.txt
-        timestamp_and_md5_of_copied_file = server_dir_tree['file1.txt']
-        server_dir_tree['copy_folder/file1.txt'] = timestamp_and_md5_of_copied_file
-
-        # the src and destination of the file copied
-        src = 'file1.txt'
-        dst = 'copy_folder/file1.txt'
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'copy: src '+src+' dst: '+dst)
-
-    def test_sync_process_new_on_server(self):
-        """
-        Test SYNC: New file on server, server_timestamp > client_timestamp
-        Directory NOT MODIFIED
-        """
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree are the same here
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client_timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1, 'global_md5': old_global_md5_client}
-
-        # After that new file on server
-        server_dir_tree.update({'new_file_on_server.txt': (server_timestamp, '98746548972341')})
-
-        new_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                         [('download', 'new_file_on_server.txt')])
-        # Local Directory is NOT MODIFIED
-        self.assertEqual(new_global_md5_client, old_global_md5_client)
-
     ####################### TEST MOVE and COPY ON CLIENT ##############################
-
     def test_make_copy_function(self):
         """
         Test _MAKE_COPY: test the COPY function when the DST NOT EXISTS
@@ -612,6 +520,114 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_exists = 'move_folder/file1.txt'
 
         self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists, server_timestamp), True)
+
+
+class TestClientDaemonSync(unittest.TestCase):
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+        self.daemon.operation_happened = 'initial'
+        self.daemon.create_observer()
+        self.daemon.observer.start()
+
+    def tearDown(self):
+        global base_dir_tree
+        base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
+        destroy_folder()
+
+    ####################### DIRECTORY NOT MODIFIED #####################################
+    def test_sync_process_move_on_server(self):
+
+        """
+        Test SYNC: Test only the calling of _make_move by _sync_process, server_timestamp > client_timestamp
+        Directory NOT modified
+        """
+
+        # Overriding sync methods of Class Daemon
+        client_daemon.Daemon._make_move_on_client = fake_make_move
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
+
+        # Added to copy of file1.txt
+        timestamp_and_md5_of_copied_file = server_dir_tree.pop('file1.txt')
+        server_dir_tree['move_folder/file1.txt'] = timestamp_and_md5_of_copied_file
+
+        # the src and destination of the file moved
+        src = 'file1.txt'
+        dst = 'move_folder/file1.txt'
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'move: src '+src+' dst: '+dst)
+
+    def test_sync_process_copy_on_server(self):
+        """
+        Test SYNC: Test only calling of _make_copy by sync, server_timestamp > client_timestamp
+        Directory NOT modified
+        """
+
+        # Overriding sync methods
+        client_daemon.Daemon._make_copy_on_client = fake_make_copy
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
+
+        # Added to copy of file1.txt
+        timestamp_and_md5_of_copied_file = server_dir_tree['file1.txt']
+        server_dir_tree['copy_folder/file1.txt'] = timestamp_and_md5_of_copied_file
+
+        # the src and destination of the file copied
+        src = 'file1.txt'
+        dst = 'copy_folder/file1.txt'
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'copy: src '+src+' dst: '+dst)
+
+    def test_sync_process_new_on_server(self):
+        """
+        Test SYNC: New file on server, server_timestamp > client_timestamp
+        Directory NOT MODIFIED
+        """
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree are the same here
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client_timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1, 'global_md5': old_global_md5_client}
+
+        # After that new file on server
+        server_dir_tree.update({'new_file_on_server.txt': (server_timestamp, '98746548972341')})
+
+        new_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+                         [('download', 'new_file_on_server.txt')])
+        # Local Directory is NOT MODIFIED
+        self.assertEqual(new_global_md5_client, old_global_md5_client)
 
     ####################### DIRECTORY MODIFIED #####################################
     def test_sync_process_new_on_server_new_on_client(self):
