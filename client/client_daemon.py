@@ -71,11 +71,6 @@ class Daemon(FileSystemEventHandler):
     DEF_CONF['api_suffix'] = '/API/V1/'
     DEF_CONF['server_address'] = 'http://localhost:5000'
 
-    IGNORED_REGEX = ['.*\.[a-zA-z]+?#',  # Libreoffice suite temporary file ignored
-                     '.*\.[a-zA-Z]+?~',  # gedit issue solved ignoring this pattern:
-                     # gedit first delete file, create, and move to dest_path *.txt~
-    ]
-
     # Calculate int size in the machine architecture
     INT_SIZE = struct.calcsize('!i')
 
