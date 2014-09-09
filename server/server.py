@@ -46,7 +46,7 @@ PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
 SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
                                                'signup_email_template.txt')
 
-USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3 * 10000 # expires after 3 days
 USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
 # json/dict key to access to the user directory snapshot:
