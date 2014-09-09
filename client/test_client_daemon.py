@@ -310,21 +310,13 @@ class TestClientDaemonConfig(unittest.TestCase):
             self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
 
 
-class TestClientDaemon(unittest.TestCase):
-
+class TestClientDaemonDirState(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
-        self.daemon.operation_happened = 'initial'
-        self.daemon.create_observer()
-        self.daemon.observer.start()
 
     def tearDown(self):
-        global base_dir_tree
-        base_dir_tree = {}
-        self.daemon.observer.stop()
-        self.daemon.observer.join()
         destroy_folder()
 
     def test_md5_of_client_snapshot(self):
@@ -390,6 +382,23 @@ class TestClientDaemon(unittest.TestCase):
 
         self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot(), msg="The global_md5 i save is the save i load")
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp, msg="The timestamp i save is the save i load")
+
+
+class TestClientDaemon(unittest.TestCase):
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+        self.daemon.operation_happened = 'initial'
+        self.daemon.create_observer()
+        self.daemon.observer.start()
+
+    def tearDown(self):
+        global base_dir_tree
+        base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
+        destroy_folder()
 
     ####################### DIRECTORY NOT MODIFIED #####################################
     def test_sync_process_move_on_server(self):
