@@ -754,7 +754,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
     def test__activation_check_receive_registration_cmd_with_failed_registration_on_server(self):
         """
-#       Test that _activation_check receive registration cmd and registration failed on server.
+        Test that _activation_check receive registration cmd and registration failed on server.
         """
         def fake_initialize_observing():
             self.init_observing_called = True
