@@ -662,31 +662,89 @@ class Daemon(RegexMatchingEventHandler):
                           .format(data['cmd'], e.src_path))
 
     def on_moved(self, e):
-
         print 'start move'
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
-        # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
-        if self.client_snapshot.get(rel_src_path, 'ERROR') == 'ERROR':
-            self.stop(1,
-                      'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
-        md5 = self.client_snapshot[rel_src_path][1]
-        data = {'src': rel_src_path,
-                'dst': rel_dest_path,
-                'md5': md5,
-                }
-        # Send data to connection manager dispatcher and check return value.
-        # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request('move', data)
-        print 'event_timestamp di "move" =', event_timestamp
-        if event_timestamp:
-            self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
-            # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
-            self.client_snapshot.pop(rel_src_path)
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
-        else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(
-                e.src_path))
+
+        source_shared = self._is_shared_file(rel_src_path)
+        dest_shared = self._is_shared_file(rel_dest_path)
+
+        if source_shared and not dest_shared:  # file moved from shared path to not shared path
+            # upload the file
+            new_md5 = self.hash_file(e.dest_path)
+            data = {
+                'filepath': rel_dest_path,
+                'md5': new_md5
+            }
+
+            event_timestamp = self.conn_mng.dispatch_request('upload', data)
+            if event_timestamp:
+                self.client_snapshot[rel_dest_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp['server_timestamp'])
+
+                # force the re-download of the file at next synchronization
+                try:
+                    self.shared_snapshot.pop(rel_src_path)
+                except KeyError:
+                    pass
+            else:
+                self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(
+                    e.src_path))
+
+        elif source_shared and dest_shared:  # file moved from shared path to shared path
+            # force the re-download of the file moved at the next synchronization
+            try:
+                self.shared_snapshot.pop(rel_src_path)
+            except KeyError:
+                pass
+
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_dest_path)
+            except KeyError:
+                pass
+
+        elif not source_shared and dest_shared:  # file moved from not shared path to shared path
+            # delete file on server
+            event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_src_path})
+            if event_timestamp:
+                if self.client_snapshot.pop(rel_src_path, 'ERROR') == 'ERROR':
+                    print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(
+                        rel_src_path)
+                self.update_local_dir_state(event_timestamp['server_timestamp'])
+            else:
+                self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
+                    e.src_path))
+
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_dest_path)
+            except KeyError:
+                pass
+
+        else:  # file moved from not shared path to not shared path (standard case)
+
+            # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
+            if self.client_snapshot.get(rel_src_path, 'ERROR') == 'ERROR':
+                self.stop(1,
+                          'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
+            md5 = self.client_snapshot[rel_src_path][1]
+            data = {'src': rel_src_path,
+                    'dst': rel_dest_path,
+                    'md5': md5,
+                    }
+            # Send data to connection manager dispatcher and check return value.
+            # If all go right update client_snapshot and local_dir_state
+            event_timestamp = self.conn_mng.dispatch_request('move', data)
+            print 'event_timestamp di "move" =', event_timestamp
+            if event_timestamp:
+                self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
+                # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
+                self.client_snapshot.pop(rel_src_path)
+                self.update_local_dir_state(event_timestamp['server_timestamp'])
+            else:
+                self.stop(1, 'Impossible to connect with the server. Failed during "move" operation on "{}" file'.format(
+                    e.src_path))
 
     def on_modified(self, e):
 
