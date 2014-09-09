@@ -386,7 +386,8 @@ def send_email(subject, sender, recipients, text_body):
 
 
 class Users(Resource):
-    def _clean_inactive_users(self):
+    @staticmethod
+    def _clean_inactive_users():
         """
         Remove expired inactive users (users whose activation time is expired)
         and return a list of them.
