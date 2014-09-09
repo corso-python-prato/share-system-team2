@@ -551,6 +551,9 @@ class Daemon(FileSystemEventHandler):
                                 }
             return data
 
+        if e.is_directory is True:
+            return
+
         new_md5 = self.hash_file(e.src_path)
         rel_new_path = self.relativize_path(e.src_path)
         founded_path = self.search_md5(new_md5)
@@ -582,6 +585,8 @@ class Daemon(FileSystemEventHandler):
 
     def on_moved(self, e):
 
+        if e.is_directory is True:
+            return
         print 'start move'
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
@@ -609,6 +614,8 @@ class Daemon(FileSystemEventHandler):
 
     def on_modified(self, e):
 
+        if e.is_directory is True:
+            return
         print 'start modified'
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
@@ -630,6 +637,8 @@ class Daemon(FileSystemEventHandler):
 
     def on_deleted(self, e):
 
+        if e.is_directory is True:
+            return
         print 'start delete'
         rel_deleted_path = self.relativize_path(e.src_path)
 
