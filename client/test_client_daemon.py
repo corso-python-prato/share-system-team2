@@ -947,8 +947,7 @@ class TestClientDaemon(unittest.TestCase):
 
 @contextmanager
 def replace_conn_mng(daemon, fake):
-    original = daemon.conn_mng
-    daemon.conn_mng = fake
+    original, daemon.conn_mng = daemon.conn_mng, fake
     yield
     daemon.conn_mng = original
 
