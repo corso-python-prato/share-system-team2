@@ -89,6 +89,7 @@ class Daemon(RegexMatchingEventHandler):
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}  # EXAMPLE {'<filepath1>: ['<timestamp>', '<md5>', '<filepath2>: ...}
+        self.shared_snapshot = {}
         self.local_dir_state = {}  # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
@@ -221,7 +222,24 @@ class Daemon(RegexMatchingEventHandler):
                         break
                 if not unwanted_file:
                     relative_path = self.relativize_path(filepath)
-                    self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
+                    if not self._is_shared_file(relative_path):
+                        self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
+
+    def build_shared_snapshot(self):
+        """
+        Build the snapshot of the shared files according this structure:
+        {
+            "shared/<user>/<file_path>":('<timestamp>', '<md5>')
+        }
+        """
+        response = self.conn_mng.dispatch_request('get_server_snapshot', '')
+        if response is None:
+            self.stop(1, '\nReceived None snapshot. Server down?\n')
+
+        try:
+            self.shared_snapshot = response['shared_files']
+        except KeyError:
+            self.shared_snapshot = {}
 
     def _is_directory_modified(self):
         """
@@ -719,6 +737,7 @@ class Daemon(RegexMatchingEventHandler):
         We create the client_snapshot, load the information stored inside local_dir_state and create observer.
         """
         self.build_client_snapshot()
+        self.build_shared_snapshot()
         self.load_local_dir_state()
         self.create_observer()
         self.observer.start()
