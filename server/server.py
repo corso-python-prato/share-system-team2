@@ -532,7 +532,7 @@ class Users(Resource):
                 password = 'debug-password'
                 logger.warn('WARNING: Creating user "{}" (password="{}") '
                              'without email confirmation via backdoor!!!'.format(username, password))
-                return create_user(username, password)
+                return create_user(username, password, activation_code)
             #### DEBUG-MODE BACKDOOR ####
 
             return 'Error: username not found!\n', HTTP_NOT_FOUND
