@@ -464,15 +464,9 @@ class Users(Resource):
         send_email(subject, sender, recipients, text_body)
 
         if username in userdata:
-            if userdata[username][USER_IS_ACTIVE] is True:
-                response = 'Error: username "{}" already active!\n'.format(username), HTTP_CONFLICT
-            else:
-                # If the user is still pending for activation, it will receive a new activation mail
-                # and its equivalent activation_code will be updated in userdata json file.
-                send_email(subject, sender, recipients, text_body)
-                userdata[username][USER_CREATION_DATA]['activation_code'] = activation_code
-                save_userdata()
-                response = 'New user activation email sent to {}'.format(username), HTTP_OK
+            # If an user is pending for activation, it can't be another one with the same name
+            #  asking for registration
+            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
             return create_user(username, password, activation_code)
 
