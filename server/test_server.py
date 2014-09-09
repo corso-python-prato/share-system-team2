@@ -748,13 +748,12 @@ class TestUsersPost(unittest.TestCase):
             else:
                 self.assertEqual(test.status_code, HTTP_OK)
 
-
     def test_user_creation_with_weak_password(self):
         """
+        Test post request with weak password and assures user was not saved on disk
         """
         test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username), data={'password': 'weak_password'})
 
-        # Test that user is not added to <pendint_users>
         self.assertNotIn(self.username, server.userdata.keys())
         self.assertEqual(test.status_code, HTTP_FORBIDDEN)
         self.assertIsInstance(json.loads(test.get_data()), dict)
