@@ -864,12 +864,9 @@ class TestClientDaemon(unittest.TestCase):
         # create the snapshot of real files
         self.daemon.build_client_snapshot()
 
-        self.assertIn('just_a_file.txt', self.daemon.client_snapshot
-                        )
-        self.assertNotIn('a_tmp_file.txt#', self.daemon.client_snapshot
-                        )
-        self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot
-                        )
+        self.assertIn('just_a_file.txt', self.daemon.client_snapshot)
+        self.assertNotIn('a_tmp_file.txt#', self.daemon.client_snapshot)
+        self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot)
 
     ################ TEST EVENTS ####################
 
@@ -1074,7 +1071,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
     def test__activation_check_receive_registration_cmd_with_failed_registration_on_server(self):
         """
-#       Test that _activation_check receive registration cmd and registration failed on server.
+        Test that _activation_check receive registration cmd and registration failed on server.
         """
 
         def fake_initialize_observing():
@@ -1130,7 +1127,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
-        print self.init_observing_called
         self.assertEqual(self.daemon.cfg['user'], USR, old_user)
         self.assertEqual(self.daemon.cfg['pass'], PW, old_pass)
         self.assertTrue(self.daemon.cfg['activate'])
