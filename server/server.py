@@ -288,18 +288,17 @@ def verify_password(username, password):
     return res
 
 
-def activate_user(username, password):
+def activate_user(username, encrypted_password):
     """
     Handle the activation of an existing user(with flag active: True).
     """
     logger.debug('Activating user...')
 
-    enc_pass = _encrypt_password(password)
     temp = init_user_directory(username)
     last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
 
     single_user_data = {USER_CREATION_TIME: now_timestamp(),
-                        PWD: enc_pass,
+                        PWD: encrypted_password,
                         LAST_SERVER_TIMESTAMP: last_server_timestamp,
                         SNAPSHOT: dir_snapshot,
                         USER_IS_ACTIVE: True,
@@ -315,6 +314,7 @@ def activate_user(username, password):
 def create_user(username, password, activation_code):
     """
     Handle the creation of a new user(with flag active: False).
+    User's password is encrypted here.
     """
     logger.debug('Creating user...')
     if username and password:
@@ -520,8 +520,8 @@ class Users(Resource):
                 logger.debug('Creating user {}'.format(username))
                 if activation_code == user_data[USER_CREATION_DATA]['activation_code']:
                     # Actually activate user
-                    password = user_data[PWD]
-                    return activate_user(username, password)
+                    encrypted_password = user_data[PWD]
+                    return activate_user(username, encrypted_password)
                 else:
                     abort(HTTP_NOT_FOUND)
         else:
