@@ -756,16 +756,23 @@ class Daemon(RegexMatchingEventHandler):
                 'md5': new_md5
                 }
 
-        # Send data to connection manager dispatcher and check return value.
-        # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request('modify', data)
-        if event_timestamp:
-            print 'event_timestamp di "modified" =', event_timestamp
-            self.client_snapshot[rel_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+        if self._is_shared_file(rel_path):
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_path)
+            except KeyError:
+                pass
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
-                e.src_path))
+            # Send data to connection manager dispatcher and check return value.
+            # If all go right update client_snapshot and local_dir_state
+            event_timestamp = self.conn_mng.dispatch_request('modify', data)
+            if event_timestamp:
+                print 'event_timestamp di "modified" =', event_timestamp
+                self.client_snapshot[rel_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp['server_timestamp'])
+            else:
+                self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
+                    e.src_path))
 
     def on_deleted(self, e):
 
