@@ -51,6 +51,7 @@ USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
 
 # json key to access to the user directory snapshot:
 SNAPSHOT = 'files'
+SHARED_FILES ='shared_files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
@@ -303,7 +304,8 @@ def create_user(username, password):
                                 LAST_SERVER_TIMESTAMP: last_server_timestamp,
                                 SNAPSHOT: dir_snapshot,
                                 'shared_with_me':{},
-                                'shared_with_others':{}
+                                'shared_with_others':{},
+                                'shared_files':{}
                                 }
             userdata[username] = single_user_data
             save_userdata()
@@ -703,6 +705,11 @@ class Shares(Resource):
         #Check if the path is sharable
         if not self._is_sharable(root_path, owner):
             abort(HTTP_FORBIDDEN)    
+        #Check if path is a file or a directory
+        if os.path.isdir(root_path):
+            for root, dirs, files in os.walk(path):
+                self._share(files, username, owner)
+            return HTTP_OK
         self._share(root_path, username, owner)
 
         return HTTP_OK
@@ -738,6 +745,7 @@ class Shares(Resource):
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
         userdata[username]['shared_with_me'][owner].append(path)
+        userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, path)] = (0,0)
         userdata[owner]['shared_with_others'][path].append(username)
 
     def _is_sharable(self, path, owner):
@@ -799,15 +807,17 @@ class Files(Resource):
             snapshot = userdata[username][SNAPSHOT]
             logger.info('snapshot returned {:,} files'.format(len(snapshot)))
             last_server_timestamp = userdata[username][LAST_SERVER_TIMESTAMP]
+            shared_files = userdata[username][SHARED_FILES]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: snapshot})
+                                SNAPSHOT: snapshot, 
+                                SHARED_FILES: shared_files})
         logging.debug(response)
         return response
     
     def _is_shared_with_me(self, path, username):
         #shared, ownresourceplit('/',2)
 
-        #if shared == 'shared' and resource in userdata[username][shared_with_me].get(owner):
+        #if shared == 'shared' and resource in userdata[usepòrname][shared_with_me].get(owner):
         if path.split('/')[0] == 'shared':
             _, owner, resource = path.split('/',2)
             

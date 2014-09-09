@@ -147,6 +147,7 @@ def _manually_create_user(username, pw):
     single_user_data[server.USER_CREATION_TIME] = server.now_timestamp()
     single_user_data['shared_with_me'] = {}
     single_user_data['shared_with_others'] = {}
+    single_user_data['shared_files'] = {}
     server.userdata[username] = single_user_data
     return single_user_data
 
