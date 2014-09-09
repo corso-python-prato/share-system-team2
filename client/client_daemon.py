@@ -560,16 +560,16 @@ class Daemon(FileSystemEventHandler):
 
         # with this check i found the copy events
         if founded_path:
-            print 'start copy'
+            print 'start copy event from path: {} to path: {}'.format(self.absolutize_path(founded_path), e.src_path)
             data = build_data('copy', rel_new_path, new_md5, founded_path)
 
         # this elif check that this created aren't modified event
         elif rel_new_path in self.client_snapshot:
-            print 'start modified FROM CREATE!!!!!'
+            print 'WARNING this is modify event FROM CREATE EVENT!!! path of file:', e.src_path
             data = build_data('modify', rel_new_path, new_md5)
 
         else:  # Finally we find a real create event!
-            print 'start create'
+            print 'start create in path:', e.src_path
             data = build_data('upload', rel_new_path, new_md5)
 
         # Send data to connection manager dispatcher and check return value.
@@ -587,7 +587,7 @@ class Daemon(FileSystemEventHandler):
 
         if e.is_directory is True:
             return
-        print 'start move'
+        print 'start move from path :', e.src_path, 'to path:', e.dest_path
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
         # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
@@ -616,7 +616,7 @@ class Daemon(FileSystemEventHandler):
 
         if e.is_directory is True:
             return
-        print 'start modified'
+        print 'start modify of file:', e.src_path
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
 
@@ -639,7 +639,7 @@ class Daemon(FileSystemEventHandler):
 
         if e.is_directory is True:
             return
-        print 'start delete'
+        print 'start delete of file:', e.src_path
         rel_deleted_path = self.relativize_path(e.src_path)
 
         # Send data to connection manager dispatcher and check return value.
