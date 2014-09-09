@@ -35,16 +35,16 @@ LIST_OF_TEST_FILES = [
 base_dir_tree = {}
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
-    "sharing_path": TEST_SHARING_FOLDER,
-    "cmd_address": "localhost",
-    "cmd_port": 60001,
-    "api_suffix": "/API/V1/",
+    'local_dir_state_path': LOCAL_DIR_STATE_FOR_TEST,
+    'sharing_path': TEST_SHARING_FOLDER,
+    'cmd_address': 'localhost',
+    'cmd_port': 60001,
+    'api_suffix': '/API/V1/',
     # no server_address to be sure
-    "server_address": "",
-    "user": "user",
-    "pass": "pass",
-    "activate": True,
+    'server_address': '',
+    'user': 'user',
+    'pass': 'pass',
+    'activate': True,
 }
 
 # Test-user account details
@@ -89,12 +89,12 @@ def destroy_folder():
 
 
 def fake_make_move(self, src, dst, timestamp):
-    self.operation_happened = "move: src "+src+" dst: "+dst
+    self.operation_happened = 'move: src '+src+' dst: '+dst
     return True
 
 
 def fake_make_copy(self, src, dst, timestamp):
-    self.operation_happened = "copy: src "+src+" dst: "+dst
+    self.operation_happened = 'copy: src '+src+' dst: '+dst
     return True
 
 
@@ -268,7 +268,7 @@ class TestClientDaemonConfig(unittest.TestCase):
         We expect default configuration will be written on file and loaded.
         """
         # I expect some customize configuration is loaded
-        missing_key_cfg = {"local_dir_state_path": 'error_value', 'missing_key': False}
+        missing_key_cfg = {'local_dir_state_path': 'error_value', 'missing_key': False}
         with open(CONFIG_FILEPATH, 'w') as cfg:
             json.dump(missing_key_cfg, cfg)
 
@@ -364,8 +364,8 @@ class TestClientDaemonDirState(unittest.TestCase):
         self.daemon.update_local_dir_state(time_stamp)
         self.daemon.load_local_dir_state()
 
-        self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot(), msg="The global_md5 i save is the save i load")
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp, msg="The timestamp i save is the save i load")
+        self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot(), msg='The global_md5 i save is the save i load')
+        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp, msg='The timestamp i save is the save i load')
 
 
 class TestClientDaemonActions(unittest.TestCase):
