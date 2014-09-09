@@ -317,7 +317,6 @@ class TestClientDaemonDirState(unittest.TestCase):
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
         :return:
         """
-        time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
 
         md5hash = hashlib.md5()
