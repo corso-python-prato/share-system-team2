@@ -31,15 +31,7 @@ class ConnectionManager(object):
                         )
 
     def __init__(self, cfg, logging_level=logging.ERROR):
-        self.cfg = cfg
-        self.auth = (self.cfg['user'], self.cfg['pass'])
-
-        # example of self.base_url = 'http://localhost:5000/API/V1/'
-        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
-        self.files_url = ''.join([self.base_url, 'files/'])
-        self.actions_url = ''.join([self.base_url, 'actions/'])
-        self.shares_url = ''.join([self.base_url, 'shares/'])
-        self.users_url = ''.join([self.base_url, 'users/'])
+        self.load_cfg(cfg)
 
         self.logger = logging.getLogger("ConMng")
         self.logger.setLevel(level=logging_level)
@@ -64,6 +56,21 @@ class ConnectionManager(object):
 
         self.logger.addHandler(console_handler)
 
+    def load_cfg(self, cfg):
+        """
+        Load the configuration received from client_daemon
+        :param cfg: Dictionary where is contained the configuration
+        """
+        self.cfg = cfg
+        self.auth = (self.cfg.get('user', None), self.cfg.get('pass', None))
+
+        # example of self.base_url = 'http://localhost:5000/API/V1/'
+        self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
+        self.files_url = ''.join([self.base_url, 'files/'])
+        self.actions_url = ''.join([self.base_url, 'actions/'])
+        self.shares_url = ''.join([self.base_url, 'shares/'])
+        self.users_url = ''.join([self.base_url, 'users/'])
+
     def dispatch_request(self, command, args=None):
         method_name = ''.join(['do_', command])
         try:
@@ -81,17 +88,17 @@ class ConnectionManager(object):
 
         try:
             r = requests.post(url, data=req)
-            # this mean the password is not allowed, i must check before raise_for_status to not destroy response
+            # i must check before raise_for_status to not destroy response
             if r.status_code == 403:
-                return {'improvements': json.loads(r.text)}
+                return {'improvements': json.loads(r.text), 'successful': False}
             elif r.status_code == 409:
-                return {'content': 'Error! User already existent!'}
+                return {'content': 'Error! User already existent!', 'successful': False}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
-            return {'content': 'Error during registration:\n{}'.format(e)}
+            return {'content': 'Error during registration:\n{}'.format(e), 'successful': False}
         else:
-            return {'content': json.loads(r.text)}
+            return {'content': json.loads(r.text), 'successful': True}
 
     def do_activate(self, data):
         """
@@ -103,12 +110,46 @@ class ConnectionManager(object):
 
         try:
             r = requests.put(url, data=req)
+            if r.status_code == 404:
+                return {'content': 'Error! Impossible to activate user! Unexistent user!', 'successful': False}
+            elif r.status_code == 409:
+                return {'content': 'Error! Impossible to activate user! User already activated!', 'successful': False}
             r.raise_for_status()
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_activate: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
         else:
+            return {'content': json.loads(r.text), 'successful': True}
+        return {'content': 'Error during activation:\n{}'.format(e), 'successful': False}
+
+    def do_reqrecoverpass(self, data):
+        """
+        Ask server for reset current user password.
+        """
+        mail = data
+        url = '{}{}/reset'.format(self.users_url, mail)
+        try:
+            r = requests.post(url)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_reqrecoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+        else:
             return r.text
-        return False
+
+    def do_recoverpass(self, data):
+        """
+        Change current password using the code given by email.
+        """
+        mail, recoverpass_code, new_password = data
+        url = '{}{}'.format(self.users_url, mail)
+        try:
+            r = requests.put(url,
+                             data={'password': new_password,
+                                   'recoverpass_code': recoverpass_code})
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_recoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
+        else:
+            return r.text
 
     # shares
 
@@ -267,7 +308,6 @@ class ConnectionManager(object):
 
     def do_get_server_snapshot(self, data):
         url = self.files_url
-
 
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_get_server_snapshot', url, data))
 
