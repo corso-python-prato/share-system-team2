@@ -860,7 +860,7 @@ class TestUsersPut(unittest.TestCase):
         server.userdata[EXPUSER] = {server.USER_IS_ACTIVE: False,
                                     server.USER_CREATION_DATA: {server.USER_CREATION_TIME: EXP_CREATION_TIME}
                                                                 }
-                                    server.userdata[VALUSER] = {server.USER_IS_ACTIVE: False,
+        server.userdata[VALUSER] = {server.USER_IS_ACTIVE: False,
                                     server.USER_CREATION_DATA: {server.USER_CREATION_TIME: VALID_CREATION_TIME}
                                                                 }
         server.Users._clean_inactive_users()
