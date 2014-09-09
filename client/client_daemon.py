@@ -202,15 +202,8 @@ class Daemon(FileSystemEventHandler):
         for dirpath, dirs, files in os.walk(self.cfg['sharing_path']):
             for filename in files:
                 filepath = os.path.join(dirpath, filename)
-                unwanted_file = False
-                for r in Daemon.IGNORED_REGEX:
-                    if re.match(r, filepath) is not None:
-                        unwanted_file = True
-                        print 'Ignored Path:', filepath
-                        break
-                if not unwanted_file:
-                    relative_path = self.relativize_path(filepath)
-                    self.client_snapshot[relative_path] = ['', self.hash_file(filepath)]
+                rel_filepath = self.relativize_path(filepath)
+                self.client_snapshot[rel_filepath] = ['', self.hash_file(filepath)]
 
     def _is_directory_modified(self):
         """
