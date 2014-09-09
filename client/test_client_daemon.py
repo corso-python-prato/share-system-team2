@@ -75,7 +75,6 @@ def create_environment():
 
 
 def create_files(dir_tree):
-
     for path in dir_tree:
         file_path = os.path.join(TEST_SHARING_FOLDER, path)
         dirname = os.path.dirname(file_path)
@@ -90,13 +89,11 @@ def destroy_folder():
 
 
 def fake_make_move(self, src, dst, timestamp):
-
     self.operation_happened = "move: src "+src+" dst: "+dst
     return True
 
 
 def fake_make_copy(self, src, dst, timestamp):
-
     self.operation_happened = "copy: src "+src+" dst: "+dst
     return True
 
@@ -270,7 +267,6 @@ class TestClientDaemonConfig(unittest.TestCase):
         This test load file cfg with missing key.
         We expect default configuration will be written on file and loaded.
         """
-
         # I expect some customize configuration is loaded
         missing_key_cfg = {"local_dir_state_path": 'error_value', 'missing_key': False}
         with open(CONFIG_FILEPATH, 'w') as cfg:
@@ -294,7 +290,6 @@ class TestClientDaemonConfig(unittest.TestCase):
         Test load_cfg with cfg_path of unexistent file.
         I expect default cfg is loaded.
         """
-
         os.remove(CONFIG_FILEPATH)
 
         self.assertNotEqual(self.daemon.cfg, client_daemon.Daemon.DEF_CONF)
@@ -322,7 +317,6 @@ class TestClientDaemonDirState(unittest.TestCase):
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
         :return:
         """
-
         time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
 
@@ -330,7 +324,6 @@ class TestClientDaemonDirState(unittest.TestCase):
 
         for path, time_md5 in sorted(self.daemon.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
-
             md5hash.update(time_md5[1])
             md5hash.update(path)
 
@@ -338,15 +331,11 @@ class TestClientDaemonDirState(unittest.TestCase):
         self.assertEqual(md5hash.hexdigest(), self.daemon.md5_of_client_snapshot())
 
     def test_is_directory_not_modified(self):
-
         self.daemon.client_snapshot = base_dir_tree.copy()
-
         self.daemon.update_local_dir_state(timestamp_generator())
 
         old_global_md5 = self.daemon.local_dir_state['global_md5']
-
         is_dir_modified_result = self.daemon._is_directory_modified()
-
         test_md5 = self.daemon.local_dir_state['global_md5']
 
         self.assertFalse(is_dir_modified_result)
@@ -357,7 +346,6 @@ class TestClientDaemonDirState(unittest.TestCase):
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method when i have update the client_snapshot
         :return:
         """
-
         time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
         old_global_md5 = self.daemon.md5_of_client_snapshot()
@@ -402,7 +390,6 @@ class TestClientDaemonActions(unittest.TestCase):
         Test _MAKE_COPY: test the COPY function when the DST NOT EXISTS
         :return:
         """
-
         create_base_dir_tree(['file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
         server_timestamp = timestamp_generator()
@@ -424,7 +411,6 @@ class TestClientDaemonActions(unittest.TestCase):
         Test _MAKE_COPY: test the COPY function when the SRC NOT EXISTS
         :return:
         """
-
         create_base_dir_tree([])
         self.daemon.client_snapshot = base_dir_tree.copy()
 
@@ -505,7 +491,6 @@ class TestClientDaemonActions(unittest.TestCase):
         Test _MAKE_MOVE: test the MOVE function when the DST EXISTS
         :return:
         """
-
         create_base_dir_tree(['file1.txt', 'move_folder/file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
 
@@ -536,12 +521,10 @@ class TestClientDaemonSync(unittest.TestCase):
 
     ####################### DIRECTORY NOT MODIFIED #####################################
     def test_sync_process_move_on_server(self):
-
         """
         Test SYNC: Test only the calling of _make_move by _sync_process, server_timestamp > client_timestamp
         Directory NOT modified
         """
-
         # Overriding sync methods of Class Daemon
         client_daemon.Daemon._make_move_on_client = fake_make_move
 
@@ -572,7 +555,6 @@ class TestClientDaemonSync(unittest.TestCase):
         Test SYNC: Test only calling of _make_copy by sync, server_timestamp > client_timestamp
         Directory NOT modified
         """
-
         # Overriding sync methods
         client_daemon.Daemon._make_copy_on_client = fake_make_copy
 
@@ -603,7 +585,6 @@ class TestClientDaemonSync(unittest.TestCase):
         Test SYNC: New file on server, server_timestamp > client_timestamp
         Directory NOT MODIFIED
         """
-
         server_timestamp = timestamp_generator()
 
         # server tree and client tree are the same here
@@ -631,7 +612,6 @@ class TestClientDaemonSync(unittest.TestCase):
         Test SYNC: new file on server, new on client, server_timestamp > client_timestamp
         Directory modified
         """
-
         server_timestamp = timestamp_generator()
 
         # server tree and client tree are the same
@@ -657,12 +637,10 @@ class TestClientDaemonSync(unittest.TestCase):
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
 
     def test_sync_process_modified_on_server_modified_on_client(self):
-
         """
         Test SYNC: modified file on server, modified same file on client, server_timestamp > client_timestamp
         Directory modified
         """
-
         server_timestamp = timestamp_generator()
 
         # server tree and client tree starting with the same situation
@@ -718,7 +696,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check block not allowed operation
         """
-
         def fake_initialize_observing():
             function_called = True
 
@@ -746,7 +723,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check receive registration cmd and registration is successful.
         """
-
         def fake_initialize_observing():
             self.init_observing_called = True
 
@@ -781,7 +757,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
 #       Test that _activation_check receive registration cmd and registration failed on server.
         """
-
         def fake_initialize_observing():
             self.init_observing_called = True
 
@@ -814,7 +789,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check receive registration cmd and registration is successful.
         """
-
         def fake_initialize_observing():
             self.init_observing_called = True
 
