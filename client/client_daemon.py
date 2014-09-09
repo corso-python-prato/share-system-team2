@@ -318,11 +318,11 @@ class Daemon(RegexMatchingEventHandler):
         self.update_local_dir_state(server_timestamp)
         return True
 
-    def _sync_process(self, server_timestamp, server_dir_tree):
+    def _sync_process(self, server_timestamp, server_dir_tree, shared_dir_tree={}):
         # Makes the synchronization logic and return a list of commands to launch
         # for server synchronization
 
-        def _filter_tree_difference(server_dir_tree):
+        def _filter_tree_difference(client_dir_tree, server_dir_tree):
             # process local dir_tree and server dir_tree
             # and makes a diffs classification
             # return a dict representing that classification
@@ -330,7 +330,7 @@ class Daemon(RegexMatchingEventHandler):
             # 'modified'          : <[<filepath>, ...]>,  # files in server and client, but different
             # 'new_on_client'     : <[<filepath>, ...]>,  # files not in server, but in client
             # }
-            client_files = set(self.client_snapshot.keys())
+            client_files = set(client_dir_tree.keys())
             server_files = set(server_dir_tree.keys())
 
             new_on_server = list(server_files.difference(client_files))
@@ -340,7 +340,7 @@ class Daemon(RegexMatchingEventHandler):
             for filepath in server_files.intersection(client_files):
                 # check files md5
 
-                if server_dir_tree[filepath][1] != self.client_snapshot[filepath][1]:
+                if server_dir_tree[filepath][1] != client_dir_tree[filepath][1]:
                     modified.append(filepath)
 
             return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
@@ -353,7 +353,8 @@ class Daemon(RegexMatchingEventHandler):
             return result
 
         local_timestamp = self.local_dir_state['last_timestamp']
-        tree_diff = _filter_tree_difference(server_dir_tree)
+        tree_diff = _filter_tree_difference(self.client_snapshot, server_dir_tree)
+        shared_tree_diff = _filter_tree_difference(self.shared_snapshot, shared_dir_tree)
         sync_commands = []
 
         if self._is_directory_modified():
@@ -487,6 +488,25 @@ class Daemon(RegexMatchingEventHandler):
                     self.client_snapshot.pop(filepath)
                     self.update_local_dir_state(server_timestamp)
 
+
+        for filepath in shared_tree_diff['new_on_client']:
+            # files deleted on server
+            abs_filepath = self.absolutize_path(filepath)
+            self.observer.skip(abs_filepath)
+            try:
+                os.remove(abs_filepath)
+            except OSError as ex:
+                print "Delete EXEPTION INTO SYNC : {}".format(ex)
+
+            self.shared_snapshot.pop(filepath)
+
+
+        for filepath in shared_tree_diff['modified']:
+            sync_commands.append(('download', filepath))
+
+        for filepath in shared_tree_diff['new_on_server']:
+            sync_commands.append(('download', filepath))
+
         return sync_commands
 
     def sync_with_server(self):
@@ -499,8 +519,12 @@ class Daemon(RegexMatchingEventHandler):
 
         server_timestamp = response['server_timestamp']
         files = response['files']
+        try:
+            shared_files = response['shared_files']
+        except KeyError:
+            shared_files = {}
 
-        sync_commands = self._sync_process(server_timestamp, files)
+        sync_commands = self._sync_process(server_timestamp, files, shared_files)
 
         # Initialize the variable where we put the timestamp of the last operation we did
         last_operation_timestamp = server_timestamp
@@ -536,8 +560,11 @@ class Daemon(RegexMatchingEventHandler):
                 self.observer.skip(self.absolutize_path(path))
                 connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if connection_result:
-                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
-                    self.client_snapshot[path] = files[path]
+                    if self._is_shared_file(path):
+                        self.shared_snapshot[path] = shared_files[path]
+                    else:
+                        print 'Downloaded file with path "{}" INTO SYNC'.format(path)
+                        self.client_snapshot[path] = files[path]
                 else:
                     self.stop(1,
                               'Error during connection with the server. Client fail to "download" this file: {}'.format(
