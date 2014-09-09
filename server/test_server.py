@@ -711,8 +711,10 @@ class TestGetRequests(unittest.TestCase):
 
         expected_timestamp = server.userdata[USR]['server_timestamp']
         expected_snapshot = server.userdata[USR]['files']
+        expected_shared_files = server.userdata[USR]['shared_files']
         target = {server.LAST_SERVER_TIMESTAMP: expected_timestamp,
-                  server.SNAPSHOT: expected_snapshot}
+                  server.SNAPSHOT: expected_snapshot,
+                  server.SHARED_FILES: expected_shared_files}
         test = self.app.get(SERVER_FILES_API,
                             headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_OK)
@@ -1142,9 +1144,9 @@ class TestShares(unittest.TestCase):
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
         sharedRealPath = userpath2serverpath(os.path.join(USR,sharedPath))
         #check if the owner correctly shared access to the path with the sharing receiver
-        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedPath])
+        self.assertIn(SHAREUSR, server.userdata[USR]['shared_with_others']['Misc/Misc.txt'])
         #check if the sharing receiver correctly received the shared path access from the owner
-        self.assertIn(sharedPath, server.userdata[SHAREUSR]['shared_with_me'][USR])
+        self.assertIn('Misc/Misc.txt', server.userdata[SHAREUSR]['shared_with_me'][USR])
 
     def test_create_illegal_share(self):
         sharedFile = 'Misc/test.txt'
