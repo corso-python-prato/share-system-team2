@@ -546,7 +546,6 @@ class Daemon(RegexMatchingEventHandler):
                                   path))
 
             elif command == 'modify' or command == 'upload':
-
                 new_md5 = self.hash_file(self.absolutize_path(path))
                 event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if event_timestamp:
@@ -650,14 +649,17 @@ class Daemon(RegexMatchingEventHandler):
 
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
-        print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
-        if event_timestamp:
-            self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+        if self._is_shared_file(rel_new_path):
+            print 'you are writing file into a read-only folder, so it will not be synchronized with server'
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
-                      .format(data['cmd'], e.src_path))
+            event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
+            print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
+            if event_timestamp:
+                self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp['server_timestamp'])
+            else:
+                self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
+                          .format(data['cmd'], e.src_path))
 
     def on_moved(self, e):
 
