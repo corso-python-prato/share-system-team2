@@ -1078,6 +1078,21 @@ class TestUsersRecoverPassword(unittest.TestCase):
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user))
         self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
 
+    def test_put_active_user_weak_password(self):
+        """
+        Test put request with weak password and assures user password was not updated on disk
+        """
+        recoverpass_code = 'arbitrarycode'
+        server.userdata[self.active_user]['recoverpass_data'] = {'recoverpass_code': recoverpass_code,
+                                                                 'timestamp': server.now_timestamp(),
+                                                                 }
+
+        test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                            data={'recoverpass_code': recoverpass_code,
+                                  'password': 'weakpass'})
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+        self.assertNotEqual(server.userdata[self.active_user]['password'], 'weakpass')
+
 
 def get_dic_dir_states():
     """
