@@ -8,6 +8,7 @@ import json
 import httpretty
 import time
 import shutil
+from urllib import quote as urlquote
 
 # API:
 # - GET /diffs, con parametro timestamp
@@ -327,6 +328,32 @@ class TestConnectionManager(unittest.TestCase):
 
         # call api
         response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
+        self.assertEqual(response, recv_js)
+
+    @httpretty.activate
+    def test_encode_of_url_with_strange_char(self):
+        """
+        Test the url encode of filename with strange char.
+        I use upload method for example and i expect that httpretty answer at the right URL.
+        """
+        # Create the file with strange name
+        strange_filename = 'name%with#strange~char♞'
+        strange_filepath = os.path.join(TEST_SHARING_FOLDER, 'name%with#strange~char♞')
+        with open(strange_filepath, 'w') as f:
+            f.write('file with strange name content')
+
+        # prepare fake server
+        encoded_filename = urlquote(strange_filename, '+/: ')
+        url = ''.join((self.files_url, encoded_filename))
+        print url
+        js = json.dumps({"server_timestamp": time.time()})
+        recv_js = json.loads(js)
+        httpretty.register_uri(httpretty.POST, url, status=201,
+                               body=js,
+                               content_type="application/json")
+
+        # call api
+        response = self.cm.do_upload({'filepath': strange_filename, 'md5': 'test_md5'})
         self.assertEqual(response, recv_js)
 
     # actions:
