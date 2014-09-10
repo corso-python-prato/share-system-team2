@@ -22,12 +22,12 @@ Update (PUT):
 ## Actions
 
 Delete (POST):
-	
+
     curl --form "filepath=<path>" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/actions/delete -X POST
     curl --data "filepath=<path>" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/actions/delete -X POST
 
 Copy (POST):
-	
+
     curl --data "src=<sourcepath>&dst=<dstpath>" http://<youruser>:<yourpassword>@127.0.0.1:5000/API/V1/actions/copy -X POST
 
 Move (POST):
@@ -67,6 +67,18 @@ Users' info (GET):
 
     Specific user's info:
     $ curl -X GET localhost:5000/API/V1/users/<any_username> --user "<youruser>:<yourpassword>"
+
+User delete (DELETE):
+
+    curl -X delete http://<youruser>:<yourpassword>@localhost:5000/API/V1/users/<youruser>
+
+Password recovery - request (POST)  --> you will receive a <recoverpass_code> by email
+
+    curl -X post localhost:5000/API/V1/users/<youruser>/reset
+
+Password recovery - set (PUT)
+
+    curl -X put localhost:5000/API/V1/users/<youruser> --data "recoverpass_code=<recoverpass_code>&password=<newpassword>"
 
 
 Automated testing with nose and coverage
