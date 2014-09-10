@@ -222,7 +222,7 @@ class Daemon(FileSystemEventHandler):
         else:
             return None
 
-    def _make_copy_on_client(self, src, dst, server_timestamp):
+    def _make_copy_on_client(self, src, dst):
         """
         Copy the file from src to dst if the dst already exists will be overwritten
         :param src: the relative path of source file to copy
@@ -246,10 +246,9 @@ class Daemon(FileSystemEventHandler):
             return False
 
         self.client_snapshot[dst] = self.client_snapshot[src]
-        self.update_local_dir_state(server_timestamp)
         return True
 
-    def _make_move_on_client(self, src, dst, server_timestamp):
+    def _make_move_on_client(self, src, dst):
         """
         Move the file from src to dst. if the dst already exists will be overwritten
         :param src: the relative path of source file to move
@@ -274,7 +273,6 @@ class Daemon(FileSystemEventHandler):
 
         self.client_snapshot[dst] = self.client_snapshot[src]
         self.client_snapshot.pop(src)
-        self.update_local_dir_state(server_timestamp)
         return True
 
     def _sync_process(self, server_timestamp, server_dir_tree):
@@ -350,7 +348,7 @@ class Daemon(FileSystemEventHandler):
                         # it's a copy or a move
                         for path in existed_filepaths_on_client:
                             if path in tree_diff['new_on_client']:
-                                if self._make_move_on_client(path, filepath, server_timestamp):
+                                if self._make_move_on_client(path, filepath):
                                     tree_diff['new_on_client'].remove(path)
                                     break
                                 else:
@@ -358,7 +356,7 @@ class Daemon(FileSystemEventHandler):
                                                                                                               filepath))
                         # we haven't found files deleted on server so it's a copy
                         else:
-                            if not self._make_copy_on_client(path, filepath, server_timestamp):
+                            if not self._make_copy_on_client(path, filepath):
                                 self.stop(0,
                                           'copy failed on in SYNC: src_path: {}, dest_path: {}'.format(path, filepath))
 
@@ -386,7 +384,7 @@ class Daemon(FileSystemEventHandler):
                         # someone has modified files while daemon was down and someone else has modified
                         # the same file on server
                         conflicted_path = ''.join([filepath, '.conflicted'])
-                        self._make_copy_on_client(filepath, conflicted_path, server_timestamp)
+                        self._make_copy_on_client(filepath, conflicted_path)
                         sync_commands.append(('upload', conflicted_path))
                         # self.conn_mng.dispatch_request('upload', {'filepath': conflicted_path})
 
@@ -414,7 +412,7 @@ class Daemon(FileSystemEventHandler):
                         # it's a copy or a move
                         for path in existed_filepaths_on_client:
                             if path in tree_diff['new_on_client']:
-                                if self._make_move_on_client(path, filepath, server_timestamp):
+                                if self._make_move_on_client(path, filepath):
                                     tree_diff['new_on_client'].remove(path)
                                     break
                                 else:
@@ -422,7 +420,7 @@ class Daemon(FileSystemEventHandler):
                                                                                                               filepath))
                         # we haven't found files deleted on server so it's a copy
                         else:
-                            if not self._make_copy_on_client(path, filepath, server_timestamp):
+                            if not self._make_copy_on_client(path, filepath):
                                 self.stop(0,
                                           'copy failed on in SYNC: src_path: {}, dest_path: {}'.format(path, filepath))
                     else:
