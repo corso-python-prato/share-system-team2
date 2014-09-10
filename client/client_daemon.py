@@ -231,14 +231,14 @@ class Daemon(FileSystemEventHandler):
         """
 
         abs_src = self.absolutize_path(src)
-        if not os.path.isfile(abs_src): return False
-
+        if not os.path.isfile(abs_src):
+            return False
         abs_dst = self.absolutize_path(dst)
         dst_dir = os.path.dirname(abs_dst)
 
         if not os.path.isdir(dst_dir):
             os.makedirs(dst_dir)
-
+        # Skip next operation to prevent watchdog to see this copy on client
         self.observer.skip(abs_dst)
         try:
             copy2(abs_src, abs_dst)
@@ -257,14 +257,14 @@ class Daemon(FileSystemEventHandler):
         """
 
         abs_src = self.absolutize_path(src)
-        if not os.path.isfile(abs_src): return False
-
+        if not os.path.isfile(abs_src):
+            return False
         abs_dst = self.absolutize_path(dst)
         dst_dir = os.path.dirname(abs_dst)
 
         if not os.path.isdir(dst_dir):
             os.makedirs(dst_dir)
-
+        # Skip next operation to prevent watchdog to see this move on client
         self.observer.skip(abs_dst)
         try:
             move(abs_src, abs_dst)
@@ -532,11 +532,6 @@ class Daemon(FileSystemEventHandler):
         """
         return os.path.join(self.cfg['sharing_path'], rel_path)
 
-    # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
-    # TODO update struct with new more performance data structure
-    # TODO verify what happen if the server return a error message
-    # ###################################
-
     def on_created(self, e):
         def build_data(cmd, rel_new_path, new_md5, founded_path=None):
             """
@@ -546,33 +541,30 @@ class Daemon(FileSystemEventHandler):
             if cmd == 'copy':
                 data['file'] = {'src': founded_path,
                                 'dst': rel_new_path,
-                                'md5': new_md5,
-                                }
+                                'md5': new_md5}
             else:
                 data['file'] = {'filepath': rel_new_path,
-                                'md5': new_md5,
-                                }
+                                'md5': new_md5}
             return data
 
         if e.is_directory is True:
             return
-
         new_md5 = self.hash_file(e.src_path)
         rel_new_path = self.relativize_path(e.src_path)
         founded_path = self.search_md5(new_md5)
-
         # with this check i found the copy events
         if founded_path:
-            print 'start copy event from path: {} to path: {}'.format(self.absolutize_path(founded_path), e.src_path)
+            abs_founded_path = self.absolutize_path(founded_path)
+            print 'Start copy from path : {}\n to path: {}'.format(e.src_path, abs_founded_path)
             data = build_data('copy', rel_new_path, new_md5, founded_path)
 
         # this elif check that this created aren't modified event
         elif rel_new_path in self.client_snapshot:
-            print 'WARNING this is modify event FROM CREATE EVENT!!! path of file:', e.src_path
+            print 'WARNING this is modify event FROM CREATE EVENT! Path of file already existent:', e.src_path
             data = build_data('modify', rel_new_path, new_md5)
 
         else:  # Finally we find a real create event!
-            print 'start create in path:', e.src_path
+            print 'Start create in path:', e.src_path
             data = build_data('upload', rel_new_path, new_md5)
 
         # Send data to connection manager dispatcher and check return value.
@@ -590,7 +582,7 @@ class Daemon(FileSystemEventHandler):
 
         if e.is_directory is True:
             return
-        print 'start move from path :', e.src_path, 'to path:', e.dest_path
+        print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
         # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
@@ -600,8 +592,7 @@ class Daemon(FileSystemEventHandler):
         md5 = self.client_snapshot[rel_src_path][1]
         data = {'src': rel_src_path,
                 'dst': rel_dest_path,
-                'md5': md5,
-                }
+                'md5': md5}
         cmd = 'move'
         if os.path.exists(e.src_path):
             print 'WARNING this is copy event FROM MOVE EVENT!!'
@@ -612,8 +603,8 @@ class Daemon(FileSystemEventHandler):
         print 'event_timestamp di "{}" ='.format(cmd), event_timestamp
         if event_timestamp:
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
-            # I'm sure that rel_src_path exists inside client_snapshot because i check above so i don't check pop result
             if cmd == 'move':
+                # rel_src_path already checked
                 self.client_snapshot.pop(rel_src_path)
             self.update_local_dir_state(event_timestamp['server_timestamp'])
         else:
@@ -627,11 +618,8 @@ class Daemon(FileSystemEventHandler):
         print 'start modify of file:', e.src_path
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
-
         data = {'filepath': rel_path,
-                'md5': new_md5
-                }
-
+                'md5': new_md5}
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
         event_timestamp = self.conn_mng.dispatch_request('modify', data)
