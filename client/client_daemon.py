@@ -734,7 +734,7 @@ class Daemon(FileSystemEventHandler):
         Starts the communication with the command_manager.
         """
         # If user is activated we can start observing.
-        if self.cfg.get('activate', False):
+        if self.cfg.get('activate'):
             self._initialize_observing()
 
         TIMEOUT_LISTENER_SOCK = 0.5
@@ -767,7 +767,7 @@ class Daemon(FileSystemEventHandler):
                                     self._set_cmdmanager_response(s, 'Deamon is shuting down')
                                     raise KeyboardInterrupt
                                 else:
-                                    if not self.cfg.get('activate', False):
+                                    if not self.cfg.get('activate'):
                                         self._activation_check(s, cmd, data)
                                     else:  # client is already activated
                                         response = self.conn_mng.dispatch_request(cmd, data)
@@ -782,7 +782,7 @@ class Daemon(FileSystemEventHandler):
                             s.close()
                             r_list.remove(s)
 
-                if self.cfg.get('activate', False):
+                if self.cfg.get('activate'):
                     # synchronization polling
                     # makes the polling every 3 seconds, so it waits six cycle (0.5 * 6 = 3 seconds)
                     # maybe optimizable but now functional
@@ -793,7 +793,7 @@ class Daemon(FileSystemEventHandler):
 
         except KeyboardInterrupt:
             self.stop(0)
-        if self.cfg.get('activate', False):
+        if self.cfg.get('activate'):
             self.observer.stop()
             self.observer.join()
         self.listener_socket.close()
