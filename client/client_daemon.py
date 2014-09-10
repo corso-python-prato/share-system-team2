@@ -463,13 +463,13 @@ class Daemon(FileSystemEventHandler):
         Makes the synchronization with server
         """
         response = self.conn_mng.dispatch_request('get_server_snapshot', '')
-        if response is None:
-            self.stop(1, '\nReceived None snapshot. Server down?\n')
+        if not response['successful']:
+            self.stop(1, response['content'])
 
-        server_timestamp = response['server_timestamp']
-        files = response['files']
+        server_timestamp = response['content']['server_timestamp']
+        server_snapshot = response['content']['files']
 
-        sync_commands = self._sync_process(server_timestamp, files)
+        sync_commands = self._sync_process(server_timestamp, server_snapshot)
 
         # Initialize the variable where we put the timestamp of the last operation we did
         last_operation_timestamp = server_timestamp
@@ -477,40 +477,39 @@ class Daemon(FileSystemEventHandler):
         # makes all synchronization commands
         for command, path in sync_commands:
             if command == 'delete':
-                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path})
-                if event_timestamp:
-
-                    last_operation_timestamp = event_timestamp['server_timestamp']
-                    # If i can't find path inside client_snapshot there is inconsistent problem in client_snapshot!
-                    if self.client_snapshot.pop(path, 'ERROR') == 'ERROR':
-                        print 'Error during delete event INTO SYNC! Impossible to find "{}" inside client_snapshot'\
-                            .format(path)
+                abs_path = self.absolutize_path(path)
+                response = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if response['successful']:
+                    last_operation_timestamp = response['content']['server_timestamp']
+                    if self.client_snapshot.pop(path, 'ERROR') != 'ERROR':
+                        print 'Deleted file on server during SYNC.\nDeleted filepath: ', abs_path
+                    else:
+                        print 'WARNING inconsistency error during delete operation!' \
+                              'Impossible to find the following file in stored data (client_snapshot):\n', abs_path
                 else:
-                    self.stop(1,
-                              'Error during connection with the server. Server fail to "delete" this file: {}'.format(
-                                  path))
+                    self.stop(1, response['content'])
 
             elif command == 'modify' or command == 'upload':
-
-                new_md5 = self.hash_file(self.absolutize_path(path))
-                event_timestamp = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
-                if event_timestamp:
-                    last_operation_timestamp = event_timestamp['server_timestamp']
+                abs_path = self.absolutize_path(path)
+                new_md5 = self.hash_file(abs_path)
+                response = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
+                if response['successful']:
+                    last_operation_timestamp = response['content']['server_timestamp']
+                    print '{0} file on server during SYNC.\n{0} filepath: '\
+                        .format(('Modified', 'Updated')[command == 'modify']), abs_path
                 else:
-                    self.stop(1, 'Error during connection with the server. Server fail to "{}" this file: {}'.format(
-                        command, path))
+                    self.stop(1, response['content'])
 
             else:  # command == 'download'
-                print 'skip di download'
-                self.observer.skip(self.absolutize_path(path))
-                connection_result = self.conn_mng.dispatch_request(command, {'filepath': path})
-                if connection_result:
-                    print 'Downloaded file with path "{}" INTO SYNC'.format(path)
-                    self.client_snapshot[path] = files[path]
+                abs_path = self.absolutize_path(path)
+                # Skip next operation to prevent watchdog to see this download
+                self.observer.skip(abs_path)
+                response = self.conn_mng.dispatch_request(command, {'filepath': path})
+                if response['successful']:
+                    print 'Downloaded file from server during SYNC.\nDownloaded filepath: {}'.format(abs_path)
+                    self.client_snapshot[path] = server_snapshot[path]
                 else:
-                    self.stop(1,
-                              'Error during connection with the server. Client fail to "download" this file: {}'.format(
-                                  path))
+                    self.stop(1, response['content'])
 
         self.update_local_dir_state(last_operation_timestamp)
 
@@ -569,14 +568,14 @@ class Daemon(FileSystemEventHandler):
 
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request(data['cmd'], data['file'])
-        print 'event_timestamp di "{}" = {}'.format(data['cmd'], event_timestamp)
-        if event_timestamp:
+        response = self.conn_mng.dispatch_request(data['cmd'], data['file'])
+        if response['successful']:
+            event_timestamp = response['content']['server_timestamp']
             self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+            self.update_local_dir_state(event_timestamp)
+            print '{} event completed.'.format(data['cmd'])
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "{0}" operation on "{1}" file'
-                      .format(data['cmd'], e.src_path))
+            self.stop(1, response['content'])
 
     def on_moved(self, e):
 
@@ -585,31 +584,31 @@ class Daemon(FileSystemEventHandler):
         print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
-        # If i can't find rel_src_path inside client_snapshot there is inconsistent problem in client_snapshot!
-        if self.client_snapshot.get(rel_src_path, 'ERROR') == 'ERROR':
-            self.stop(1,
-                      'Error during move event! Impossible to find "{}" inside client_snapshot'.format(rel_dest_path))
+        if not os.path.exists(e.src_path):
+            cmd = 'move'
+        else:
+            print 'WARNING this is COPY event from MOVE EVENT!'
+            cmd = 'copy'
+        if not self.client_snapshot.get(rel_src_path)[1]:
+            self.stop(1, 'WARNING inconsistency error during {} operation!\n'
+                         'Impossible to find the following file in stored data (client_snapshot):\n{}'.format(cmd, rel_src_path))
         md5 = self.client_snapshot[rel_src_path][1]
         data = {'src': rel_src_path,
                 'dst': rel_dest_path,
                 'md5': md5}
-        cmd = 'move'
-        if os.path.exists(e.src_path):
-            print 'WARNING this is copy event FROM MOVE EVENT!!'
-            cmd = 'copy'
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request(cmd, data)
-        print 'event_timestamp di "{}" ='.format(cmd), event_timestamp
-        if event_timestamp:
+        response = self.conn_mng.dispatch_request(cmd, data)
+        if response['successful']:
+            event_timestamp = response['content']['server_timestamp']
             self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
             if cmd == 'move':
                 # rel_src_path already checked
                 self.client_snapshot.pop(rel_src_path)
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+            self.update_local_dir_state(event_timestamp)
+            print '{} event completed.'.format(cmd)
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "{}" operation on "{}" file'
-                      .format(cmd, e.src_path))
+            self.stop(1, response['content'])
 
     def on_modified(self, e):
 
@@ -622,35 +621,33 @@ class Daemon(FileSystemEventHandler):
                 'md5': new_md5}
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request('modify', data)
-        if event_timestamp:
-            print 'event_timestamp di "modified" =', event_timestamp
+        response = self.conn_mng.dispatch_request('modify', data)
+        if response['successful']:
+            event_timestamp = response['content']['server_timestamp']
             self.client_snapshot[rel_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+            self.update_local_dir_state(event_timestamp)
+            print 'Modify event completed.'
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
-                e.src_path))
+            self.stop(1, response['content'])
 
     def on_deleted(self, e):
 
         if e.is_directory is True:
             return
         print 'start delete of file:', e.src_path
-        rel_deleted_path = self.relativize_path(e.src_path)
-
+        rel_path = self.relativize_path(e.src_path)
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        event_timestamp = self.conn_mng.dispatch_request('delete', {'filepath': rel_deleted_path})
-        if event_timestamp:
-            print 'event_timestamp di "delete" =', event_timestamp
-            # If i can't find rel_deleted_path inside client_snapshot there is inconsistent problem in client_snapshot!
-            if self.client_snapshot.pop(rel_deleted_path, 'ERROR') == 'ERROR':
-                print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(
-                    rel_deleted_path)
-            self.update_local_dir_state(event_timestamp['server_timestamp'])
+        response = self.conn_mng.dispatch_request('delete', {'filepath': rel_path})
+        if response['successful']:
+            event_timestamp = response['content']['server_timestamp']
+            if self.client_snapshot.pop(rel_path, 'ERROR') == 'ERROR':
+                print 'WARNING inconsistency error during delete operation!' \
+                      'Impossible to find the following file in stored data (client_snapshot):\n', e.src_path
+            self.update_local_dir_state(event_timestamp)
+            print 'Delete event completed.'
         else:
-            self.stop(1, 'Impossible to connect with the server. Failed during "delete" operation on "{}" file'.format(
-                e.src_path))
+            self.stop(1, response['content'])
 
     def _get_cmdmanager_request(self, socket):
         """
