@@ -448,6 +448,7 @@ class Daemon(FileSystemEventHandler):
                         # self.conn_mng.dispatch_request('download', {'filepath': filepath})
 
                 for filepath in tree_diff['modified']:
+                    self._make_delete_on_client(filepath)
                     sync_commands.append(('download', filepath))
                     # self.conn_mng.dispatch_request('download', {'filepath': filepath})
 
