@@ -79,7 +79,7 @@ class Daemon(FileSystemEventHandler):
 
     def __init__(self, cfg_path=None, sharing_path=None):
         FileSystemEventHandler.__init__(self)
-        self.ignore_directories=True
+        self.ignore_directories = True
         # Just Initialize variable the Daemon.start() do the other things
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
@@ -360,8 +360,8 @@ class Daemon(FileSystemEventHandler):
                 for filepath in tree_diff['new_on_server']:
                     file_timestamp, md5 = server_dir_tree[filepath]
                     existed_filepaths_on_client = _check_md5(self.client_snapshot, md5)
-                    # If i found at least one path in client_snapshot with the same md5 of filepath this mean that in the past
-                    # client_snapshot have stored one or more files with the same md5 but different paths.
+                    # If i found at least one path in client_snapshot with the same md5 of filepath this mean in the
+                    # past client_snapshot have stored one or more files with the same md5 but different paths.
 
                     if existed_filepaths_on_client:
                         # it's a copy or a move
@@ -379,7 +379,7 @@ class Daemon(FileSystemEventHandler):
                                 self.stop(0,
                                           'copy failed on in SYNC: src_path: {}, dest_path: {}'.format(path, filepath))
 
-                    # the daemon don't know filepath, i will search if the file_timestamp is more recent then local_timestamp
+                    # the daemon don't know filepath, i will search more updated timestamp
                     else:
                         if file_timestamp > local_timestamp:
                             # the files in server is more updated
@@ -420,8 +420,8 @@ class Daemon(FileSystemEventHandler):
                 return []
             else:  # local_timestamp < server_timestamp
                 print 'local_timestamp < server_timestamp and directory IS NOT modified'
-                assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
-                                                            'local_timestamp > di server_timestamp '
+                assert local_timestamp <= server_timestamp, 'ERROR something bad happen during SYNC process, ' \
+                                                            'local_timestamp > di server_timestamp'
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
                     timestamp, md5 = server_dir_tree[filepath]
