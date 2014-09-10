@@ -951,7 +951,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.app.testing = True
 
         self.active_user = 'Activateduser'
-        self.active_user_pw = pick_rand_pw(8)
+        self.active_user_pw = '234.Cde'
         _manually_create_user(self.active_user, self.active_user_pw)
 
         self.inactive_username = 'inactiveuser'
@@ -981,7 +981,6 @@ class TestUsersRecoverPassword(unittest.TestCase):
         Test recover password request for inactive user
         """
         url = SERVER_API + 'users/{}/reset'.format(self.inactive_username)
-        new_password = pick_rand_pw(10)
         previous_activation_data = server.userdata[self.inactive_username][server.USER_CREATION_DATA]
         previous_inactive_activation = previous_activation_data['activation_code']
         previous_inactive_timestamp = previous_activation_data['creation_timestamp']
@@ -1021,7 +1020,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         # then, put with given code and new password
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                             data={'recoverpass_code': recoverpass_code,
-                                  'password': pick_rand_pw(10)})
+                                  'password': self.active_user_pw})
         self.assertEqual(test.status_code, HTTP_OK)
         self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
 
@@ -1046,7 +1045,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
             server.now_timestamp = lambda: now  # Time machine Python powered :)
             test_responses.append(self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                                                data={'recoverpass_code': 'ok_code',
-                                                     'password': 'does not matter'}))
+                                                     'password': '123.Abc'}))
         # The first must be expired, the second must be valid.
         self.assertEqual([test.status_code for test in test_responses], [HTTP_NOT_FOUND, HTTP_OK])
 
