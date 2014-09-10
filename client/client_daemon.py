@@ -275,6 +275,25 @@ class Daemon(FileSystemEventHandler):
         self.client_snapshot.pop(src)
         return True
 
+    def _make_delete_on_client(self, filepath):
+        """
+        Delete the file in filepath. In case of error print information about it.
+        :param filepath: the path of file i will delete
+        """
+        abs_path = self.absolutize_path(filepath)
+        # Skip next operation to prevent watchdog to see this delete
+        self.observer.skip(abs_path)
+        try:
+            os.remove(abs_path)
+        except OSError as e:
+            print 'WARNING impossible delete file during SYNC on path: {}\n' \
+                  'Error occurred: {}'.format(abs_path, e)
+        if self.client_snapshot.pop(filepath, 'ERROR') != 'ERROR':
+            print 'Deleted file on server during SYNC.\nDeleted filepath: ', abs_path
+        else:
+            print 'WARNING inconsistency error during delete operation!' \
+                  'Impossible to find the following file in stored data (client_snapshot):\n', abs_path
+
     def _sync_process(self, server_timestamp, server_dir_tree):
         # Makes the synchronization logic and return a list of commands to launch
         # for server synchronization
@@ -433,16 +452,8 @@ class Daemon(FileSystemEventHandler):
                     # self.conn_mng.dispatch_request('download', {'filepath': filepath})
 
                 for filepath in tree_diff['new_on_client']:
-                    # files that have been deleted on server, so have to delete them
-                    abs_filepath = self.absolutize_path(filepath)
-                    self.observer.skip(abs_filepath)
-                    try:
-                        os.remove(abs_filepath)
-                    except OSError as e:
-                        print 'Delete EXEPTION INTO SYNC : {}'.format(e)
-
-                    self.client_snapshot.pop(filepath)
-                    self.update_local_dir_state(server_timestamp)
+                    # files that have been deleted on server, so we have to delete them
+                    self._make_delete_on_client(filepath)
 
         return sync_commands
 
