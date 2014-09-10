@@ -31,25 +31,25 @@ CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 LOCAL_DIR_STATE_FOR_TEST = os.path.join(CONFIG_DIR, 'local_dir_state')
 TEST_SHARING_FOLDER = os.path.join(TEST_DIR, 'test_sharing_folder')
+TEST_SERVER_ADDRESS = 'http://www.pyboxtest.com'
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
-    "sharing_path": TEST_SHARING_FOLDER,
-    "cmd_address": "localhost",
-    "cmd_port": 60001,
-    "api_suffix": "/API/V1/",
+    'local_dir_state_path': LOCAL_DIR_STATE_FOR_TEST,
+    'sharing_path': TEST_SHARING_FOLDER,
+    'cmd_address': 'localhost',
+    'cmd_port': 60001,
+    'api_suffix': '/API/V1/',
     # no server_address to be sure
-    "server_address": "",
-    "user": "user",
-    "pass": "pass",
-    "activate": True,
+    'server_address': TEST_SERVER_ADDRESS,
+    'user': 'user',
+    'pass': 'pass',
+    'activate': True
 }
 
 
 def create_environment():
     if not os.path.exists(TEST_DIR):
         os.makedirs(CONFIG_DIR)
-        os.mkdir(TEST_SHARING_FOLDER)
 
     with open(CONFIG_FILEPATH, 'w') as f:
             json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
@@ -58,22 +58,31 @@ def create_environment():
 USR, PW = 'client_user@mail.com', 'Mail_85'
 
 
+def make_fake_dir():
+    if os.path.exists(TEST_SHARING_FOLDER):
+        shutil.rmtree(TEST_SHARING_FOLDER)
+    else:
+        os.makedirs(TEST_SHARING_FOLDER)
+
+    fake_file = os.path.join(TEST_SHARING_FOLDER, 'foo.txt')
+    with open(fake_file, 'w') as f:
+        f.write('foo.txt :)')
+
+
+def remove_fake_dir():
+    shutil.rmtree(TEST_SHARING_FOLDER)
+
+
 class TestConnectionManager(unittest.TestCase):
 
     def setUp(self):
         httpretty.enable()
         create_environment()
+        make_fake_dir()
         with open(CONFIG_FILEPATH, 'r') as fo:
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
-        # override
-        self.cfg['server_address'] = "http://www.pyboxtest.com"
-        self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-
-        # create this auth testing
-        self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass'] + "@www.pyboxtest.com"
-        # example of self.base_url = 'http://localhost:5000/API/V1/'
         self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
@@ -81,7 +90,11 @@ class TestConnectionManager(unittest.TestCase):
         self.user_url = ''.join([self.base_url, 'users/'])
 
         self.cm = ConnectionManager(self.cfg)
-        self.make_fake_dir()
+
+    def tearDown(self):
+        httpretty.disable()
+        httpretty.reset()
+        remove_fake_dir()
 
     @httpretty.activate
     def test_register_user(self):
@@ -379,27 +392,6 @@ class TestConnectionManager(unittest.TestCase):
 
         response = self.cm.do_get_server_snapshot('')
         self.assertEqual(json.dumps(response), js)
-
-    def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
-        self.remove_fake_dir()
-
-    def make_fake_dir(self):
-        sharing_path = os.path.join(self.cfg['sharing_path'])
-
-        if os.path.exists(sharing_path):
-            shutil.rmtree(sharing_path)
-        else:
-            os.makedirs(os.path.join(self.cfg['sharing_path']))
-
-        fake_file = os.path.join(self.cfg['sharing_path'], 'foo.txt')
-        with open(fake_file, 'w') as fc:
-            fc.write('foo.txt :)')
-
-    def remove_fake_dir(self):
-        shutil.rmtree(os.path.join(self.cfg['sharing_path']))
-
 
 if __name__ == '__main__':
     unittest.main()
