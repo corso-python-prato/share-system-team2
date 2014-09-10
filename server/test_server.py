@@ -977,6 +977,9 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_data'))
 
     def test_inactive_user(self):
+        """
+        Test recover password request for inactive user
+        """
         url = SERVER_API + 'users/{}/reset'.format(self.inactive_username)
         new_password = pick_rand_pw(10)
         previous_activation_data = server.userdata[self.inactive_username][server.USER_CREATION_DATA]
@@ -993,6 +996,9 @@ class TestUsersRecoverPassword(unittest.TestCase):
                         activation_data['creation_timestamp'])
 
     def test_unknown_user(self):
+        """
+        Test recover password request for unknown user
+        """
         url = SERVER_API + 'users/{}/reset'.format('unknown@pippo.it')
         test = self.app.post(url,
                              data={'password': 'okokokoko'})
