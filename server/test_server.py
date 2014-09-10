@@ -744,6 +744,17 @@ class TestUsersPost(unittest.TestCase):
         self.assertIn(self.username, server.userdata.keys())
         self.assertEqual(test.status_code, HTTP_CREATED)
 
+    def test_user_creation_with_invalid_email(self):
+        """
+        Test post request with a username which is not a valid email address
+        Example of invalid emails: john..doe@example.com, just"not"right@example.com ecc
+        """
+        invalid_email_username = 'john..doe@example.com'
+
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + invalid_email_username),
+                             data={'password': self.password})
+        self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
+
     def test_user_creation_with_weak_password(self):
         """
         Test post request with weak password and assures user was not saved on disk
