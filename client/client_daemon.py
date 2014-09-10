@@ -532,13 +532,6 @@ class Daemon(FileSystemEventHandler):
         """
         return os.path.join(self.cfg['sharing_path'], rel_path)
 
-    def create_observer(self):
-        """
-        Create an instance of the watchdog Observer thread class.
-        """
-        self.observer = SkipObserver()
-        self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
-
     # TODO handly erorrs in dictionary if the client_dispatcher miss required data!!
     # TODO update struct with new more performance data structure
     # TODO verify what happen if the server return a error message
@@ -713,6 +706,13 @@ class Daemon(FileSystemEventHandler):
         self.create_observer()
         self.observer.start()
         self.sync_with_server()
+
+    def create_observer(self):
+        """
+        Create an instance of the watchdog Observer thread class.
+        """
+        self.observer = SkipObserver()
+        self.observer.schedule(self, path=self.cfg['sharing_path'], recursive=True)
 
     def _activation_check(self, s, cmd, data):
         """
