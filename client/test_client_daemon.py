@@ -195,12 +195,13 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
         self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
 
-    def test__create_cfg_in_forbiden_path(self):
+    def test__create_cfc_in_forbidden_path(self):
         """
         Test creation of cfg and cfg directory in forbidden path.
         """
-        forbidden_path = '/forbiden_path/cfg_file'
-        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path, sharing_path=TEST_SHARING_FOLDER)
+        forbidden_path = '/forbidden_path/cfg_file'
+        self.assertRaises(SystemExit, self.daemon._create_cfg, cfg_path=forbidden_path,
+                          sharing_path=TEST_SHARING_FOLDER)
 
     def test__init_sharing_path_with_default_configuration(self):
         """
@@ -223,7 +224,7 @@ class TestClientDaemon(unittest.TestCase):
         I can test this with customization happens by create_environment() during setUp.
         """
         #Create new sharing_path
-        new_sharing_path= os.path.join(TEST_SHARING_FOLDER, 'test_sharing')
+        new_sharing_path = os.path.join(TEST_SHARING_FOLDER, 'test_sharing')
 
         # Initialize configuration with custom sharing_path
         self.daemon._init_sharing_path(sharing_path=new_sharing_path)
@@ -269,11 +270,12 @@ class TestClientDaemon(unittest.TestCase):
         # Loading of broken_cfg
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that broken file is overwrited with default configuration
+        # Check what is written to the file after load, i expect that broken file is overwrited with default config
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
-            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line],
+                             client_daemon.Daemon.DEF_CONF[cfg_line])
 
     def test_load_cfg_with_missing_key(self):
         """
@@ -294,7 +296,8 @@ class TestClientDaemon(unittest.TestCase):
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
-            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line],
+                             client_daemon.Daemon.DEF_CONF[cfg_line])
         # Check configuration inside missing_key_cfg is not written with default_cfg
         self.assertNotEqual(missing_key_cfg['local_dir_state_path'], self.daemon.cfg['local_dir_state_path'])
         self.assertNotIn('missing_key', self.daemon.cfg)
@@ -315,7 +318,8 @@ class TestClientDaemon(unittest.TestCase):
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
-            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line], client_daemon.Daemon.DEF_CONF[cfg_line])
+            self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line],
+                             client_daemon.Daemon.DEF_CONF[cfg_line])
 
     def test_md5_of_client_snapshot(self):
         """
@@ -349,8 +353,6 @@ class TestClientDaemon(unittest.TestCase):
 
         test_md5 = self.daemon.local_dir_state['global_md5']
 
-        print self.daemon.local_dir_state
-
         self.assertFalse(is_dir_modified_result)
         self.assertEqual(old_global_md5, test_md5)
 
@@ -378,8 +380,10 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.update_local_dir_state(time_stamp)
         self.daemon.load_local_dir_state()
 
-        self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot(), msg="The global_md5 i save is the save i load")
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp, msg="The timestamp i save is the save i load")
+        self.assertEqual(self.daemon.local_dir_state['global_md5'], self.daemon.md5_of_client_snapshot(),
+                         msg="The global_md5 i save is the save i load")
+        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp,
+                         msg="The timestamp i save is the save i load")
 
     ####################### DIRECTORY NOT MODIFIED #####################################
     def test_sync_process_move_on_server(self):
@@ -613,8 +617,7 @@ class TestClientDaemon(unittest.TestCase):
         new_global_md5_client = self.daemon.md5_of_client_snapshot()
 
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                         [('download', 'new_file_on_server.txt'), ('upload', 'new_file_on_client.txt')]
-                        )
+                         [('download', 'new_file_on_server.txt'), ('upload', 'new_file_on_client.txt')])
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
@@ -644,9 +647,7 @@ class TestClientDaemon(unittest.TestCase):
 
         new_global_md5_client = self.daemon.md5_of_client_snapshot()
 
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                         [('modify', 'file.txt')]
-                        )
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [('modify', 'file.txt')])
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
@@ -697,8 +698,8 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
 
         # dir is now modified with this two operations
-        self.daemon.client_snapshot['file.txt'] = (server_timestamp -1, '321456879')
-        self.daemon.client_snapshot['file_test.txt'] = (server_timestamp -1, '123654789')
+        self.daemon.client_snapshot['file.txt'] = (server_timestamp - 1, '321456879')
+        self.daemon.client_snapshot['file_test.txt'] = (server_timestamp - 1, '123654789')
 
         # add a file with timestamp < client_timestamp
         server_dir_tree.update({'new_file_on_server': (server_timestamp - 2, 'md5md6jkshkfv')})
@@ -708,9 +709,18 @@ class TestClientDaemon(unittest.TestCase):
         # client_ts == server_ts
         # test the delete of new_file_on_server
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-            [('delete', 'new_file_on_server'),
-            ('modify', 'file_test.txt'),
-            ('upload', 'file.txt')])
+                         [('delete', 'new_file_on_server'), ('modify', 'file_test.txt'), ('upload', 'file.txt')])
+
+    def mock_move_on_client(self, src, dst):
+
+        self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
+        self.daemon.client_snapshot.pop(src)
+        return True
+
+    def mock_copy_on_client(self, src, dst):
+
+        self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
+        return True
 
     def test_sync_move_on_server(self):
         """
@@ -740,20 +750,11 @@ class TestClientDaemon(unittest.TestCase):
         self.daemon.client_snapshot.update({'new_file_': (server_timestamp - 2, 'md5md6jkshkfv')})
 
         # the new file have to be uploaded
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-             [('upload', 'new_file_')])
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [('upload', 'new_file_')])
 
         # assure the move
-        self.assertIn('folder/file_test_moved.txt',self.daemon.client_snapshot)
-        self.assertNotIn('file_test_move.txt',self.daemon.client_snapshot)
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
-
-    def mock_move_on_client(self, src, dst, server_timestamp):
-
-        self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
-        self.daemon.client_snapshot.pop(src)
-        self.daemon.update_local_dir_state(server_timestamp)
-        return True
+        self.assertIn('folder/file_test_moved.txt', self.daemon.client_snapshot)
+        self.assertNotIn('file_test_move.txt', self.daemon.client_snapshot)
 
     def test_sync_process_copy_on_client(self):
         """
@@ -769,39 +770,31 @@ class TestClientDaemon(unittest.TestCase):
         server_dir_tree = base_dir_tree.copy()
 
         # add a the same file in server and client and then move it on SERVER
-        self.daemon.client_snapshot['file_test_copy.txt'] = (server_timestamp -1, '987654321')
-        server_dir_tree['file_test_copy.txt'] = (server_timestamp -1, '987654321')
+        file_md5 = '987654321'
+        self.daemon.client_snapshot['file_test_copy.txt'] = (server_timestamp - 1, file_md5)
+        server_dir_tree['file_test_copy.txt'] = (server_timestamp - 1, file_md5)
 
         # copied file on server must be copied on client now
-        server_dir_tree['file_test_copied.txt'] = (server_timestamp, '987654321')
+        server_dir_tree['file_test_copied.txt'] = (server_timestamp, file_md5)
 
         # server_ts > client_ts
         self.daemon.local_dir_state['last_timestamp'] = server_timestamp - 5
         self.daemon.local_dir_state['global_md5'] = self.daemon.md5_of_client_snapshot()
 
         # adding file to client_snapshot so dir will be  modified
-        self.daemon.client_snapshot['another_file_modified.txt'] = (server_timestamp -1, '645987123')
+        new_file_md5 = '645987123'
+        self.daemon.client_snapshot['another_file_modified.txt'] = (server_timestamp - 1, new_file_md5)
 
         # mock the function. if not it will try to really move the file on disk
         self.daemon._make_copy_on_client = self.mock_copy_on_client
 
         # dir is modified so i've to find an upload
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-            [('upload', 'another_file_modified.txt')])
-
-        # check local dir state for the timestamp
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'],
-                         server_timestamp)
+                         [('upload', 'another_file_modified.txt')])
 
         # the file copied must be in the client snapshot after the copy
         self.assertIn('file_test_copied.txt', self.daemon.client_snapshot)
         self.assertIn('file_test_copy.txt', self.daemon.client_snapshot)
-
-    def mock_copy_on_client(self, src, dst, server_timestamp):
-
-        self.daemon.client_snapshot[dst] = self.daemon.client_snapshot[src]
-        self.daemon.update_local_dir_state(server_timestamp)
-        return True
 
     def test_sync_process_conflicted_path(self):
         """
@@ -826,8 +819,7 @@ class TestClientDaemon(unittest.TestCase):
         server_dir_tree['file_test_conflicted.txt'] = (server_timestamp - 4, '987456321')
 
         expected_value = ''.join(['file_test_conflicted.txt', '.conflicted'])
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                        [('upload', expected_value)])
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [('upload', expected_value)])
 
     def test_sync_process_stupid_case(self):
         """
