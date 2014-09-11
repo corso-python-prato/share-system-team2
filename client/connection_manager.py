@@ -108,7 +108,7 @@ class ConnectionManager(object):
             elif r.status_code == 409:
                 return {'content': 'Error! User already existent!', 'successful': False}
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_register: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
             return {'content': 'Error during registration:\n{}'.format(e), 'successful': False}
@@ -128,7 +128,7 @@ class ConnectionManager(object):
             elif r.status_code == 409:
                 return {'content': 'Error! Impossible to activate user! User already activated!', 'successful': False}
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_activate: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
             return {'content': 'Error during activation:\n{}'.format(e), 'successful': False}
@@ -194,7 +194,7 @@ class ConnectionManager(object):
         try:
             r = requests.post(urlquote(url, '+/: '), auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_upload', url, e))
             return {'content': 'Failed to upload file to the server.\n'
@@ -209,7 +209,7 @@ class ConnectionManager(object):
         try:
             r = requests.put(urlquote(url, '+/: '), auth=self.auth, files=_file, data={'md5': data['md5']})
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_modify', url, e))
             return {'content': 'Failed to modify file on server.\n'
@@ -225,7 +225,7 @@ class ConnectionManager(object):
         try:
             r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_move', url, e))
             return {'content': 'Failed to move file on server.\n'
@@ -239,7 +239,7 @@ class ConnectionManager(object):
         try:
             r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_delete', url, e))
             return {'content': 'Failed to delete file on server.\n'
@@ -253,7 +253,7 @@ class ConnectionManager(object):
         try:
             r = requests.post(urlquote(url, '+/: '), auth=self.auth, data=d)
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_copy', url, e))
             return {'content': 'Failed to copy file on server.\n'
@@ -268,7 +268,7 @@ class ConnectionManager(object):
         try:
             r = requests.get(urlquote(url, '+/: '), auth=self.auth)
             r.raise_for_status()
-            return {'content': json.loads(r.text), 'successful': True}
+            return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_get_server_snapshot', url, e))
             return {'content': 'Failed to get server snapshot, maybe server down?\nError: {}'.format(e), 'successful': False}
