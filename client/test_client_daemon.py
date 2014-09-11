@@ -908,16 +908,17 @@ def replace_conn_mng(daemon, fake):
     yield
     daemon.conn_mng = original
 
+
 class FakeConnMng(object):
 
     def __init__(self):
-        self.data_cmd = ''
-        self.data_file = ''
+        self.called_cmd = ''
+        self.received_data = ''
 
-    def dispatch_request(self, data_cmd, data_file):
-        self.data_cmd = data_cmd
-        self.data_file = data_file
-        return {'server_timestamp': time.time()*10000}
+    def dispatch_request(self, cmd, data):
+        self.called_cmd = cmd
+        self.received_data = data
+        return {'content': {'server_timestamp': time.time()*10000}, 'successful': True}
 
 
 class FileFakeEvent(object):
@@ -925,11 +926,14 @@ class FileFakeEvent(object):
     Class that simulates a file related event sent from watchdog.
     Actually create <src_path> and <dest_path> attributes and the file on disk.
     """
-
-    def __init__(self, src_path, content='', dest_path=None):
+    def __init__(self, src_path, src_content='', dest_path=None, dest_content=''):
         self.src_path = src_path
-        self.create_file(self.src_path, content=content)
         self.dest_path = dest_path
+        if src_content:
+            self.create_file(src_path, content=src_content)
+        if dest_content:
+            self.create_file(dest_path, content=dest_content)
+        self.is_directory = False
 
     def create_file(self, path, content=''):
         with open(path, 'w') as f:
