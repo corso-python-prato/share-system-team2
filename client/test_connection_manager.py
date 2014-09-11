@@ -338,8 +338,8 @@ class TestConnectionManager(unittest.TestCase):
         I use upload method for example and i expect that httpretty answer at the right URL.
         """
         # Create the file with strange name
-        strange_filename = 'name%with#strange~char♞'
-        strange_filepath = os.path.join(TEST_SHARING_FOLDER, 'name%with#strange~char♞')
+        strange_filename = 'name%with#strange~char'
+        strange_filepath = os.path.join(TEST_SHARING_FOLDER, strange_filename)
         with open(strange_filepath, 'w') as f:
             f.write('file with strange name content')
 
