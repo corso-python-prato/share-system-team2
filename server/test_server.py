@@ -729,25 +729,31 @@ class TestUsersPost(unittest.TestCase):
     def tearDown(self):
         tear_down_test_dir()
 
-    def test_repeated_post(self):
+    def test_post(self):
         """
-        Post a new user creation 3 times --> permitted.
+        Post request for new user
         """
         new_username = 'abcd@mail.com'
         new_username_password = '123.Abc'
         assert new_username not in server.userdata
 
-        for i in range(3):
-            # The Users.post (signup request) is repeatable
-            test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                                 data={'password': self.password})
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
+                             data={'password': self.password})
 
-            # Test that user is added to userdata
-            self.assertIn(self.username, server.userdata.keys())
-            if i == 0:
-                self.assertEqual(test.status_code, HTTP_CREATED)
-            else:
-                self.assertEqual(test.status_code, HTTP_OK)
+        # Test that user is added to userdata and is created
+        self.assertIn(self.username, server.userdata.keys())
+        self.assertEqual(test.status_code, HTTP_CREATED)
+
+    def test_user_creation_with_invalid_email(self):
+        """
+        Test post request with a username which is not a valid email address
+        Example of invalid emails: john..doe@example.com, just"not"right@example.com ecc
+        """
+        invalid_email_username = 'john..doe@example.com'
+
+        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + invalid_email_username),
+                             data={'password': self.password})
+        self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
 
     def test_user_creation_with_weak_password(self):
         """

@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import time
 import string
+import re
 
 join = os.path.join
 normpath = os.path.normpath
@@ -111,8 +112,36 @@ app.testing = __name__ != '__main__'  # Reasonable assumption?
 EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
                                ('email_settings.ini', 'email_settings.ini.example')[app.testing])
 
+
+# A regular expression to check if an email address is valid or not.
+# WARNING: it seems a not 100%-exhaustive email address validation.
+# source: http://www.regular-expressions.info/email.html (modified)
+
+EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9]'  # the first char must be alphanumeric (no dots etc...)
+                           r'[A-Z0-9._%+-]+'  # allowed characters in the "local part"
+                           # NB: many email providers allow letters, numbers, and '.', '-' and '_' only.
+                           # GMail even allows letters, numbers and dots only (no '-' nor underscores).
+                           r'[A-Z0-9_-]'  # no dots before the '@'
+                           r'@'
+                           r'[A-Z0-9.-]+'  # domain part before the last dot ('.' and '-' allowed too)
+                           r'\.[A-Z]{2,4}$',  # domain extension: 2, 3 or 4 letters
+                           re.IGNORECASE | re.VERBOSE)
+
 api = Api(app)
 auth = HTTPBasicAuth()
+
+
+def validate_email(address):
+    """
+    Validate an email address according to http://www.regular-expressions.info/email.html.
+    In addition, at most one '.' before the '@' and no '..' in the domain part are allowed.
+    :param address: str
+    :return: bool
+    """
+    if not re.search(EMAIL_REG_OBJ, address) or '..' in address:
+        return False
+    else:
+        return True
 
 
 def update_passwordmeter_terms(terms_file):
@@ -441,6 +470,9 @@ class Users(Resource):
         A not-logged user is asking to register himself.
         NB: username must be a valid email address.
         """
+        if not validate_email(username):
+            return 'Error: username must be a valid email address!', HTTP_BAD_REQUEST
+
         password = request.form['password']
         if not password:
             return 'Error: the password mustn\'t be empty', HTTP_BAD_REQUEST
@@ -464,15 +496,9 @@ class Users(Resource):
         send_email(subject, sender, recipients, text_body)
 
         if username in userdata:
-            if userdata[username][USER_IS_ACTIVE] is True:
-                response = 'Error: username "{}" already active!\n'.format(username), HTTP_CONFLICT
-            else:
-                # If the user is still pending for activation, it will receive a new activation mail
-                # and its equivalent activation_code will be updated in userdata json file.
-                send_email(subject, sender, recipients, text_body)
-                userdata[username][USER_CREATION_DATA]['activation_code'] = activation_code
-                save_userdata()
-                response = 'New user activation email sent to {}'.format(username), HTTP_OK
+            # If an user is pending for activation, it can't be another one with the same name
+            #  asking for registration
+            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
         else:
             return create_user(username, password, activation_code)
 
