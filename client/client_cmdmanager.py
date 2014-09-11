@@ -22,8 +22,10 @@ daemon_port = 50001
 ALLOWED_COMMAND = {
     'register': 'do_register',
     'activate': 'do_activate',
-    'recoverpass': 'do_recoverpass'
-    }
+    'recoverpass': 'do_recoverpass',
+    'login': 'do_login',
+    'shutdown': 'do_shutdown'
+}
 
 
 # A regular expression to check if an email address is valid or not.
@@ -174,7 +176,9 @@ class CommandParser(cmd.Cmd):
         Shutdown the daemon
         """
         message = {'shutdown': ()}
-        self._send_to_daemon(message)
+        response = self._send_to_daemon(message)
+        print response['content']
+        return 'exit'
 
     def do_register(self, line):
         """
@@ -188,18 +192,17 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: register <e-mail> <password>'
             # for testing purpose
-            return False
+            return
+        message = {'register': (mail, password)}
+        response = self._send_to_daemon(message)
+        if 'improvements' in response:
+            print '\nThe password you entered is weak, possible improvements:'
+            for k, v in response['improvements'].iteritems():
+                print '{}: {}'.format(k, v)
         else:
-            message = {'register': (mail, password)}
-            response = self._send_to_daemon(message)
-            if 'improvements' in response:
-                print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['improvements'].iteritems():
-                    print '{}: {}'.format(k, v)
-            else:
-                print response['content']
-            # for testing purpose
-            return response
+            print response['content']
+        # for testing purpose
+        return response
 
     def do_activate(self, line):
         """
@@ -213,12 +216,29 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: activate <e-mail> <token>'
             # for testing purpose
-            return False
-        else:
-            message = {'activate': (mail, token)}
-            response = self._send_to_daemon(message)
-            print response['content']
-            return response
+            return
+        message = {'activate': (mail, token)}
+        response = self._send_to_daemon(message)
+        print response['content']
+        return response
+
+    def do_login(self, line):
+        """
+        Login the user:
+        Verify user data entered by user
+        Usage: activate <e-mail> <password>
+        """
+        try:
+            mail, password = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: login <e-mail> <password>'
+            # for testing purpose
+            return
+        message = {'login': (mail, password)}
+        response = self._send_to_daemon(message)
+        print response['content']
+        return response
 
     def do_recoverpass(self, line):
         """
