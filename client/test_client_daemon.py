@@ -91,13 +91,13 @@ def destroy_folder():
     shutil.rmtree(TEST_DIR)
 
 
-def fake_make_move(self, src, dst, timestamp):
+def fake_make_move(self, src, dst):
 
     self.operation_happened = "move: src "+src+" dst: "+dst
     return True
 
 
-def fake_make_copy(self, src, dst, timestamp):
+def fake_make_copy(self, src, dst):
 
     self.operation_happened = "copy: src "+src+" dst: "+dst
     return True
@@ -490,11 +490,9 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_of_copy = 'fake2/copy_file1.txt'
 
         md5_before_copy = self.daemon.md5_of_client_snapshot()
-        self.assertEqual(self.daemon._make_copy_on_client(file_to_copy, dst_file_of_copy, server_timestamp), True)
+        self.assertEqual(self.daemon._make_copy_on_client(file_to_copy, dst_file_of_copy), True)
 
         self.assertIn('fake2/copy_file1.txt', self.daemon.client_snapshot)
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
-        self.assertNotEqual(self.daemon.local_dir_state['global_md5'], md5_before_copy)
 
     def test_make_copy_not_src(self):
         """
@@ -519,7 +517,7 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
         self.assertEqual(
-            self.daemon._make_copy_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
+            self.daemon._make_copy_on_client(file_to_be_move_not_exists, dst_file_that_not_exists), False)
         self.assertNotIn('fake2/move_file1.txt', self.daemon.client_snapshot)
 
         # if copy fail local dir state must be unchanged
@@ -543,13 +541,9 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
         self.assertEqual(
-            self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists, server_timestamp), True)
+            self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists), True)
         self.assertNotIn(file_to_move_exists, self.daemon.client_snapshot)
         self.assertIn(dst_file_that_not_exists, self.daemon.client_snapshot)
-
-        # test local dir state after movement
-        self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp)
-        self.assertNotEqual(self.daemon.local_dir_state['global_md5'], md5_before_move)
 
     def test_make_move_function_not_src(self):
         """
@@ -571,7 +565,7 @@ class TestClientDaemon(unittest.TestCase):
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
         self.assertEqual(
-            self.daemon._make_move_on_client(file_to_be_move_not_exists, dst_file_that_not_exists, server_timestamp), False)
+            self.daemon._make_move_on_client(file_to_be_move_not_exists, dst_file_that_not_exists), False)
 
         # test local dir state after movement
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], server_timestamp - 5)
@@ -588,13 +582,13 @@ class TestClientDaemon(unittest.TestCase):
 
         # Create the files in client_snapshot / base_dir_tree
         create_files(self.daemon.client_snapshot)
-        server_timestamp = timestamp_generator()
         file_to_move = 'file1.txt'
         dst_file_exists = 'move_folder/file1.txt'
 
-        self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists, server_timestamp), True)
+        self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists), True)
 
     ####################### DIRECTORY MODIFIED #####################################
+
     def test_sync_process_new_on_both(self):
         """
         Test SYNC: new file on server, new on client, server_timestamp > client_timestamp
