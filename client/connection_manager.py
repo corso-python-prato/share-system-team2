@@ -84,11 +84,12 @@ class ConnectionManager(object):
 
     def do_login(self, data):
         url = self.files_url
+        encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         user = data[0]
         password = data[1]
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_login', url, data))
         try:
-            r = requests.get(url, auth=(user, password))
+            r = requests.get(encoded_url, auth=(user, password))
             r.raise_for_status()
             return {'content': 'User authenticated', 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
