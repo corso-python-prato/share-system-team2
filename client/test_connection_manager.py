@@ -303,7 +303,7 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.GET, url, status=201)
         data = {'filepath': 'file.txt'}
         response = self.cm.do_download(data)
-        self.assertEqual(response, True)
+        self.assertEqual(response['successful'], True)
 
     @httpretty.activate
     def test_download_file_not_exists(self):
@@ -312,22 +312,24 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.GET, url, status=404)
         data = {'filepath': 'file.tx'}
         response = self.cm.do_download(data)
-        self.assertEqual(response, False)
+        self.assertEqual(response['successful'], False)
+        self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
     def test_do_upload_success(self):
 
         # prepare fake server
         url = ''.join((self.files_url, 'foo.txt'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         # call api
         response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_encode_of_url_with_strange_char(self):
@@ -345,79 +347,85 @@ class TestConnectionManager(unittest.TestCase):
         encoded_filename = urlquote(strange_filename, '+/: ')
         url = ''.join((self.files_url, encoded_filename))
         print url
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         # call api
         response = self.cm.do_upload({'filepath': strange_filename, 'md5': 'test_md5'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     # actions:
     @httpretty.activate
     def test_do_move(self):
         url = ''.join((self.actions_url, 'move'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_delete(self):
         url = ''.join((self.actions_url, 'delete'))
-
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
         d = {'filepath': 'foo.txt'}
 
         response = self.cm.do_delete(d)
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_modify(self):
         url = ''.join((self.files_url, 'foo.txt'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.PUT, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_copy(self):
         url = ''.join([self.actions_url, 'copy'])
         d = {'src': 'foo.txt', 'dst': 'folder/foo.txt'}
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_copy(d)
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_get_server_snapshot(self):
         url = self.files_url
-        js = json.dumps({'files': 'foo.txt'})
+        msg = {'files': 'foo.txt'}
+        js = json.dumps(msg)
 
         httpretty.register_uri(httpretty.GET, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_get_server_snapshot('')
-        self.assertEqual(json.dumps(response), js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
 if __name__ == '__main__':
     unittest.main()
