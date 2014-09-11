@@ -780,12 +780,15 @@ class Shares(Resource):
     @auth.login_required
     def  delete(self, root_path, username=''):
         owner = auth.username()
-        if not _is_shared(root_path, owner):
+        if not self._is_shared(root_path, owner):
             abort(HTTP_NOT_FOUND)
+   
 
         if username == '':
-            del userdata[owner]['shared_with_others'][path]
-            return HTTP_DELETED
+            users = userdata[owner]['shared_with_others'][root_path]
+            for user in users:
+                _remove_share_from_user(root_path, username, owner)
+        return HTTP_DELETED
    
         if username in userdata[owner]['shared_with_others'][path]:
             userdata[owner]['shared_with_others'][path].remove(username)
@@ -793,8 +796,27 @@ class Shares(Resource):
 
         abort(HTTP_NOT_FOUND)
 
+    def _remove_share_from_user(self, root_path, username, owner):
+        path = os.path.abspath(join(FILE_ROOT, owner, root_path)) 
+        if os.path.isdir(path):
+            for root, dirs, files in os.walk(path):
+                for f in files:
+                    res = 'shared/{0}/{1}'.format(owner, join(root_path,f))
+                    userdata[username]['shared_files'].remove(res)
+                    userdata[username]['shared_with_me'][owner].remove(join(root_path,f))
+                    userdata[owner]['shared_with_others'][root_path].remove(username)
+            del userdata[owner]['shared_with_others'][root_path]
+        else:
+            res = 'shared/{0}/{1}'.format(owner, root_path)
+            userdata[username]['shared_files'].remove(res)
+            userdata[username]['shared_with_me'][owner].remove(root_path)
+            userdata[owner]['shared_with_others'][root_path].remove(username)
+            del userdata[owner]['shared_with_others'][root_path]
+
+
     def _is_shared(self, path, owner):
-        if root_path in userdata[owner]['shared_with_others']:
+
+        if path in userdata[owner]['shared_with_others']:
             return True
         return False
 

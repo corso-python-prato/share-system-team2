@@ -1219,6 +1219,19 @@ class TestShares(unittest.TestCase):
                             headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
+    # def test_delete_shared_file(self):
+    #     sharedFile = 'test.txt'
+    #     _create_file(USR, sharedFile, 'test')
+    #     q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+    #     test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+    #     sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+    #     q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+    #     test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+    #     #check if the owner correctly shared access to the file with the sharing receiver
+    #     self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
+    #     #check if the sharing receiver correctly received the shared file access from the owner
+    #     self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
+
 
 if __name__ == '__main__':
     unittest.main()
