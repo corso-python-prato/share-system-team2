@@ -349,7 +349,6 @@ class TestClientDaemon(unittest.TestCase):
 
         test_md5 = self.daemon.local_dir_state['global_md5']
 
-        print self.daemon.local_dir_state
 
         self.assertFalse(is_dir_modified_result)
         self.assertEqual(old_global_md5, test_md5)
@@ -975,10 +974,19 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.cfg['pass'] = ''
         self.daemon.cfg['activate'] = False
         self.socket = test_utils.FakeSocket()
+        # Mocking the observing method
+        self.daemon._initialize_observing = self.fake_initialize_observing
+        self.init_observing_called = False
 
     def tearDown(self):
         self.daemon.observer.stop()
         self.daemon.observer.join()
+
+    def fake_initialize_observing(self):
+        """
+        Mocking _initialize_observing,
+        """
+        self.init_observing_called = True
 
     def test_get_cmdmanager_request(self):
         command = {'shutdown': ()}
@@ -996,12 +1004,8 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         Test that _activation_check block not allowed operation
         """
 
-        def fake_initialize_observing():
-            function_called = True
-
-        function_called = False
+        #Mocking the communication with cmdmanager
         self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
-        self.daemon._initialize_observing = fake_initialize_observing
 
         command = 'not_allowed'
         data = {}
@@ -1017,22 +1021,18 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
-        self.assertFalse(function_called)
+        self.assertFalse(self.init_observing_called)
 
     def test__activation_check_receive_registration_cmd_with_success(self):
         """
         Test that _activation_check receive registration cmd and registration is successful.
         """
 
-        def fake_initialize_observing():
-            self.init_observing_called = True
-
         def fake_register_into_connection_manager(data):
             return {'successful': True}
 
-        self.init_observing_called = False
+        #Mocking the communication with cmdmanager
         self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
-        self.daemon._initialize_observing = fake_initialize_observing
 
         command = 'register'
         self.daemon.conn_mng.do_register = fake_register_into_connection_manager
@@ -1046,9 +1046,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], USR)
-        self.assertNotEqual(self.daemon.cfg['user'], old_user)
         self.assertEqual(self.daemon.cfg['pass'], PW)
-        self.assertNotEqual(self.daemon.cfg['pass'], old_pass)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1059,15 +1057,11 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         Test that _activation_check receive registration cmd and registration failed on server.
         """
 
-        def fake_initialize_observing():
-            self.init_observing_called = True
-
         def fake_register_into_connection_manager(data):
             return {'successful': False}
 
-        self.init_observing_called = False
+        #Mocking the communication with cmdmanager
         self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
-        self.daemon._initialize_observing = fake_initialize_observing
 
         command = 'register'
         self.daemon.conn_mng.do_register = fake_register_into_connection_manager
@@ -1080,8 +1074,8 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         # Call _activation_check with failed response from server
         self.daemon._activation_check(self.socket, command, data)
 
-        self.assertEqual(old_user, self.daemon.cfg['user'])
-        self.assertEqual(old_pass, self.daemon.cfg['pass'])
+        self.assertEqual(self.daemon.cfg['user'], old_user)
+        self.assertEqual(self.daemon.cfg['pass'], old_pass)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1089,18 +1083,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
     def test__activation_check_receive_activation_cmd_with_success(self):
         """
-        Test that _activation_check receive registration cmd and registration is successful.
+        Test that _activation_check receive activation cmd and activation is successful.
         """
-
-        def fake_initialize_observing():
-            self.init_observing_called = True
 
         def fake_activation_into_connection_manager(data):
             return {'successful': True}
 
-        self.init_observing_called = False
+        #Mocking the communication with cmdmanager
         self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
-        self.daemon._initialize_observing = fake_initialize_observing
 
         command = 'activate'
         self.daemon.conn_mng.do_activate = fake_activation_into_connection_manager
@@ -1112,6 +1102,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
+
         self.assertEqual(self.daemon.cfg['user'], USR, old_user)
         self.assertEqual(self.daemon.cfg['pass'], PW, old_pass)
         self.assertTrue(self.daemon.cfg['activate'])
@@ -1119,3 +1110,92 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Test the observing is started
         self.assertTrue(self.init_observing_called)
+
+    def test__activation_check_receive_activation_cmd_with_failed_activation_on_server(self):
+        """
+#       Test that _activation_check receive activation cmd and activation failed on server.
+        """
+
+        def fake_activation_into_connection_manager(data):
+            return {'successful': False}
+
+        #Mocking the communication with cmdmanager
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+
+        command = 'activate'
+        self.daemon.conn_mng.do_activate = fake_activation_into_connection_manager
+
+        data = (USR, 'unauthorized_token')
+        old_user = self.daemon.cfg['user'] = USR
+        old_pass = self.daemon.cfg['pass'] = PW
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with failed response from server
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEqual(self.daemon.cfg['user'], old_user, USR)
+        self.assertEqual(self.daemon.cfg['pass'], old_pass, PW)
+        self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
+
+        # Test the observing is not started
+        self.assertFalse(self.init_observing_called)
+
+    def test__activation_check_receive_login_cmd_with_success(self):
+        """
+        Test that _activation_check receive login cmd with successful login.
+        """
+
+        def fake_login_into_connection_manager(data):
+            return {'successful': True}
+
+        #Mocking the communication with cmdmanager
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+
+        command = 'login'
+        self.daemon.conn_mng.do_login = fake_login_into_connection_manager
+
+        data = (USR, PW)
+        old_user = self.daemon.cfg['user']
+        old_pass = self.daemon.cfg['pass']
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with successful response from server
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEquals(self.daemon.cfg['user'], USR, old_user)
+        self.assertEquals(self.daemon.cfg['pass'], PW, old_pass)
+        self.assertTrue(self.daemon.cfg['activate'])
+        self.assertNotEqual(self.daemon.cfg['activate'], old_activate_state)
+
+        # Test the observing is started
+        self.assertTrue(self.init_observing_called)
+
+    def test__activation_check_receive_login_cmd_with_failed_activation_on_server(self):
+        """
+        Test that _activation_check receive login cmd with failed activation on server.
+        """
+
+        def fake_login_into_connection_manager(data):
+            return {'successful': False}
+
+        #Mocking the communication with cmdmanager
+        self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
+
+        command = 'login'
+        self.daemon.conn_mng.do_login = fake_login_into_connection_manager
+
+        data = (USR, PW)
+        old_user = self.daemon.cfg['user']
+        old_pass = self.daemon.cfg['pass']
+        old_activate_state = self.daemon.cfg['activate']
+
+        # Call _activation_check with failed response from server
+        self.daemon._activation_check(self.socket, command, data)
+
+        self.assertEqual(self.daemon.cfg['user'], old_user)
+        self.assertEqual(self.daemon.cfg['pass'], old_pass)
+        self.assertFalse(self.daemon.cfg['activate'])
+        self.assertEqual(self.daemon.cfg['activate'], old_activate_state)
+
+        # Test the observing is started
+        self.assertFalse(self.init_observing_called)
