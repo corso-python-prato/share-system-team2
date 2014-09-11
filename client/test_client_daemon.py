@@ -918,6 +918,43 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
         self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
 
+    def test__read_only_shared_folder_file_deleted(self):
+        """
+        Test SYNC: Test the case when the user removes a file from shared folder
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        event = FakeEvent(source_file_path)
+
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        self.daemon.on_deleted(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+
+
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
         self.daemon = client_daemon.Daemon()
