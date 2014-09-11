@@ -843,23 +843,6 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
                          [])
 
-    def test_build_client_snap_regex(self):
-        """
-        Test IGNORED REGEX: test build_client_snapshot
-        """
-        # create a base_dir_tree
-        create_base_dir_tree(['just_a_file.txt', 'a_tmp_file.txt#', 'another_tmp_file.txt~'])
-
-        # create the files for real
-        create_files(base_dir_tree)
-
-        # create the snapshot of real files
-        self.daemon.build_client_snapshot()
-
-        self.assertIn('just_a_file.txt', self.daemon.client_snapshot)
-        self.assertNotIn('a_tmp_file.txt#', self.daemon.client_snapshot)
-        self.assertNotIn('another_tmp_file.txt~', self.daemon.client_snapshot)
-
     ################ TEST EVENTS ####################
 
     def test_on_created(self):
