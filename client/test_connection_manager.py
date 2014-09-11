@@ -62,8 +62,7 @@ USR, PW = 'client_user@mail.com', 'Mail_85'
 def make_fake_dir():
     if os.path.exists(TEST_SHARING_FOLDER):
         shutil.rmtree(TEST_SHARING_FOLDER)
-    else:
-        os.makedirs(TEST_SHARING_FOLDER)
+    os.makedirs(TEST_SHARING_FOLDER)
 
     fake_file = os.path.join(TEST_SHARING_FOLDER, 'foo.txt')
     with open(fake_file, 'w') as f:
