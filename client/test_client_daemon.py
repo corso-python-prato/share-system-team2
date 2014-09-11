@@ -737,6 +737,150 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.shared_snapshot, shared_files_dir_tree)
         self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
 
+    def test__read_only_shared_folder_move_file_from_shared_to_not_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a shared path to a not shared path (read-only)
+
+        """
+
+        #setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'new_file.txt')
+        event = FakeEvent(source_file_path, dest_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        expected_shared_snapshop = self.daemon.shared_snapshot.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.daemon.on_moved(event)
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertIn('new_file.txt', self.daemon.client_snapshot)
+
+    def test__read_only_shared_folder_move_file_from_shared_to_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a shared path to a shared path (read-only)
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FakeEvent(source_file_path, dest_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path it' a new path
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+
+
+        # setup the mock
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
+        event = FakeEvent(source_file_path, dest_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path already exist so it means that old file is modified
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+        expected_shared_snapshop.pop('shared/millino/folder/filefile.dat')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+
+    def test__read_only_shared_folder_move_file_from_not_shared_to_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a not shared path to a shared path (read-only)
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FakeEvent(source_file_path, dest_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path it' a new path
+        self.daemon.on_moved(event)
+
+        expected_client_snapshop = base_dir_tree.copy()
+        expected_client_snapshop.pop('file1.txt')
+
+        self.assertEqual(self.daemon.client_snapshot, expected_client_snapshop)
+        self.assertEqual(self.daemon.shared_snapshot, shared_files_dir_tree)
+
+
+        # setup the mock
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
+        event = FakeEvent(source_file_path, dest_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path already exist so it means that old file is modified
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/millino/folder/filefile.dat')
+        expected_client_snapshop = base_dir_tree.copy()
+        expected_client_snapshop.pop('file1.txt')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, expected_client_snapshop)
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
