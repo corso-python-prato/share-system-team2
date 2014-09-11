@@ -522,6 +522,10 @@ class Users(Resource):
                 except KeyError:
                     abort(HTTP_BAD_REQUEST)
 
+                strength, improvements = passwordmeter.test(new_password)
+                if strength <= 0.5:
+                    return improvements, HTTP_FORBIDDEN
+
                 request_recoverpass_code = request.form['recoverpass_code']
                 recoverpass_stuff = userdata[username].get('recoverpass_data')
 
