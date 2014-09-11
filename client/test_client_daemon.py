@@ -849,13 +849,25 @@ class TestClientDaemon(unittest.TestCase):
         """"
         Test EVENTS: test on created watchdog expect an UPLOAD
         """
-        some_file = os.path.join(TEST_SHARING_FOLDER, 'file.txt')
+        filename = 'file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, filename)
+        file_content = 'this is the content in the file'
+        md5_file_content = hashlib.md5(file_content).hexdigest()
+        received_data = {'filepath': filename, 'md5': md5_file_content}
 
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
-            self.daemon.on_created(FileFakeEvent(src_path=some_file, content='Un po di testo'))
-            self.assertIn('file.txt', self.daemon.client_snapshot)
-            self.assertEqual(self.daemon.conn_mng.data_cmd, 'upload')
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertNotIn(filename, self.daemon.client_snapshot)
+            # Load event
+            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=file_content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'upload')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertIn(filename, self.daemon.client_snapshot)
 
     def test_on_created_copy(self):
         """"
@@ -864,43 +876,64 @@ class TestClientDaemon(unittest.TestCase):
         with the same md5 is already in the client_snapshot
         """
 
-        some_file = os.path.join(TEST_SHARING_FOLDER, 'another_file.txt')
+        src_filename = 'a_file.txt'
+        dst_filename = 'folder/b_file.txt'
+        dest_filepath = os.path.join(TEST_SHARING_FOLDER, dst_filename)
+        file_content = 'this is the content in the file'
+        content_md5 = hashlib.md5(file_content).hexdigest()
+        received_data = {'src': src_filename, 'dst': dst_filename, 'md5': content_md5}
 
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
-            # creating client_snapshot {filepath:(timestamp, md5)}
-            create_base_dir_tree(['file.txt'])
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[src_filename] = [time.time()*10000, content_md5]
             self.daemon.client_snapshot = base_dir_tree.copy()
-
-            # putting the filepath in the content generate the same md5 so must be a copy event
-            self.daemon.on_created(FileFakeEvent(src_path=some_file, content='file.txt'))
-            self.assertEqual(self.daemon.conn_mng.data_cmd, 'copy')
-            self.assertEqual(self.daemon.conn_mng.data_file['dst'], 'another_file.txt')
-
-            # the copy must be in the snapshot
-            self.assertIn('another_file.txt', self.daemon.client_snapshot)
-            self.assertIn('file.txt', self.daemon.client_snapshot)
+            # Check initial state
+            self.assertIn(src_filename, self.daemon.client_snapshot)
+            self.assertNotIn(dst_filename, self.daemon.client_snapshot)
+            # Load event
+            # I will put dest_filepath in e.src_path because watchdog see copy event as create of new file.
+            # During on_created method the program check if exist a src_path with the same md5
+            self.daemon.on_created(FileFakeEvent(src_path=dest_filepath, src_content=file_content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'copy')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertIn(src_filename, self.daemon.client_snapshot)
+            self.assertIn(dst_filename, self.daemon.client_snapshot)
 
     def test_on_moved(self):
         """
         Test EVENTS: test on_moved watchdog
         """
-        some_file = os.path.join(TEST_SHARING_FOLDER, 'a_file.txt')
+        src_filename = 'a_file.txt'
+        dst_filename = 'folder/a_file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, src_filename)
+        dest_filepath = os.path.join(TEST_SHARING_FOLDER, dst_filename)
+        file_content = 'this is the content in the file'
+        content_md5 = hashlib.md5(file_content).hexdigest()
+        received_data = {'src': src_filename, 'dst': dst_filename, 'md5': content_md5}
 
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
-            # creating client_snapshot {filepath:(timestamp, md5)}
-            create_base_dir_tree(['a_file.txt', 'file.avi'])
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[src_filename] = [time.time()*10000, content_md5]
             self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertIn(src_filename, self.daemon.client_snapshot)
+            self.assertNotIn(dst_filename, self.daemon.client_snapshot)
+            # Load event
+            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath, dest_path=dest_filepath,
+                                               dest_content=file_content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'move')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertNotIn(src_filename, self.daemon.client_snapshot)
+            self.assertIn(dst_filename, self.daemon.client_snapshot)
 
-            self.daemon.on_moved(
-                FileFakeEvent(src_path=some_file,
-                              content="a_file.txt",
-                              dest_path=os.path.join(TEST_SHARING_FOLDER, 'folder/a_file.txt')))
-            self.assertEqual(self.daemon.conn_mng.data_cmd, 'move')
-            self.assertIn('folder/a_file.txt', self.daemon.client_snapshot)
-            self.assertIn('file.avi', self.daemon.client_snapshot)
-            self.assertNotIn('a_file.txt', self.daemon.client_snapshot)
 
 @contextmanager
 def replace_conn_mng(daemon, fake):
