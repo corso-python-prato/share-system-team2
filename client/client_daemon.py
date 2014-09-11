@@ -241,6 +241,14 @@ class Daemon(RegexMatchingEventHandler):
         except KeyError:
             self.shared_snapshot = {}
 
+        # check the consistency of client snapshot retrieved by the server with the real files on clients
+        file_md5 = None
+        for filepath in self.shared_snapshot.keys():
+            file_md5 = self.hash_file(filepath)
+            if not file_md5 or file_md5 != self.shared_snapshot[filepath][1]:
+                # force the re-download at next synchronization
+                self.shared_snapshot.pop(filepath)
+
     def _is_directory_modified(self):
         """
         The function check if the shared folder has been modified.
