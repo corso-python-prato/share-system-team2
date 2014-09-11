@@ -936,8 +936,12 @@ class FileFakeEvent(object):
         self.is_directory = False
 
     def create_file(self, path, content=''):
+        path_dir = os.path.dirname(path)
+        if not os.path.exists(path_dir):
+            os.makedirs(path_dir)
         with open(path, 'w') as f:
             f.write(content)
+
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
     def setUp(self):
