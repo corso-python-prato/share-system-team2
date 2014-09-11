@@ -34,7 +34,20 @@ LIST_OF_TEST_FILES = [
     'folder6/iacopy.txt',
 ]
 
+LIST_OF_TEST_SHARED_FILES = [
+    'shared/user1/file1.txt',
+    'shared/user1/file2.dat',
+    'shared/pysqualo/file1.txt',
+    'shared/jacopyno/file2.dat',
+    'shared/milly/folder/file.txt',
+    'shared/millino/folder/filefile.dat',
+    'shared/millito/jacopo.txt',
+    'shared/utente/graphics.psd',
+
+]
+
 base_dir_tree = {}
+shared_files_dir_tree = {}
 
 TEST_CFG = {
     "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
@@ -53,6 +66,37 @@ TEST_CFG = {
 USR, PW = 'user@mail.com', 'Mail_85'
 
 
+class FakeEvent(object):
+    """
+    Fake Event Object.
+    It has the same data structure
+    """
+    def __init__(self, src, dest=None):
+        self.src_path = src
+        self.dest_path = dest
+
+
+class FakeConnMgr(object):
+    """
+    Fake Command manager used to test the server calls
+    """
+    def __init__(self):
+        self.data = {'server_timestamp': timestamp_generator()}
+
+    def dispatch_request(self, command, args=None):
+        if command == 'download':
+            return True
+        return self.data
+
+
+def fake_hash_file(file_path, chunk_size=1024):
+    return 'test'
+
+
+def fake_search_md5(searched_md5):
+    return None
+
+
 def timestamp_generator():
     timestamp_generator.__test__ = False
     return long(time.time()*10000)
@@ -65,6 +109,15 @@ def create_base_dir_tree(list_of_files=LIST_OF_TEST_FILES):
         time_stamp = timestamp_generator()
         md5 = hashlib.md5(path).hexdigest()
         base_dir_tree[path] = [time_stamp, md5]
+
+
+def create_shared_files_dir_tree(files=LIST_OF_TEST_SHARED_FILES):
+    global shared_files_dir_tree
+    shared_files_dir_tree = {}
+    for path in files:
+        time_stamp = timestamp_generator()
+        md5 = hashlib.md5(path).hexdigest()
+        shared_files_dir_tree[path] = [time_stamp, md5]
 
 
 def create_environment():
@@ -114,13 +167,15 @@ class TestClientDaemon(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
+        create_shared_files_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
         self.daemon.operation_happened = 'initial'
         self.daemon.create_observer()
 
     def tearDown(self):
-        global base_dir_tree
+        global base_dir_tree, shared_files_dir_tree
         base_dir_tree = {}
+        shared_files_dir_tree = {}
         destroy_folder()
 
     def test__build_directory(self):
@@ -647,6 +702,40 @@ class TestClientDaemon(unittest.TestCase):
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
+
+########################SHARED FILES TESTING#####################################################################
+    def test__read_only_shared_folder_new_file(self):
+        """
+        Test SYNC: Test the case when the user create a new file in a shared path (read-only)
+        it must ignore the tracking of file and it mustn't synchronize with the server
+        """
+
+        #setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        new_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FakeEvent(new_file_path)
+        self.daemon.conn_mng = FakeConnMgr()
+        self.daemon.search_md5 = fake_search_md5
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        self.daemon.on_created(event)
+
+        self.assertEqual(self.daemon.shared_snapshot, shared_files_dir_tree)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
 
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
