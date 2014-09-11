@@ -26,6 +26,9 @@ import logging
 
 
 class ConnectionManager(object):
+    # This is the char filter for url encoder, this list of char aren't translated in percent style
+    ENCODER_FILTER = '+/: '
+
     EXCEPTIONS_CATCHED = (requests.HTTPError,
                           requests.exceptions.ConnectionError,
                           requests.exceptions.MissingSchema,
