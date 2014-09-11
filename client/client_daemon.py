@@ -556,7 +556,7 @@ class Daemon(FileSystemEventHandler):
         # with this check i found the copy events
         if founded_path:
             abs_founded_path = self.absolutize_path(founded_path)
-            print 'Start copy from path : {}\n to path: {}'.format(e.src_path, abs_founded_path)
+            print 'Start copy from path : {}\n to path: {}'.format(abs_founded_path, e.src_path)
             data = build_data('copy', rel_new_path, new_md5, founded_path)
 
         # this elif check that this created aren't modified event
