@@ -52,11 +52,6 @@ def pick_rand_str(length, possible_chars=string.ascii_lowercase):
     return ''.join([random.choice(possible_chars) for _ in xrange(length)])
 
 
-def pick_rand_pw(length=8):
-    possible_chars = string.letters + string.punctuation + string.digits
-    return pick_rand_str(length, possible_chars)
-
-
 def pick_rand_email():
     res = '{}@{}.{}'.format(pick_rand_str(random.randrange(3, 12)),
                             pick_rand_str(random.randrange(3, 8)),
@@ -927,7 +922,7 @@ class TestUsersGet(unittest.TestCase):
 
     def test_get_self(self):
         username = 'pippo@topolinia.com'
-        pw = pick_rand_pw()
+        pw = '123.Abc'
         _manually_create_user(username, pw)
         url = SERVER_API + 'users/' + username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
@@ -936,7 +931,7 @@ class TestUsersGet(unittest.TestCase):
     def test_get_other(self):
         username = 'pippo@topolinia.com'
         other_username = 'a' + username
-        pw = pick_rand_pw()
+        pw = '123.Abc'
         _manually_create_user(username, pw)
         url = SERVER_API + 'users/' + other_username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
