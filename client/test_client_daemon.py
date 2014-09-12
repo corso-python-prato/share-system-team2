@@ -875,6 +875,16 @@ class TestClientDaemon(unittest.TestCase):
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
             self.assertNotIn(filename, self.daemon.client_snapshot)
+
+    def test_on_created(self):
+        """"
+        Test EVENTS: test on created event of watchdog, expect a upload requests
+        """
+        filename = 'file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, filename)
+        content = 'content of file'
+        content_md5 = hashlib.md5(content).hexdigest()
+        received_data = {'filepath': filename, 'md5': content_md5}
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
             # Initialize client_snapshot
@@ -883,15 +893,40 @@ class TestClientDaemon(unittest.TestCase):
             # Check initial state
             self.assertNotIn(filename, self.daemon.client_snapshot)
             # Load event
-            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=file_content))
+            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'upload')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
             self.assertIn(filename, self.daemon.client_snapshot)
 
-    def test_on_created_copy(self):
+    def test_modify_event_from_on_created_event(self):
         """"
-        Test EVENTS: test on_created watchdog:
+        Test EVENTS: test on created event of watchdog, expect a modify requests
+        """
+        filename = 'file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, filename)
+        old_content = 'old content of file'
+        old_content_md5 = hashlib.md5(old_content).hexdigest()
+        new_content = 'new content of file'
+        new_content_md5 = hashlib.md5(new_content).hexdigest()
+        received_data = {'filepath': filename, 'md5': new_content_md5}
+        # replace connection manager in the client instance
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[filename] = [time.time()*10000, old_content_md5]
+            self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertIn(filename, self.daemon.client_snapshot)
+            self.assertIn(old_content_md5, self.daemon.client_snapshot[filename])
+            # Load event
+            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=new_content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'modify')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertIn(filename, self.daemon.client_snapshot)
+            self.assertIn(new_content_md5, self.daemon.client_snapshot[filename])
         on_created event must be detected as a copy event when a file
         with the same md5 is already in the client_snapshot
         """
