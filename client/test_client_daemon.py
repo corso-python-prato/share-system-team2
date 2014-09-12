@@ -841,15 +841,34 @@ class TestClientDaemon(unittest.TestCase):
 
     ################ TEST EVENTS ####################
 
-    def test_on_created(self):
+    def test_on_modified(self):
         """"
-        Test EVENTS: test on created watchdog expect an UPLOAD
+        Test EVENTS: test on modified event of watchdog, expect a modify requests
         """
         filename = 'file.txt'
         src_filepath = os.path.join(TEST_SHARING_FOLDER, filename)
-        file_content = 'this is the content in the file'
-        md5_file_content = hashlib.md5(file_content).hexdigest()
-        received_data = {'filepath': filename, 'md5': md5_file_content}
+        old_content = 'old content of file'
+        old_content_md5 = hashlib.md5(old_content).hexdigest()
+        new_content = 'new content of file'
+        new_content_md5 = hashlib.md5(new_content).hexdigest()
+        received_data = {'filepath': filename, 'md5': new_content_md5}
+        # replace connection manager in the client instance
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[filename] = [time.time()*10000, old_content_md5]
+            self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertIn(filename, self.daemon.client_snapshot)
+            self.assertIn(old_content_md5, self.daemon.client_snapshot[filename])
+            # Load event
+            self.daemon.on_modified(FileFakeEvent(src_path=src_filepath, src_content=new_content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'modify')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertIn(filename, self.daemon.client_snapshot)
+            self.assertIn(new_content_md5, self.daemon.client_snapshot[filename])
 
     def test_on_deleted(self):
         """"
