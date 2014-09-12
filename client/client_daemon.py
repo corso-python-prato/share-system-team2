@@ -415,7 +415,7 @@ class Daemon(FileSystemEventHandler):
                 print 'local_timestamp == server_timestamp and directory IS NOT modified'
                 # it's the best case. Client and server are already synchronized
                 for key in tree_diff:
-                    assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty"
+                    assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty!\ntree_diff:\n{}".format(tree_diff)
                 return []
             else:  # local_timestamp < server_timestamp
                 print 'local_timestamp < server_timestamp and directory IS NOT modified'
