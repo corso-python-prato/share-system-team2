@@ -78,6 +78,19 @@ class ConnectionManager(object):
         except AttributeError:
             self._default(method_name)
 
+    def do_login(self, data):
+        url = self.files_url
+        user = data[0]
+        password = data[1]
+        self.logger.info('{}: URL: {} - DATA: {} '.format('do_login', url, data))
+        try:
+            r = requests.get(url, auth=(user, password))
+            r.raise_for_status()
+            return {'content': 'User authenticated', 'successful': True}
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('{}: URL: {} - EXCEPTION_CATCHED: {} '.format('do_login', url, e))
+            return {'content': 'Impossible to login, user unauthorized.', 'successful': False}
+
     def do_register(self, data):
         """
         Send registration user request
