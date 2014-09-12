@@ -851,6 +851,30 @@ class TestClientDaemon(unittest.TestCase):
         md5_file_content = hashlib.md5(file_content).hexdigest()
         received_data = {'filepath': filename, 'md5': md5_file_content}
 
+    def test_on_deleted(self):
+        """"
+        Test EVENTS: test on deleted event of watchdog, expect a delete requests
+        """
+        filename = 'file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, filename)
+        content = 'content of file'
+        content_md5 = hashlib.md5(content).hexdigest()
+        received_data = {'filepath': filename}
+        # replace connection manager in the client instance
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[filename] = [time.time()*10000, content_md5]
+            self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertIn(filename, self.daemon.client_snapshot)
+            # Load event
+            self.daemon.on_deleted(FileFakeEvent(src_path=src_filepath, src_content=content_md5))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'delete')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertNotIn(filename, self.daemon.client_snapshot)
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
             # Initialize client_snapshot
