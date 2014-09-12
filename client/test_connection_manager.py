@@ -8,7 +8,7 @@ import json
 import httpretty
 import time
 import shutil
-from urllib import quote as urlquote
+import urllib
 
 # API:
 # - GET /diffs, con parametro timestamp
@@ -381,7 +381,7 @@ class TestConnectionManager(unittest.TestCase):
             f.write('file with strange name content')
 
         # prepare fake server
-        encoded_filename = urlquote(strange_filename, '+/: ')
+        encoded_filename = urllib.quote(strange_filename, self.cm.ENCODER_FILTER)
         url = ''.join((self.files_url, encoded_filename))
         print url
         msg = {'server_timestamp': time.time()}
