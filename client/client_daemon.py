@@ -79,7 +79,6 @@ class Daemon(FileSystemEventHandler):
 
     def __init__(self, cfg_path=None, sharing_path=None):
         FileSystemEventHandler.__init__(self)
-        self.ignore_directories = True
         # Just Initialize variable the Daemon.start() do the other things
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
