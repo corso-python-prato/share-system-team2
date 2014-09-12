@@ -4,14 +4,15 @@
 import hashlib
 import unittest
 import os
-import sys
 import shutil
 import json
 import time
-import random
+
 import client_daemon
-import test_utils
+import tstutils
+
 from contextlib import contextmanager
+
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -37,16 +38,16 @@ LIST_OF_TEST_FILES = [
 base_dir_tree = {}
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
-    "sharing_path": TEST_SHARING_FOLDER,
-    "cmd_address": "localhost",
-    "cmd_port": 60001,
-    "api_suffix": "/API/V1/",
+    'local_dir_state_path': LOCAL_DIR_STATE_FOR_TEST,
+    'sharing_path': TEST_SHARING_FOLDER,
+    'cmd_address': 'localhost',
+    'cmd_port': 60001,
+    'api_suffix': '/API/V1/',
     # no server_address to be sure
-    "server_address": "",
-    "user": "user",
-    "pass": "pass",
-    "activate": True,
+    'server_address': '',
+    'user': 'user',
+    'pass': 'pass',
+    'activate': True,
 }
 
 # Test-user account details
@@ -73,11 +74,10 @@ def create_environment():
         os.mkdir(TEST_SHARING_FOLDER)
 
     with open(CONFIG_FILEPATH, 'w') as f:
-            json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
+        json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
 
 
 def create_files(dir_tree):
-
     for path in dir_tree:
         file_path = os.path.join(TEST_SHARING_FOLDER, path)
         dirname = os.path.dirname(file_path)
@@ -109,21 +109,13 @@ def fake_set_cmdmanager_response(socket, message):
     return response_packet
 
 
-class TestClientDaemon(unittest.TestCase):
-
+class TestClientDaemonConfig(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
-        self.daemon.operation_happened = 'initial'
-        self.daemon.create_observer()
-        self.daemon.observer.start()
 
     def tearDown(self):
-        global base_dir_tree
-        base_dir_tree = {}
-        self.daemon.observer.stop()
-        self.daemon.observer.join()
         destroy_folder()
 
     def test__build_directory(self):
@@ -134,9 +126,9 @@ class TestClientDaemon(unittest.TestCase):
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
 
-    def test__build_directory_in_forbidend_path(self):
+    def test__build_directory_in_forbidden_path(self):
         """
-        Create directory in forbiden path
+        Create directory in forbidden path
         :return:boolean value, False if the path is not allowed
         """
         self.assertFalse(self.daemon._build_directory('/cartella_di_prova'))
@@ -195,7 +187,7 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.cfg['local_dir_state_path'], LOCAL_DIR_STATE_FOR_TEST)
         self.assertEqual(self.daemon.cfg['sharing_path'], TEST_SHARING_FOLDER)
 
-    def test__create_cfc_in_forbidden_path(self):
+    def test__create_cfg_in_forbidden_path(self):
         """
         Test creation of cfg and cfg directory in forbidden path.
         """
@@ -258,7 +250,7 @@ class TestClientDaemon(unittest.TestCase):
     def test_load_cfg_from_broken_file(self):
         """
         This test load broken config file.
-        We expect that default configuration is writen on file and loaded.
+        We expect that default configuration is written on file and loaded.
         """
         broken_json = '{"local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST, "sharing_path": TEST_SHARING_FOLDER'
 
@@ -282,9 +274,8 @@ class TestClientDaemon(unittest.TestCase):
         This test load file cfg with missing key.
         We expect default configuration will be written on file and loaded.
         """
-
         # I expect some customize configuration is loaded
-        missing_key_cfg = {"local_dir_state_path": 'error_value', 'missing_key': False}
+        missing_key_cfg = {'local_dir_state_path': 'error_value', 'missing_key': False}
         with open(CONFIG_FILEPATH, 'w') as cfg:
             json.dump(missing_key_cfg, cfg)
 
@@ -292,7 +283,7 @@ class TestClientDaemon(unittest.TestCase):
         # Loading of cfg with missing key
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        # Check what is written to the file after load, i expect that cfg is overwritten with default configuration
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
@@ -307,34 +298,40 @@ class TestClientDaemon(unittest.TestCase):
         Test load_cfg with cfg_path of unexistent file.
         I expect default cfg is loaded.
         """
-
         os.remove(CONFIG_FILEPATH)
 
         self.assertNotEqual(self.daemon.cfg, client_daemon.Daemon.DEF_CONF)
         # Loading unexistent cfg
         self.daemon.cfg = self.daemon._load_cfg(cfg_path=CONFIG_FILEPATH, sharing_path=None)
 
-        # Check what is written to the file after load, i expect that cfg is overwrited with default configuration
+        # Check what is written to the file after load, i expect that cfg is overwritten with default configuration
         with open(CONFIG_FILEPATH, 'r') as created_file:
             loaded_config = json.load(created_file)
         for cfg_line in loaded_config:
             self.assertEqual(self.daemon.cfg[cfg_line], loaded_config[cfg_line],
                              client_daemon.Daemon.DEF_CONF[cfg_line])
 
+
+class TestClientDaemonDirState(unittest.TestCase):
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+
+    def tearDown(self):
+        destroy_folder()
+
     def test_md5_of_client_snapshot(self):
         """
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method
         :return:
         """
-
-        time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
 
         md5hash = hashlib.md5()
 
         for path, time_md5 in sorted(self.daemon.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
-
             md5hash.update(time_md5[1])
             md5hash.update(path)
 
@@ -342,7 +339,6 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(md5hash.hexdigest(), self.daemon.md5_of_client_snapshot())
 
     def test_is_directory_not_modified(self):
-
         self.daemon.client_snapshot = base_dir_tree.copy()
         self.daemon.update_local_dir_state(timestamp_generator())
         old_global_md5 = self.daemon.local_dir_state['global_md5']
@@ -357,7 +353,6 @@ class TestClientDaemon(unittest.TestCase):
         Test MD5_OF_CLIENT_SNAPSHOT: Check the global_md5_method when i have update the client_snapshot
         :return:
         """
-
         time_stamp = timestamp_generator()
         self.daemon.client_snapshot = base_dir_tree.copy()
         old_global_md5 = self.daemon.md5_of_client_snapshot()
@@ -381,105 +376,29 @@ class TestClientDaemon(unittest.TestCase):
         self.assertEqual(self.daemon.local_dir_state['last_timestamp'], time_stamp,
                          msg="The timestamp i save is the save i load")
 
-    ####################### DIRECTORY NOT MODIFIED #####################################
-    def test_sync_process_move_on_server(self):
 
-        """
-        Test SYNC: Test only the calling of _make_move by _sync_process, server_timestamp > client_timestamp
-        Directory NOT modified
-        """
+class TestClientDaemonActions(unittest.TestCase):
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+        self.daemon.operation_happened = 'initial'
+        self.daemon.create_observer()
+        self.daemon.observer.start()
 
-        # Overriding sync methods of Class Daemon
-        client_daemon.Daemon._make_move_on_client = fake_make_move
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree starting with the same situation
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
-
-        # Added to copy of file1.txt
-        timestamp_and_md5_of_copied_file = server_dir_tree.pop('file1.txt')
-        server_dir_tree['move_folder/file1.txt'] = timestamp_and_md5_of_copied_file
-
-        # the src and destination of the file moved
-        src = 'file1.txt'
-        dst = 'move_folder/file1.txt'
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'move: src '+src+' dst: '+dst)
-
-    def test_sync_process_copy_on_server(self):
-        """
-        Test SYNC: Test only calling of _make_copy by sync, server_timestamp > client_timestamp
-        Directory NOT modified
-        """
-
-        # Overriding sync methods
-        client_daemon.Daemon._make_copy_on_client = fake_make_copy
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree starting with the same situation
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
-
-        # Added to copy of file1.txt
-        timestamp_and_md5_of_copied_file = server_dir_tree['file1.txt']
-        server_dir_tree['copy_folder/file1.txt'] = timestamp_and_md5_of_copied_file
-
-        # the src and destination of the file copied
-        src = 'file1.txt'
-        dst = 'copy_folder/file1.txt'
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
-        self.assertEqual(self.daemon.operation_happened, 'copy: src '+src+' dst: '+dst)
-
-    def test_sync_process_new_on_server(self):
-        """
-        Test SYNC: New file on server, server_timestamp > client_timestamp
-        Directory NOT MODIFIED
-        """
-
-        server_timestamp = timestamp_generator()
-
-        # server tree and client tree are the same here
-        server_dir_tree = base_dir_tree.copy()
-        self.daemon.client_snapshot = base_dir_tree.copy()
-
-        old_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        # client_timestamp < server_timestamp
-        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1, 'global_md5': old_global_md5_client}
-
-        # After that new file on server
-        server_dir_tree.update({'new_file_on_server.txt': (server_timestamp, '98746548972341')})
-
-        new_global_md5_client = self.daemon.md5_of_client_snapshot()
-
-        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
-                         [('download', 'new_file_on_server.txt')])
-        # Local Directory is NOT MODIFIED
-        self.assertEqual(new_global_md5_client, old_global_md5_client)
+    def tearDown(self):
+        global base_dir_tree
+        base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
+        destroy_folder()
 
     ####################### TEST MOVE and COPY ON CLIENT ##############################
-
     def test_make_copy_function(self):
         """
         Test _MAKE_COPY: test the COPY function when the DST NOT EXISTS
         :return:
         """
-
         create_base_dir_tree(['file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
         server_timestamp = timestamp_generator()
@@ -499,7 +418,6 @@ class TestClientDaemon(unittest.TestCase):
         Test _MAKE_COPY: test the COPY function when the SRC NOT EXISTS
         :return:
         """
-
         create_base_dir_tree([])
         self.daemon.client_snapshot = base_dir_tree.copy()
 
@@ -576,7 +494,6 @@ class TestClientDaemon(unittest.TestCase):
         Test _MAKE_MOVE: test the MOVE function when the DST EXISTS
         :return:
         """
-
         create_base_dir_tree(['file1.txt', 'move_folder/file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
 
@@ -587,6 +504,110 @@ class TestClientDaemon(unittest.TestCase):
 
         self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists), True)
 
+
+class TestClientDaemonSync(unittest.TestCase):
+    def setUp(self):
+        create_environment()
+        create_base_dir_tree()
+        self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
+        self.daemon.operation_happened = 'initial'
+        self.daemon.create_observer()
+        self.daemon.observer.start()
+
+    def tearDown(self):
+        global base_dir_tree
+        base_dir_tree = {}
+        self.daemon.observer.stop()
+        self.daemon.observer.join()
+        destroy_folder()
+
+    ####################### DIRECTORY NOT MODIFIED #####################################
+    def test_sync_process_move_on_server(self):
+        """
+        Test SYNC: Test only the calling of _make_move by _sync_process, server_timestamp > client_timestamp
+        Directory NOT modified
+        """
+        # Overriding sync methods of Class Daemon
+        client_daemon.Daemon._make_move_on_client = fake_make_move
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
+
+        # Added to copy of file1.txt
+        timestamp_and_md5_of_copied_file = server_dir_tree.pop('file1.txt')
+        server_dir_tree['move_folder/file1.txt'] = timestamp_and_md5_of_copied_file
+
+        # the src and destination of the file moved
+        src = 'file1.txt'
+        dst = 'move_folder/file1.txt'
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'move: src '+src+' dst: '+dst)
+
+    def test_sync_process_copy_on_server(self):
+        """
+        Test SYNC: Test only calling of _make_copy by sync, server_timestamp > client_timestamp
+        Directory NOT modified
+        """
+        # Overriding sync methods
+        client_daemon.Daemon._make_copy_on_client = fake_make_copy
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 4, 'global_md5': old_global_md5_client}
+
+        # Added to copy of file1.txt
+        timestamp_and_md5_of_copied_file = server_dir_tree['file1.txt']
+        server_dir_tree['copy_folder/file1.txt'] = timestamp_and_md5_of_copied_file
+
+        # the src and destination of the file copied
+        src = 'file1.txt'
+        dst = 'copy_folder/file1.txt'
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree), [])
+        self.assertEqual(self.daemon.operation_happened, 'copy: src '+src+' dst: '+dst)
+
+    def test_sync_process_new_on_server(self):
+        """
+        Test SYNC: New file on server, server_timestamp > client_timestamp
+        Directory NOT MODIFIED
+        """
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree are the same here
+        server_dir_tree = base_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client_timestamp < server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp - 1, 'global_md5': old_global_md5_client}
+
+        # After that new file on server
+        server_dir_tree.update({'new_file_on_server.txt': (server_timestamp, '98746548972341')})
+
+        new_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        self.assertEqual(self.daemon._sync_process(server_timestamp, server_dir_tree),
+                         [('download', 'new_file_on_server.txt')])
+        # Local Directory is NOT MODIFIED
+        self.assertEqual(new_global_md5_client, old_global_md5_client)
+
     ####################### DIRECTORY MODIFIED #####################################
 
     def test_sync_process_new_on_both(self):
@@ -594,7 +615,6 @@ class TestClientDaemon(unittest.TestCase):
         Test SYNC: new file on server, new on client, server_timestamp > client_timestamp
         Directory modified
         """
-
         server_timestamp = timestamp_generator()
 
         # server tree and client tree are the same
@@ -619,12 +639,10 @@ class TestClientDaemon(unittest.TestCase):
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
 
     def test_sync_process_modified_on_both(self):
-
         """
         Test SYNC: modified file on server, modified same file on client, server_timestamp > client_timestamp
         Directory modified
         """
-
         server_timestamp = timestamp_generator()
 
         # server tree and client tree starting with the same situation
@@ -1091,7 +1109,8 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.cfg['user'] = ''
         self.daemon.cfg['pass'] = ''
         self.daemon.cfg['activate'] = False
-        self.socket = test_utils.FakeSocket()
+
+        self.socket = tstutils.FakeSocket()
         # Mocking the observing method
         self.daemon._initialize_observing = self.fake_initialize_observing
         self.init_observing_called = False
@@ -1121,7 +1140,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check block not allowed operation
         """
-
         #Mocking the communication with cmdmanager
         self.daemon._set_cmdmanager_response = fake_set_cmdmanager_response
 
@@ -1145,7 +1163,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check receive registration cmd and registration is successful.
         """
-
         def fake_register_into_connection_manager(data):
             return {'successful': True}
 
@@ -1174,7 +1191,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check receive registration cmd and registration failed on server.
         """
-
         def fake_register_into_connection_manager(data):
             return {'successful': False}
 
@@ -1203,7 +1219,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         """
         Test that _activation_check receive activation cmd and activation is successful.
         """
-
         def fake_activation_into_connection_manager(data):
             return {'successful': True}
 
@@ -1229,11 +1244,11 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         # Test the observing is started
         self.assertTrue(self.init_observing_called)
 
+
     def test__activation_check_receive_activation_cmd_with_failed_activation_on_server(self):
         """
-#       Test that _activation_check receive activation cmd and activation failed on server.
+        Test that _activation_check receive activation cmd and activation failed on server.
         """
-
         def fake_activation_into_connection_manager(data):
             return {'successful': False}
 
@@ -1317,3 +1332,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         # Test the observing is started
         self.assertFalse(self.init_observing_called)
+
+
+if __name__ == '__main__':
+    unittest.main()
