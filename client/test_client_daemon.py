@@ -946,6 +946,10 @@ class TestClientDaemon(unittest.TestCase):
             # Check state after event
             self.assertIn(filename, self.daemon.client_snapshot)
             self.assertIn(new_content_md5, self.daemon.client_snapshot[filename])
+
+    def test_on_copy_event_inside_create_event(self):
+        """"
+        Test EVENTS: test on created event of watchdog, expect a copy requests
         on_created event must be detected as a copy event when a file
         with the same md5 is already in the client_snapshot
         """
@@ -953,10 +957,9 @@ class TestClientDaemon(unittest.TestCase):
         src_filename = 'a_file.txt'
         dst_filename = 'folder/b_file.txt'
         dest_filepath = os.path.join(TEST_SHARING_FOLDER, dst_filename)
-        file_content = 'this is the content in the file'
-        content_md5 = hashlib.md5(file_content).hexdigest()
+        content = 'content of file'
+        content_md5 = hashlib.md5(content).hexdigest()
         received_data = {'src': src_filename, 'dst': dst_filename, 'md5': content_md5}
-
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
             # Initialize client_snapshot
@@ -970,7 +973,7 @@ class TestClientDaemon(unittest.TestCase):
             # Load event
             # I will put dest_filepath in e.src_path because watchdog see copy event as create of new file.
             # During on_created method the program check if exist a src_path with the same md5
-            self.daemon.on_created(FileFakeEvent(src_path=dest_filepath, src_content=file_content))
+            self.daemon.on_created(FileFakeEvent(src_path=dest_filepath, src_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'copy')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -979,16 +982,15 @@ class TestClientDaemon(unittest.TestCase):
 
     def test_on_moved(self):
         """
-        Test EVENTS: test on_moved watchdog
+        Test EVENTS: test on moved event of watchdog, expect a move requests
         """
         src_filename = 'a_file.txt'
         dst_filename = 'folder/a_file.txt'
         src_filepath = os.path.join(TEST_SHARING_FOLDER, src_filename)
         dest_filepath = os.path.join(TEST_SHARING_FOLDER, dst_filename)
-        file_content = 'this is the content in the file'
-        content_md5 = hashlib.md5(file_content).hexdigest()
+        content = 'content of file'
+        content_md5 = hashlib.md5(content).hexdigest()
         received_data = {'src': src_filename, 'dst': dst_filename, 'md5': content_md5}
-
         # replace connection manager in the client instance
         with replace_conn_mng(self.daemon, FakeConnMng()):
             # Initialize client_snapshot
@@ -1001,7 +1003,7 @@ class TestClientDaemon(unittest.TestCase):
             self.assertNotIn(dst_filename, self.daemon.client_snapshot)
             # Load event
             self.daemon.on_moved(FileFakeEvent(src_path=src_filepath, dest_path=dest_filepath,
-                                               dest_content=file_content))
+                                               dest_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'move')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
