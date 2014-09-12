@@ -273,8 +273,6 @@ class TestConnectionManager(unittest.TestCase):
         """
         data = ('bad_user', 'bad_pass')
         url = self.files_url
-        content = {'file1': 'foo.txt', 'file2': 'dir/foo.txt'}
-        content_jsoned = json.dumps(content)
         httpretty.register_uri(httpretty.GET, url, status=401)
         response = self.cm.do_login(data)
         self.assertIn('content', response)
