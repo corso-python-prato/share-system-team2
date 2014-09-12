@@ -1010,6 +1010,37 @@ class TestClientDaemon(unittest.TestCase):
             self.assertNotIn(src_filename, self.daemon.client_snapshot)
             self.assertIn(dst_filename, self.daemon.client_snapshot)
 
+    def test_on_copy_event_inside_move_event(self):
+        """
+        Test EVENTS: test on move event of watchdog, expect a copy requests
+        on_move event must be detected as a copy event when the origin path
+        exist after the move event
+        """
+        src_filename = 'a_file.txt'
+        dst_filename = 'folder/a_file.txt'
+        src_filepath = os.path.join(TEST_SHARING_FOLDER, src_filename)
+        dest_filepath = os.path.join(TEST_SHARING_FOLDER, dst_filename)
+        content = 'content of file'
+        content_md5 = hashlib.md5(content).hexdigest()
+        received_data = {'src': src_filename, 'dst': dst_filename, 'md5': content_md5}
+        # replace connection manager in the client instance
+        with replace_conn_mng(self.daemon, FakeConnMng()):
+            # Initialize client_snapshot
+            create_base_dir_tree([])
+            global base_dir_tree
+            base_dir_tree[src_filename] = [time.time()*10000, content_md5]
+            self.daemon.client_snapshot = base_dir_tree.copy()
+            # Check initial state
+            self.assertIn(src_filename, self.daemon.client_snapshot)
+            self.assertNotIn(dst_filename, self.daemon.client_snapshot)
+            # Load event
+            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath, src_content=content,
+                                               dest_path=dest_filepath, dest_content=content))
+            self.assertEqual(self.daemon.conn_mng.called_cmd, 'copy')
+            self.assertEqual(self.daemon.conn_mng.received_data, received_data)
+            # Check state after event
+            self.assertIn(src_filename, self.daemon.client_snapshot)
+            self.assertIn(dst_filename, self.daemon.client_snapshot)
 
 @contextmanager
 def replace_conn_mng(daemon, fake):
