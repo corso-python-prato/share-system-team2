@@ -4,14 +4,14 @@
 import hashlib
 import unittest
 import os
-import sys
 import shutil
 import json
 import time
-import random
 import client_daemon
-import test_utils
+import tstutils
+
 from contextlib import contextmanager
+
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -973,7 +973,8 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.cfg['user'] = ''
         self.daemon.cfg['pass'] = ''
         self.daemon.cfg['activate'] = False
-        self.socket = test_utils.FakeSocket()
+
+        self.socket = tstutils.FakeSocket()
         # Mocking the observing method
         self.daemon._initialize_observing = self.fake_initialize_observing
         self.init_observing_called = False
