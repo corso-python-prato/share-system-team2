@@ -231,11 +231,10 @@ class ConnectionManager(object):
 
     def do_move(self, data):
         url = ''.join([self.actions_url, 'move'])
-        encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         d = {'src': data['src'], 'dst': data['dst']}
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_move', url, data))
         try:
-            r = requests.post(encoded_url, auth=self.auth, data=d)
+            r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
             return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
@@ -246,11 +245,10 @@ class ConnectionManager(object):
 
     def do_delete(self, data):
         url = ''.join([self.actions_url, 'delete'])
-        encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_delete', url, data))
         d = {'filepath': data['filepath']}
         try:
-            r = requests.post(encoded_url, auth=self.auth, data=d)
+            r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
             return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
@@ -261,11 +259,10 @@ class ConnectionManager(object):
 
     def do_copy(self, data):
         url = ''.join([self.actions_url, 'copy'])
-        encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         d = {'src': data['src'], 'dst': data['dst']}
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_copy', url, data))
         try:
-            r = requests.post(encoded_url, auth=self.auth, data=d)
+            r = requests.post(url, auth=self.auth, data=d)
             r.raise_for_status()
             return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
@@ -276,11 +273,10 @@ class ConnectionManager(object):
 
     def do_get_server_snapshot(self, data):
         url = self.files_url
-        encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         self.logger.info('{}: URL: {} - DATA: {} '.format('do_get_server_snapshot', url, data))
 
         try:
-            r = requests.get(encoded_url, auth=self.auth)
+            r = requests.get(url, auth=self.auth)
             r.raise_for_status()
             return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
