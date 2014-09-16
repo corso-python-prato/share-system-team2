@@ -300,13 +300,13 @@ def main():
     parser.add_argument('-ni', '--no-interactive', dest='interact', default=False, action='store_true',
                         help="Execute a single command from console")
     for command, method in ALLOWED_COMMAND.iteritems():
-        parser.add_argument('-' + command, nargs='+', required=False,
+        parser.add_argument('-' + command, nargs='*', required=False,
                             help=getattr(CommandParser, method).__doc__)
     args = parser.parse_args()
     cmd_parser = CommandParser()
     cmd_parser.init_cmdparser()
     # This list comprehension search any command from ALLOWED_COMMAND that the user enter in console
-    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command)]
+    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command) != None]
     if args.interact and console_command:
         for command in console_command:
             cmd_name = ALLOWED_COMMAND[command]
