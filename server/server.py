@@ -828,6 +828,7 @@ class Shares(Resource):
                     self._share(join(root_path,f), username, owner)
         else:
             self._share(root_path, username, owner)
+        save_userdata()
 
         return HTTP_OK
 
@@ -841,10 +842,12 @@ class Shares(Resource):
             users = userdata[owner]['shared_with_others'][root_path]
             for user in users:
                 _remove_share_from_user(root_path, username, owner)
+                save_userdata()
         return HTTP_DELETED
 
         if username in userdata[owner]['shared_with_others'][root_path]:
             userdata[owner]['shared_with_others'][root_path].remove(username)
+            save_userdata()
             return HTTP_DELETED
 
         abort(HTTP_NOT_FOUND)
