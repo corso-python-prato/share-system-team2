@@ -840,7 +840,7 @@ class Shares(Resource):
         if username == '':
             users = userdata[owner]['shared_with_others'][root_path]
             for user in users:
-                self._remove_share_from_user(root_path, username, owner)
+                self._remove_share_from_user(root_path, user, owner)
                 save_userdata()
         return HTTP_DELETED
 
