@@ -829,7 +829,6 @@ class Shares(Resource):
         else:
             self._share(root_path, username, owner)
         save_userdata()
-
         return HTTP_OK
 
     @auth.login_required
@@ -841,7 +840,7 @@ class Shares(Resource):
         if username == '':
             users = userdata[owner]['shared_with_others'][root_path]
             for user in users:
-                _remove_share_from_user(root_path, username, owner)
+                self._remove_share_from_user(root_path, username, owner)
                 save_userdata()
         return HTTP_DELETED
 
