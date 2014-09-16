@@ -446,7 +446,7 @@ class Daemon(RegexMatchingEventHandler):
                 # it's the best case. Client and server are already synchronized
                 for key in tree_diff:
                     assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty"
-                return []
+                sync_commands = []
             else:  # local_timestamp < server_timestamp
                 print 'local_timestamp < server_timestamp and directory IS NOT modified'
                 assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
@@ -494,7 +494,6 @@ class Daemon(RegexMatchingEventHandler):
                     self.client_snapshot.pop(filepath)
                     self.update_local_dir_state(server_timestamp)
 
-
         for filepath in shared_tree_diff['new_on_client']:
             # files deleted on server
             abs_filepath = self.absolutize_path(filepath)
@@ -505,7 +504,6 @@ class Daemon(RegexMatchingEventHandler):
                 print "Delete EXEPTION INTO SYNC : {}".format(ex)
 
             self.shared_snapshot.pop(filepath)
-
 
         for filepath in shared_tree_diff['modified']:
             sync_commands.append(('download', filepath))
