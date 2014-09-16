@@ -856,18 +856,17 @@ class Shares(Resource):
         if os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 for f in files:
-                    res = 'shared/{0}/{1}'.format(owner, join(root_path,f))
-                    userdata[username]['shared_files'].remove(res)
-                    userdata[username]['shared_with_me'][owner].remove(join(root_path,f))
+                    res = 'shared/{0}/{1}'.format(owner, join(root_path, f))
+                    userdata[username]['shared_files'].pop(res)
+                    userdata[username]['shared_with_me'][owner].remove(join(root_path, f))
                     userdata[owner]['shared_with_others'][root_path].remove(username)
             del userdata[owner]['shared_with_others'][root_path]
         else:
             res = 'shared/{0}/{1}'.format(owner, root_path)
-            userdata[username]['shared_files'].remove(res)
+            userdata[username]['shared_files'].pop(res)
             userdata[username]['shared_with_me'][owner].remove(root_path)
             userdata[owner]['shared_with_others'][root_path].remove(username)
             del userdata[owner]['shared_with_others'][root_path]
-
 
     def _is_shared(self, path, owner):
         if path in userdata[owner]['shared_with_others']:
