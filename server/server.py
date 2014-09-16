@@ -842,7 +842,7 @@ class Shares(Resource):
             for user in users:
                 self._remove_share_from_user(root_path, user, owner)
                 save_userdata()
-        return HTTP_DELETED
+            return HTTP_DELETED
 
         if username in userdata[owner]['shared_with_others'][root_path]:
             userdata[owner]['shared_with_others'][root_path].remove(username)
