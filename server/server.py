@@ -840,7 +840,7 @@ class Shares(Resource):
             return HTTP_DELETED
 
         if username in userdata[owner]['shared_with_others'][root_path]:
-            userdata[owner]['shared_with_others'][root_path].remove(username)
+            self._remove_share_from_user(root_path, username, owner)
             save_userdata()
             return HTTP_DELETED
 
@@ -855,13 +855,13 @@ class Shares(Resource):
                     userdata[username]['shared_files'].pop(res)
                     userdata[username]['shared_with_me'][owner].remove(join(root_path, f))
                     userdata[owner]['shared_with_others'][root_path].remove(username)
-            del userdata[owner]['shared_with_others'][root_path]
+            #userdata[owner]['shared_with_others'].pop(root_path)
         else:
             res = 'shared/{0}/{1}'.format(owner, root_path)
             userdata[username]['shared_files'].pop(res)
             userdata[username]['shared_with_me'][owner].remove(root_path)
             userdata[owner]['shared_with_others'][root_path].remove(username)
-            del userdata[owner]['shared_with_others'][root_path]
+            #userdata[owner]['shared_with_others'].pop(root_path)
 
     def _is_shared(self, path, owner):
         if path in userdata[owner]['shared_with_others']:
