@@ -240,7 +240,7 @@ class Daemon(RegexMatchingEventHandler):
         # check the consistency of client snapshot retrieved by the server with the real files on clients
         file_md5 = None
         for filepath in self.shared_snapshot.keys():
-            file_md5 = self.hash_file(filepath)
+            file_md5 = self.hash_file(self.absolutize_path(filepath))
             if not file_md5 or file_md5 != self.shared_snapshot[filepath][1]:
                 # force the re-download at next synchronization
                 self.shared_snapshot.pop(filepath)
