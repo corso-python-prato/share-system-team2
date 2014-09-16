@@ -821,13 +821,8 @@ class Shares(Resource):
         #Check if the path is sharable
         if not self._is_sharable(root_path, owner):
             abort(HTTP_FORBIDDEN)    
-        #Check if path is a file or a directory
-        if os.path.isdir(path):
-            for root, dirs, files in os.walk(path):
-                for f in files:
-                    self._share(join(root_path,f), username, owner)
-        else:
-            self._share(root_path, username, owner)
+       
+        self._share(root_path, username, owner)
         save_userdata()
         return HTTP_OK
 
@@ -883,8 +878,14 @@ class Shares(Resource):
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
         userdata[username]['shared_with_me'][owner].append(path)
-        userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, path)] = userdata[owner]['files'][path]
         userdata[owner]['shared_with_others'][path].append(username)
+        
+        abs_path = os.path.abspath(join(FILE_ROOT, owner, path))
+        if os.path.isdir(abs_path):
+            for root, dirs, files in os.walk(abs_path):
+                for f in files:
+                    userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, join(path,f))] = userdata[owner]['files'][join(path,f)]
+        
 
     def _is_sharable(self, path, owner):
         """
