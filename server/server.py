@@ -853,8 +853,9 @@ class Shares(Resource):
                 for f in files:
                     res = 'shared/{0}/{1}'.format(owner, join(root_path, f))
                     userdata[username]['shared_files'].pop(res)
-                    userdata[username]['shared_with_me'][owner].remove(join(root_path, f))
-                    userdata[owner]['shared_with_others'][root_path].remove(username)
+            userdata[username]['shared_with_me'][owner].remove(root_path)
+            print 'step2'
+            userdata[owner]['shared_with_others'][root_path].remove(username)
             #userdata[owner]['shared_with_others'].pop(root_path)
         else:
             res = 'shared/{0}/{1}'.format(owner, root_path)
@@ -885,6 +886,9 @@ class Shares(Resource):
             for root, dirs, files in os.walk(abs_path):
                 for f in files:
                     userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, join(path,f))] = userdata[owner]['files'][join(path,f)]
+        else:
+            userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, path)] = userdata[owner]['files'][path]
+
         
 
     def _is_sharable(self, path, owner):
