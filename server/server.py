@@ -856,7 +856,6 @@ class Shares(Resource):
                     res = 'shared/{0}/{1}'.format(owner, join(temp_path[1:], f))
                     userdata[username]['shared_files'].pop(res)
             userdata[username]['shared_with_me'][owner].remove(root_path)
-            print 'step2'
             userdata[owner]['shared_with_others'][root_path].remove(username)
             #userdata[owner]['shared_with_others'].pop(root_path)
         else:
