@@ -1049,8 +1049,6 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.conn_mng.do_register = fake_register_into_connection_manager
 
         data = (USR, PW)
-        old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with successful response from server
