@@ -542,6 +542,16 @@ class Daemon(FileSystemEventHandler):
 
     @is_directory
     def on_created(self, e):
+        """
+        Manage the create event observed from watchdog.
+        The data about the event is collected and sent to the server with connection_manager module.
+        After the result of connection is received with successful response the client_snapshot and local_dir_state
+        will be updated.
+
+        N.B: Sometime on_created event is a copy or modify event for erroneous survey,
+        so the method check if this error has happened.
+        :param e: event object with information about what has happened
+        """
         def build_data(cmd, rel_new_path, new_md5, founded_path=None):
             """
             Prepares the data from event handler to be delivered to connection_manager.
@@ -564,8 +574,9 @@ class Daemon(FileSystemEventHandler):
             abs_founded_path = self.absolutize_path(founded_path)
             print 'Start copy from path : {}\n to path: {}'.format(abs_founded_path, e.src_path)
             data = build_data('copy', rel_new_path, new_md5, founded_path)
-
-        # this elif check that this created aren't modified event
+        # this elif check that this create event aren't modify event.
+        # Normally this never happen but sometimes watchdog fail to understand what has happened on file.
+        # For example Gedit generate a create event instead modify event when a file is saved.
         elif rel_new_path in self.client_snapshot:
             print 'WARNING this is modify event FROM CREATE EVENT! Path of file already existent:', e.src_path
             data = build_data('modify', rel_new_path, new_md5)
@@ -587,10 +598,21 @@ class Daemon(FileSystemEventHandler):
 
     @is_directory
     def on_moved(self, e):
+        """
+        Manage the move event observed from watchdog.
+        The data about the event is collected and sent to the server with connection_manager module.
+        After the result of connection is received with successful response the client_snapshot and local_dir_state
+        will be updated.
 
+        N.B: Sometime on_move event is a copy event for erroneous survey, so the method check if this error has happened.
+        :param e: event object with information about what has happened
+        """
         print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
+        # this check that move event isn't modify event.
+        # Normally this never happen but sometimes watchdog fail to understand what has happened on file.
+        # For example Gedit generate a move event instead copy event when a file is saved.
         if not os.path.exists(e.src_path):
             cmd = 'move'
         else:
@@ -619,7 +641,13 @@ class Daemon(FileSystemEventHandler):
 
     @is_directory
     def on_modified(self, e):
-
+        """
+        Manage the modify event observed from watchdog.
+        The data about the event is collected and sent to the server with connection_manager module.
+        After the result of connection is received with successful response the client_snapshot and local_dir_state
+        will be updated.
+        :param e: event object with information about what has happened
+        """
         print 'start modify of file:', e.src_path
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
@@ -638,7 +666,13 @@ class Daemon(FileSystemEventHandler):
 
     @is_directory
     def on_deleted(self, e):
-
+        """
+        Manage the delete event observed from watchdog.
+        The data about the event is collected and sent to the server with connection_manager module.
+        After the result of connection is received with successful response the client_snapshot and local_dir_state
+        will be updated.
+        :param e: event object with information about what has happened
+        """
         print 'start delete of file:', e.src_path
         rel_path = self.relativize_path(e.src_path)
         # Send data to connection manager dispatcher and check return value.
