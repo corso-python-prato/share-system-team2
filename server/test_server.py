@@ -762,12 +762,16 @@ class TestUsersPost(unittest.TestCase):
 
     def test_user_already_existing(self):
         """
-        Existing user --> 409.
+        Existing user --> 409 + no email.
         """
         _manually_create_user(self.username, self.password)
 
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                             data={'password': self.password})
+        with server.mail.record_messages() as outbox:
+            test = self.app.post(urlparse.urljoin(SERVER_API,
+                                                  'users/' + self.username),
+                                 data={'password': self.password})
+        # No mail must be sent if this user already exists!
+        self.assertEqual(len(outbox), 0)
 
         self.assertEqual(test.status_code, HTTP_CONFLICT)
 
