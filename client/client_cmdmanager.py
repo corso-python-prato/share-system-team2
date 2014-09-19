@@ -306,7 +306,7 @@ def main():
     cmd_parser = CommandParser()
     cmd_parser.init_cmdparser()
     # This list comprehension search any command from ALLOWED_COMMAND that the user enter in console
-    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command) != None]
+    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command) is not None]
     if args.interact and console_command:
         for command in console_command:
             cmd_name = ALLOWED_COMMAND[command]
