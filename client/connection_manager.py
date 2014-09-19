@@ -23,6 +23,7 @@ import urllib
 import json
 import os
 import logging
+import keyring
 
 
 class ConnectionManager(object):
@@ -66,7 +67,7 @@ class ConnectionManager(object):
         :param cfg: Dictionary where is contained the configuration
         """
         self.cfg = cfg
-        self.auth = (self.cfg.get('user', None), self.cfg.get('pass', None))
+        self.auth = (self.cfg.get('user'), keyring.get_password('PyBox', self.cfg.get('user', '')))
 
         # example of self.base_url = 'http://localhost:5000/API/V1/'
         self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])

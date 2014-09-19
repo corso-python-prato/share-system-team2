@@ -1107,7 +1107,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.create_observer()
         self.daemon.observer.start()
         self.daemon.cfg['user'] = ''
-        self.daemon.cfg['pass'] = ''
+        self.daemon.password = ''
         self.daemon.cfg['activate'] = False
 
         self.socket = tstutils.FakeSocket()
@@ -1146,14 +1146,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         command = 'not_allowed'
         data = {}
         old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
+        old_pass = self.daemon.password
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with not allowed operation
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(old_user, self.daemon.cfg['user'])
-        self.assertEqual(old_pass, self.daemon.cfg['pass'])
+        self.assertEqual(old_pass, self.daemon.password)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1173,15 +1173,13 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.daemon.conn_mng.do_register = fake_register_into_connection_manager
 
         data = (USR, PW)
-        old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], USR)
-        self.assertEqual(self.daemon.cfg['pass'], PW)
+        self.assertEqual(self.daemon.password, PW)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1202,14 +1200,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         data = (USR, PW)
         old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
+        old_pass = self.daemon.password
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with failed response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], old_user)
-        self.assertEqual(self.daemon.cfg['pass'], old_pass)
+        self.assertEqual(self.daemon.password, old_pass)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1230,14 +1228,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         data = (USR, 'token_authorized')
         old_user = self.daemon.cfg['user'] = USR
-        old_pass = self.daemon.cfg['pass'] = PW
+        old_pass = self.daemon.password = PW
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], USR, old_user)
-        self.assertEqual(self.daemon.cfg['pass'], PW, old_pass)
+        self.assertEqual(self.daemon.password, PW, old_pass)
         self.assertTrue(self.daemon.cfg['activate'])
         self.assertNotEqual(self.daemon.cfg['activate'], old_activate_state)
 
@@ -1260,14 +1258,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         data = (USR, 'unauthorized_token')
         old_user = self.daemon.cfg['user'] = USR
-        old_pass = self.daemon.cfg['pass'] = PW
+        old_pass = self.daemon.password = PW
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with failed response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], old_user, USR)
-        self.assertEqual(self.daemon.cfg['pass'], old_pass, PW)
+        self.assertEqual(self.daemon.password, old_pass, PW)
         self.assertFalse(old_activate_state, self.daemon.cfg['activate'])
 
         # Test the observing is not started
@@ -1289,14 +1287,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         data = (USR, PW)
         old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
+        old_pass = self.daemon.password
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with successful response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEquals(self.daemon.cfg['user'], USR, old_user)
-        self.assertEquals(self.daemon.cfg['pass'], PW, old_pass)
+        self.assertEquals(self.daemon.password, PW, old_pass)
         self.assertTrue(self.daemon.cfg['activate'])
         self.assertNotEqual(self.daemon.cfg['activate'], old_activate_state)
 
@@ -1319,14 +1317,14 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
 
         data = (USR, PW)
         old_user = self.daemon.cfg['user']
-        old_pass = self.daemon.cfg['pass']
+        old_pass = self.daemon.password
         old_activate_state = self.daemon.cfg['activate']
 
         # Call _activation_check with failed response from server
         self.daemon._activation_check(self.socket, command, data)
 
         self.assertEqual(self.daemon.cfg['user'], old_user)
-        self.assertEqual(self.daemon.cfg['pass'], old_pass)
+        self.assertEqual(self.daemon.password, old_pass)
         self.assertFalse(self.daemon.cfg['activate'])
         self.assertEqual(self.daemon.cfg['activate'], old_activate_state)
 
