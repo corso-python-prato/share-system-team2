@@ -8,6 +8,7 @@ import json
 import httpretty
 import time
 import shutil
+import urllib
 
 # API:
 # - GET /diffs, con parametro timestamp
@@ -31,25 +32,25 @@ CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
 CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 LOCAL_DIR_STATE_FOR_TEST = os.path.join(CONFIG_DIR, 'local_dir_state')
 TEST_SHARING_FOLDER = os.path.join(TEST_DIR, 'test_sharing_folder')
+TEST_SERVER_ADDRESS = 'http://www.pyboxtest.com'
 
 TEST_CFG = {
-    "local_dir_state_path": LOCAL_DIR_STATE_FOR_TEST,
-    "sharing_path": TEST_SHARING_FOLDER,
-    "cmd_address": "localhost",
-    "cmd_port": 60001,
-    "api_suffix": "/API/V1/",
+    'local_dir_state_path': LOCAL_DIR_STATE_FOR_TEST,
+    'sharing_path': TEST_SHARING_FOLDER,
+    'cmd_address': 'localhost',
+    'cmd_port': 60001,
+    'api_suffix': '/API/V1/',
     # no server_address to be sure
-    "server_address": "",
-    "user": "user",
-    "pass": "pass",
-    "activate": True,
+    'server_address': TEST_SERVER_ADDRESS,
+    'user': 'user',
+    'pass': 'pass',
+    'activate': True
 }
 
 
 def create_environment():
     if not os.path.exists(TEST_DIR):
         os.makedirs(CONFIG_DIR)
-        os.mkdir(TEST_SHARING_FOLDER)
 
     with open(CONFIG_FILEPATH, 'w') as f:
             json.dump(TEST_CFG, f, skipkeys=True, ensure_ascii=True, indent=4)
@@ -58,22 +59,30 @@ def create_environment():
 USR, PW = 'client_user@mail.com', 'Mail_85'
 
 
+def make_fake_dir():
+    if os.path.exists(TEST_SHARING_FOLDER):
+        shutil.rmtree(TEST_SHARING_FOLDER)
+    os.makedirs(TEST_SHARING_FOLDER)
+
+    fake_file = os.path.join(TEST_SHARING_FOLDER, 'foo.txt')
+    with open(fake_file, 'w') as f:
+        f.write('foo.txt :)')
+
+
+def remove_fake_dir():
+    shutil.rmtree(TEST_SHARING_FOLDER)
+
+
 class TestConnectionManager(unittest.TestCase):
 
     def setUp(self):
         httpretty.enable()
         create_environment()
+        make_fake_dir()
         with open(CONFIG_FILEPATH, 'r') as fo:
             self.cfg = json.load(fo)
 
         self.auth = (self.cfg['user'], self.cfg['pass'])
-        # override
-        self.cfg['server_address'] = "http://www.pyboxtest.com"
-        self.cfg['sharing_path'] = os.path.join(os.getcwd(), "sharing_folder")
-
-        # create this auth testing
-        self.authServerAddress = "http://" + self.cfg['user'] + ":" + self.cfg['pass'] + "@www.pyboxtest.com"
-        # example of self.base_url = 'http://localhost:5000/API/V1/'
         self.base_url = ''.join([self.cfg['server_address'], self.cfg['api_suffix']])
         self.files_url = ''.join([self.base_url, 'files/'])
         self.actions_url = ''.join([self.base_url, 'actions/'])
@@ -81,7 +90,11 @@ class TestConnectionManager(unittest.TestCase):
         self.user_url = ''.join([self.base_url, 'users/'])
 
         self.cm = ConnectionManager(self.cfg)
-        self.make_fake_dir()
+
+    def tearDown(self):
+        httpretty.disable()
+        httpretty.reset()
+        remove_fake_dir()
 
     @httpretty.activate
     def test_register_user(self):
@@ -260,8 +273,6 @@ class TestConnectionManager(unittest.TestCase):
         """
         data = ('bad_user', 'bad_pass')
         url = self.files_url
-        content = {'file1': 'foo.txt', 'file2': 'dir/foo.txt'}
-        content_jsoned = json.dumps(content)
         httpretty.register_uri(httpretty.GET, url, status=401)
         response = self.cm.do_login(data)
         self.assertIn('content', response)
@@ -329,7 +340,7 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.GET, url, status=201)
         data = {'filepath': 'file.txt'}
         response = self.cm.do_download(data)
-        self.assertEqual(response, True)
+        self.assertEqual(response['successful'], True)
 
     @httpretty.activate
     def test_download_file_not_exists(self):
@@ -338,107 +349,120 @@ class TestConnectionManager(unittest.TestCase):
         httpretty.register_uri(httpretty.GET, url, status=404)
         data = {'filepath': 'file.tx'}
         response = self.cm.do_download(data)
-        self.assertEqual(response, False)
+        self.assertEqual(response['successful'], False)
+        self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
     def test_do_upload_success(self):
 
         # prepare fake server
         url = ''.join((self.files_url, 'foo.txt'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         # call api
         response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
+
+    @httpretty.activate
+    def test_encode_of_url_with_strange_char(self):
+        """
+        Test the url encode of filename with strange char.
+        I use upload method for example and i expect that httpretty answer at the right URL.
+        """
+        # Create the file with strange name
+        strange_filename = 'name%with#strange~char'
+        strange_filepath = os.path.join(TEST_SHARING_FOLDER, strange_filename)
+        with open(strange_filepath, 'w') as f:
+            f.write('file with strange name content')
+
+        # prepare fake server
+        encoded_filename = urllib.quote(strange_filename, self.cm.ENCODER_FILTER)
+        url = ''.join((self.files_url, encoded_filename))
+        print url
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
+        httpretty.register_uri(httpretty.POST, url, status=201,
+                               body=js,
+                               content_type="application/json")
+
+        # call api
+        response = self.cm.do_upload({'filepath': strange_filename, 'md5': 'test_md5'})
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     # actions:
     @httpretty.activate
     def test_do_move(self):
         url = ''.join((self.actions_url, 'move'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_delete(self):
         url = ''.join((self.actions_url, 'delete'))
-
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
         d = {'filepath': 'foo.txt'}
 
         response = self.cm.do_delete(d)
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_modify(self):
         url = ''.join((self.files_url, 'foo.txt'))
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.PUT, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_do_copy(self):
         url = ''.join([self.actions_url, 'copy'])
         d = {'src': 'foo.txt', 'dst': 'folder/foo.txt'}
-        js = json.dumps({"server_timestamp": time.time()})
-        recv_js = json.loads(js)
+        msg = {'server_timestamp': time.time()}
+        js = json.dumps(msg)
         httpretty.register_uri(httpretty.POST, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_copy(d)
-        self.assertEqual(response, recv_js)
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
     @httpretty.activate
     def test_get_server_snapshot(self):
         url = self.files_url
-        js = json.dumps({'files': 'foo.txt'})
+        msg = {'files': 'foo.txt'}
+        js = json.dumps(msg)
 
         httpretty.register_uri(httpretty.GET, url, status=201,
                                body=js,
                                content_type="application/json")
 
         response = self.cm.do_get_server_snapshot('')
-        self.assertEqual(json.dumps(response), js)
-
-    def tearDown(self):
-        httpretty.disable()
-        httpretty.reset()
-        self.remove_fake_dir()
-
-    def make_fake_dir(self):
-        sharing_path = os.path.join(self.cfg['sharing_path'])
-
-        if os.path.exists(sharing_path):
-            shutil.rmtree(sharing_path)
-        else:
-            os.makedirs(os.path.join(self.cfg['sharing_path']))
-
-        fake_file = os.path.join(self.cfg['sharing_path'], 'foo.txt')
-        with open(fake_file, 'w') as fc:
-            fc.write('foo.txt :)')
-
-    def remove_fake_dir(self):
-        shutil.rmtree(os.path.join(self.cfg['sharing_path']))
-
+        self.assertTrue(response['successful'])
+        self.assertEqual(response['content'], msg)
 
 if __name__ == '__main__':
     unittest.main()
