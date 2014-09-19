@@ -10,6 +10,7 @@ import hashlib
 import re
 import time
 import argparse
+import keyring
 
 from sys import exit as exit
 from collections import OrderedDict
@@ -93,6 +94,7 @@ class Daemon(RegexMatchingEventHandler):
         self.listener_socket = None
         self.observer = None
         self.cfg = self._load_cfg(cfg_path, sharing_path)
+        self.password = self._load_pass()
         self._init_sharing_path(sharing_path)
 
         self.conn_mng = ConnectionManager(self.cfg)
@@ -173,6 +175,19 @@ class Daemon(RegexMatchingEventHandler):
             print '\nWarning "{0}" doesn\'t exist!' \
                   '\nNew config file created and loaded with default configuration!\n'.format(cfg_path)
         return self._create_cfg(cfg_path, sharing_path)
+
+    def _save_pass(self, password):
+        """
+        Save password in keyring
+        """
+        keyring.set_password('PyBox', self.cfg['user'], password)
+
+    def _load_pass(self):
+        """
+        Load from keyring the password
+        :return: the account password
+        """
+        return keyring.get_password('PyBox', self.cfg.get('user', ''))
 
     def _init_sharing_path(self, sharing_path):
         """
@@ -719,8 +734,9 @@ class Daemon(RegexMatchingEventHandler):
             update cfg with userdata
             """
             self.cfg['user'] = data[0]
-            self.cfg['pass'] = data[1]
             self.update_cfg()
+            self.password = data[1]
+            self._save_pass(data[1])
 
         def activate_daemon():
             """
