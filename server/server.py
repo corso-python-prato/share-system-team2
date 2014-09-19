@@ -847,11 +847,13 @@ class Shares(Resource):
         abort(HTTP_NOT_FOUND)
 
     def _remove_share_from_user(self, root_path, username, owner):
-        path = os.path.abspath(join(FILE_ROOT, owner, root_path)) 
+        path = os.path.abspath(join(FILE_ROOT, owner, root_path))
+        file_root_abs_path = os.path.abspath(FILE_ROOT)
         if os.path.isdir(path):
             for root, dirs, files in os.walk(path):
                 for f in files:
-                    res = 'shared/{0}/{1}'.format(owner, join(root_path, f))
+                    temp_path = string.replace(root, join(file_root_abs_path, owner), '')
+                    res = 'shared/{0}/{1}'.format(owner, join(temp_path[1:], f))
                     userdata[username]['shared_files'].pop(res)
             userdata[username]['shared_with_me'][owner].remove(root_path)
             print 'step2'
@@ -882,14 +884,14 @@ class Shares(Resource):
         userdata[owner]['shared_with_others'][path].append(username)
         
         abs_path = os.path.abspath(join(FILE_ROOT, owner, path))
+        file_root_abs_path = os.path.abspath(FILE_ROOT)
         if os.path.isdir(abs_path):
             for root, dirs, files in os.walk(abs_path):
                 for f in files:
-                    userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, join(path,f))] = userdata[owner]['files'][join(path,f)]
+                    temp_path = string.replace(root, join(file_root_abs_path, owner), '')
+                    userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, join(temp_path[1:], f))] = userdata[owner]['files'][join(temp_path[1:], f)]
         else:
             userdata[username]['shared_files']['shared/{0}/{1}'.format(owner, path)] = userdata[owner]['files'][path]
-
-        
 
     def _is_sharable(self, path, owner):
         """
@@ -920,7 +922,7 @@ class Files(Resource):
         
         if path:
             if self._is_shared_with_me(path, username):
-                _, owner, file_path = path.split('/',2)
+                _, owner, file_path = path.split('/', 2)
                 user_rootpath = join(FILE_ROOT, owner)
                 dirname = join(user_rootpath, os.path.dirname(file_path))
                 fp = file_path
@@ -962,7 +964,9 @@ class Files(Resource):
 
         #if shared == 'shared' and resource in userdata[usepòrname][shared_with_me].get(owner):
         if path.split('/')[0] == 'shared':
-            _, owner, resource = path.split('/',2)
+            _, owner, resource = path.split('/', 2)
+
+            resource = resource.split('/')[0]
             
             if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
                 return True
