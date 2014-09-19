@@ -131,6 +131,16 @@ api = Api(app)
 auth = HTTPBasicAuth()
 
 
+def os_path_exists(path):
+    """
+    Wrap os.path.exists for mocking purposes.
+    Useful if you don't use mocking libraries.
+    :param path: str
+    :return: bool
+    """
+    return os.path.exists(path)
+
+
 def validate_email(address):
     """
     Validate an email address according to http://www.regular-expressions.info/email.html.
@@ -694,7 +704,7 @@ class Actions(Resource):
             abort(HTTP_FORBIDDEN)
 
         if os.path.isfile(server_src):
-            if not os.path.exists(os.path.dirname(server_dst)):
+            if not os_path_exists(os.path.dirname(server_dst)):
                 os.makedirs(os.path.dirname(server_dst))
             shutil.copy(server_src, server_dst)
         else:
@@ -722,7 +732,7 @@ class Actions(Resource):
             abort(HTTP_FORBIDDEN)
 
         if os.path.isfile(server_src):
-            if not os.path.exists(os.path.dirname(server_dst)):
+            if not os_path_exists(os.path.dirname(server_dst)):
                 os.makedirs(os.path.dirname(server_dst))
             shutil.move(server_src, server_dst)
         else:
@@ -824,7 +834,7 @@ class Files(Resource):
             if not check_path(path, username):
                 abort(HTTP_FORBIDDEN)
 
-            if not os.path.exists(dirname):
+            if not os_path_exists(dirname):
                 abort(HTTP_NOT_FOUND)
             s_filename = secure_filename(os.path.split(path)[-1])
 
@@ -892,7 +902,7 @@ class Files(Resource):
         if calculate_file_md5(upload_file) != md5:
             abort(HTTP_CONFLICT)
 
-        if not os.path.exists(dirname):
+        if not os_path_exists(dirname):
             os.makedirs(dirname)
         else:
             if os.path.isfile(join(dirname, filename)):
@@ -973,7 +983,7 @@ def main():
 
     logger.debug('File logging level: {}'.format(file_handler.level))
 
-    if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
+    if not os_path_exists(EMAIL_SETTINGS_FILEPATH):
         # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
         raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 

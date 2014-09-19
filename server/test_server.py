@@ -190,6 +190,26 @@ def _make_temp_file():
     return temp_file, test_md5
 
 
+class TestServerConfig(unittest.TestCase):
+    def test_missing_email_settings_file(self):
+        """
+        Missing emailSettings.ini must raise a ServerConfigurationError,
+        when calling server.configure_email.
+        """
+        def fake_os_path_exists(path):
+            if path == server.EMAIL_SETTINGS_FILEPATH:
+                # I want simulate that this file does not exist.
+                return False
+            else:
+                return os.path.exists(path)
+
+        pre = server.os_path_exists
+        server.os_path_exists = fake_os_path_exists
+        self.assertRaises(server.ServerConfigurationError, server.configure_email)
+        # Restore normal function
+        server.os_path_exists = pre
+
+
 class TestRequests(unittest.TestCase):
     def setUp(self):
         """
