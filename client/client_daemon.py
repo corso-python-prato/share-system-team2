@@ -245,6 +245,14 @@ class Daemon(RegexMatchingEventHandler):
                 # force the re-download at next synchronization
                 self.shared_snapshot.pop(filepath)
 
+        # NOTE: for future implementation:
+        #
+        # At startup it can't know if the owner of shared file has removed that share, so the files will remain into
+        # shared folder as a zombie files, that means they will not update their status
+        #
+        # P.S. It can't delete them because some files could be not shared files, so it's safe don't force
+        # the deletion of them
+
     def _is_directory_modified(self):
         """
         The function check if the shared folder has been modified.
