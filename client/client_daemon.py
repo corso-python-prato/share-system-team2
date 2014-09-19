@@ -57,6 +57,14 @@ class SkipObserver(Observer):
         event_queue.task_done()
 
 
+def is_directory(method):
+    def wrapper(self, e):
+        if e.is_directory:
+            return
+        return method(self, e)
+    return wrapper
+
+
 class Daemon(FileSystemEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
@@ -532,6 +540,7 @@ class Daemon(FileSystemEventHandler):
         """
         return os.path.join(self.cfg['sharing_path'], rel_path)
 
+    @is_directory
     def on_created(self, e):
         def build_data(cmd, rel_new_path, new_md5, founded_path=None):
             """
@@ -547,8 +556,6 @@ class Daemon(FileSystemEventHandler):
                                 'md5': new_md5}
             return data
 
-        if e.is_directory is True:
-            return
         new_md5 = self.hash_file(e.src_path)
         rel_new_path = self.relativize_path(e.src_path)
         founded_path = self.search_md5(new_md5)
@@ -578,10 +585,9 @@ class Daemon(FileSystemEventHandler):
         else:
             self.stop(1, response['content'])
 
+    @is_directory
     def on_moved(self, e):
 
-        if e.is_directory is True:
-            return
         print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
@@ -611,10 +617,9 @@ class Daemon(FileSystemEventHandler):
         else:
             self.stop(1, response['content'])
 
+    @is_directory
     def on_modified(self, e):
 
-        if e.is_directory is True:
-            return
         print 'start modify of file:', e.src_path
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
@@ -631,10 +636,9 @@ class Daemon(FileSystemEventHandler):
         else:
             self.stop(1, response['content'])
 
+    @is_directory
     def on_deleted(self, e):
 
-        if e.is_directory is True:
-            return
         print 'start delete of file:', e.src_path
         rel_path = self.relativize_path(e.src_path)
         # Send data to connection manager dispatcher and check return value.
