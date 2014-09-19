@@ -504,8 +504,8 @@ class Daemon(FileSystemEventHandler):
                 response = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if response['successful']:
                     last_operation_timestamp = response['content']['server_timestamp']
-                    print '{0} file on server during SYNC.\n{0} filepath: '\
-                        .format(('Modified', 'Updated')[command == 'modify']), abs_path
+                    print '{} file on server during SYNC.\n{} filepath: {}'\
+                        .format(('Modified', 'Updated')[command == 'modify'], abs_path)
                 else:
                     self.stop(1, response['content'])
 
