@@ -482,6 +482,11 @@ class Users(Resource):
             return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
+        if username in userdata:
+            # If an user is pending for activation, it can't be another one with the same name
+            #  asking for registration
+            return 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
+
         # Composing email
         subject = '[{}] Confirm your email address'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
@@ -495,14 +500,7 @@ class Users(Resource):
 
         send_email(subject, sender, recipients, text_body)
 
-        if username in userdata:
-            # If an user is pending for activation, it can't be another one with the same name
-            #  asking for registration
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
-            return create_user(username, password, activation_code)
-
-        return response
+        return create_user(username, password, activation_code)
 
     def put(self, username):
         """
