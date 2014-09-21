@@ -7,7 +7,6 @@ import struct
 import select
 import os
 import hashlib
-import re
 import time
 import argparse
 import keyring
