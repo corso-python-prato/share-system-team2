@@ -1231,7 +1231,35 @@ if __name__ == '__main__':
     parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
     parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir,
                         default=DEF_SHARING_PATH, dest='custom_sharing_path')
+    parser.add_argument('--debug', default=False, action='store_true',
+                        help='set console verbosity level to DEBUG (4) [default: %(default)s]')
+    parser.add_argument('--verbose', default=False, action='store_true',
+                        help='set console verbosity level to INFO (3) [default: %(default)s]. \
+                        Ignored if --debug option is set.')
+    parser.add_argument('-v', '--verbosity', type=int, choices=range(5), nargs='?',
+                        help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
+                        [default: %(default)s]. Ignored if --verbose or --debug option is set.')
+    parser.add_argument('-fv', '--file_verbosity', type=int, choices=range(5), nargs='?',
+                        help='set file verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
+                        [default: %(default)s].')
+    parser.add_argument('-H', '--host', default='0.0.0.0',
+                        help='set host address to run the server. [default: %(default)s].')
 
     args = parser.parse_args()
+    levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
+    if args.debug:
+        # If set to True, win against verbosity and verbose parameter
+        console_handler.setLevel(logging.DEBUG)
+    elif args.verbose:
+        # If set to True, win against verbosity parameter
+        console_handler.setLevel(logging.INFO)
+    elif args.verbosity:
+        console_handler.setLevel(levels[args.verbosity])
+    if args.file_verbosity:
+        file_handler.setLevel(levels[args.file_verbosity])
+
+    logger.info('Console logging level: {}'.format(console_handler.level))
+    logger.info('File logging level: {}'.format(file_handler.level))
+
     daemon = Daemon(args.cfg, args.custom_sharing_path)
     daemon.start()
