@@ -32,8 +32,7 @@ class ConnectionManager(object):
 
     EXCEPTIONS_CATCHED = (requests.HTTPError,
                           requests.exceptions.ConnectionError,
-                          requests.exceptions.MissingSchema,
-                        )
+                          requests.exceptions.MissingSchema)
 
     def __init__(self, cfg):
         self.class_logger = logging.getLogger('daemon.con_mng')
