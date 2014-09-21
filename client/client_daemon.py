@@ -858,7 +858,7 @@ class Daemon(FileSystemEventHandler):
         will be updated.
         :param e: event object with information about what has happened
         """
-        logger.info('Modify event on file:', e.src_path)
+        logger.info('Modify event on file: {}'.format(e.src_path))
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
         data = {
