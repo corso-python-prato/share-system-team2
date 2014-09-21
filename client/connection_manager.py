@@ -66,9 +66,11 @@ class ConnectionManager(object):
         encoded_url = urllib.quote(url, ConnectionManager.ENCODER_FILTER)
         user = data[0]
         password = data[1]
-        self.logger.info('{}: URL: {} - DATA: {} '.format('do_login', url, data))
+        self.class_logger.debug('{}: URL: {} - DATA: {} '.format('do_login', url, data))
         try:
             r = requests.get(encoded_url, auth=(user, password))
+            if r.status_code == 401:
+                return {'content': 'Impossible to login, user unauthorized.', 'successful': False}
             r.raise_for_status()
             return {'content': 'User authenticated', 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
