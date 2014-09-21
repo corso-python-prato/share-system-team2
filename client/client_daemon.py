@@ -10,8 +10,6 @@ import hashlib
 import logging
 import time
 import argparse
-import keyring
-
 from sys import exit as exit
 from collections import OrderedDict
 from shutil import copy2, move
@@ -20,6 +18,8 @@ from shutil import copy2, move
 # is not capturing https://github.com/gorakhargosh/watchdog/issues/46
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
+import keyring
+
 from connection_manager import ConnectionManager
 
 
