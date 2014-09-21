@@ -8,7 +8,7 @@ import select
 import os
 import hashlib
 import logging
-import time
+import datetime
 import argparse
 from sys import exit as exit
 from collections import OrderedDict
