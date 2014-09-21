@@ -77,8 +77,8 @@ class SkipObserver(Observer):
                 skip = True
         try:
             event.src_path
-        except AttributeError as e:
-            print e
+        except AttributeError:
+            pass
         else:
             if event.src_path in self._skip_list:
                 self._skip_list.remove(event.src_path)
@@ -1137,7 +1137,6 @@ class Daemon(FileSystemEventHandler):
         Save local_dir_state on disk
         """
         json.dump(self.local_dir_state, open(self.cfg['local_dir_state_path'], 'w'), indent=4)
-        print 'local_dir_state saved'
 
     def load_local_dir_state(self):
         """
@@ -1163,20 +1162,13 @@ class Daemon(FileSystemEventHandler):
         :return is the md5 hash of the directory
         """
 
-        if verbose:
-            start = time.time()
         md5hash = hashlib.md5()
 
         for path, time_md5 in sorted(self.client_snapshot.iteritems()):
             # extract md5 from tuple. we don't need hexdigest it's already md5
-            if verbose:
-                print path
             md5hash.update(time_md5[1])
             md5hash.update(path)
 
-        if verbose:
-            stop = time.time()
-            print stop - start
         return md5hash.hexdigest()
 
     def hash_file(self, file_path, chunk_size=1024):
