@@ -7,6 +7,7 @@ import struct
 import select
 import os
 import hashlib
+import logging
 import time
 import argparse
 import keyring
@@ -20,6 +21,38 @@ from shutil import copy2, move
 from watchdog.observers.polling import PollingObserver as Observer
 from watchdog.events import FileSystemEventHandler
 from connection_manager import ConnectionManager
+
+
+# Logging configuration
+# =====================
+LOG_FILENAME = 'log/client_daemon.log'
+if not os.path.isdir('log'):
+    os.mkdir('log')
+
+# create logger with 'spam_application'
+logger = logging.getLogger('daemon')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even info messages
+file_handler = logging.FileHandler(LOG_FILENAME)
+file_handler.setLevel(logging.INFO)
+# create console handler with a higher log level
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.WARNING)
+# add the handlers to the logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# First log message
+launched_or_imported = {True: 'launched', False: 'imported'}[__name__ == '__main__']
+logger.info('-' * 60)
+logger.info('Client {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
+logger.info('-' * 60)
+
+# create formatter and add it to the handlers
+file_formatter = logging.Formatter('%(asctime)s %(name)-15s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
+file_handler.setFormatter(file_formatter)
+console_formatter = logging.Formatter('%(asctime)s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
+console_handler.setFormatter(console_formatter)
 
 
 class SkipObserver(Observer):
