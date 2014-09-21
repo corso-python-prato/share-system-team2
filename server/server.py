@@ -1175,7 +1175,7 @@ def main():
     parser.add_argument('--verbose', default=False, action='store_true',
                         help='set console verbosity level to INFO (3) [default: %(default)s]. \
                         Ignored if --debug option is set.')
-    parser.add_argument('-v', '--verbosity', const=1, default=1, type=int, choices=range(5), nargs='?',
+    parser.add_argument('-v', '--verbosity', type=int, choices=range(5), nargs='?',
                         help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
                         [default: %(default)s]. Ignored if --verbose or --debug option is set.')
     parser.add_argument('-H', '--host', default='0.0.0.0',
@@ -1188,7 +1188,7 @@ def main():
     elif args.verbose:
         # If set to True, win against verbosity parameter
         console_handler.setLevel(logging.INFO)
-    else:
+    elif args.verbosity:
         levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
         console_handler.setLevel(levels[args.verbosity])
 
