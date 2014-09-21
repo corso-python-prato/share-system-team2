@@ -90,7 +90,7 @@ if not os.path.isdir('log'):
     os.mkdir('log')
 
 logger = logging.getLogger('Server log')
-
+logger.setLevel(logging.DEBUG)
 # It's useful to log all messages of all severities to a text file while simultaneously
 # logging errors or above to the console. You set this up simply configuring the appropriate handlers.
 # Create file handler which logs even debug messages:
