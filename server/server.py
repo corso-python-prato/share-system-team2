@@ -98,7 +98,7 @@ file_handler = logging.FileHandler(LOG_FILENAME)
 file_handler.setLevel(logging.DEBUG)
 # Create console handler with a higher log level:
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.ERROR)  # changeable from command line passing verbosity option or --verbose or --debug
+console_handler.setLevel(logging.WARNING)  # changeable from command line passing verbosity option or --verbose or --debug
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
