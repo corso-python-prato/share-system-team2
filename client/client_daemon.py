@@ -1180,7 +1180,7 @@ class Daemon(FileSystemEventHandler):
         md5hash = hashlib.md5()
         try:
             f1 = open(file_path, 'rb')
-            while 1:
+            while True:
                 # Read file in as little chunks
                 buf = f1.read(chunk_size)
                 if not buf:
@@ -1189,8 +1189,8 @@ class Daemon(FileSystemEventHandler):
             f1.close()
             return md5hash.hexdigest()
         except (OSError, IOError) as e:
-            print e
-            return None
+            self.stop(1, 'ERROR during hash of file: {}\nError happened: '.format(file_path, e))
+
 
 
 def is_valid_file(string):
