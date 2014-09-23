@@ -970,6 +970,22 @@ class Files(Resource):
             if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
                 return True
         return False
+    def _is_shared_with_others(self, path, username):
+        """
+        Check if the path belong to a shared folder
+        """
+
+        shared_path = path.split('/')[0]
+
+        if userdata[username]['shared_with_others'].has_key(shared_path):
+            return True
+        return False
+
+    def _update_shared_files(self, path, username, timestamp, md5):
+        shared_path = path.split('/')[0]
+        for user in userdata[username]['shared_with_others'][shared_path]:
+            res = 'shared/{0}/{1}'.format(username, path)
+            userdata[user]['shared_files'][res] = [timestamp, md5]
     
     def _get_dirname_filename(self, path):
         """
@@ -996,8 +1012,14 @@ class Files(Resource):
         """
         filepath = userpath2serverpath(username, path)
         last_server_timestamp = file_timestamp(filepath)
+        new_md5 = calculate_file_md5(open(filepath, 'rb'))
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
-        userdata[username]['files'][normpath(path)] = [last_server_timestamp, calculate_file_md5(open(filepath, 'rb'))]
+        userdata[username]['files'][normpath(path)] = [last_server_timestamp, new_md5]
+
+        # update userdata['shared_files'] of all shared user
+        if self._is_shared_with_others(path, username):
+            self._update_shared_files(path, username, last_server_timestamp, new_md5)
+
         save_userdata()
         return last_server_timestamp
 
