@@ -1329,5 +1329,15 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFolder])
         self.assertNotIn(sharedFolder, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
+    def test_delete_shared_file_with_no_user(self):
+        sharedFile = 'test.txt'
+        _create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
+        self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
 if __name__ == '__main__':
     unittest.main()
