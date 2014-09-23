@@ -1355,5 +1355,15 @@ class TestShares(unittest.TestCase):
         test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
+    def test_delete_shared_folder_with_wrong_user(self):
+        sharedFolder = 'Music'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + 'Other_User')
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+
 if __name__ == '__main__':
     unittest.main()
