@@ -690,6 +690,14 @@ class Actions(Resource):
         last_server_timestamp = now_timestamp()
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
+
+        if self._is_shared_with_others(filepath, username):
+            shared_path = filepath.split('/')[0]
+            for user in userdata[username]['shared_with_others'][shared_path]:
+                res = 'shared/{0}/{1}'.format(username, filepath)
+                userdata[user]['shared_files'].pop(res)
+
+
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
@@ -997,6 +1005,7 @@ class Files(Resource):
             if os.path.dirname(resource) in userdata[username]['shared_with_me'].get(owner) or resource in userdata[username]['shared_with_me'].get(owner):
                 return True
         return False
+
     def _is_shared_with_others(self, path, username):
         """
         Check if the path belong to a shared folder
