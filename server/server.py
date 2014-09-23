@@ -656,6 +656,17 @@ class Actions(Resource):
             save_userdata()
             return resp
 
+    def _is_shared_with_others(self, path, username):
+        """
+        Check if the path belong to a shared folder
+        """
+
+        shared_path = path.split('/')[0]
+
+        if userdata[username]['shared_with_others'].has_key(shared_path):
+            return True
+        return False
+
     def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
@@ -709,6 +720,14 @@ class Actions(Resource):
         _, md5 = userdata[username]['files'][normpath(src)]
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
+
+        if self._is_shared_with_others(normpath(dst), username):
+            shared_path = normpath(dst).split('/')[0]
+            for user in userdata[username]['shared_with_others'][shared_path]:
+                res = 'shared/{0}/{1}'.format(username, normpath(dst))
+                userdata[user]['shared_files'][res] = [last_server_timestamp, md5]
+
+
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
