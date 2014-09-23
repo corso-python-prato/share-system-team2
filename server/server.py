@@ -692,11 +692,30 @@ class Actions(Resource):
         userdata[username]['files'].pop(normpath(filepath))
 
         if self._is_shared_with_others(filepath, username):
+            auto_remove_share = False
             shared_path = filepath.split('/')[0]
+            # check if must be removed the share
+            shared_abspath = os.path.abspath(join(FILE_ROOT, username, shared_path))
+
+            if not os.path.exists(shared_abspath):
+                # maybe difficult to understand this check:
+                # if share_abspath is a file then the previous code has deleted it so it must be removed automatically
+                # by the share
+                #
+                # if share_abspath is a folder then we have 2 case:
+                # if the folder exist then it means that it isn't empty, otherwise the _clear_dirs function would have
+                # deleted it
+                # if the folder doesn't exists then it must be removed from share
+                auto_remove_share = True
+
             for user in userdata[username]['shared_with_others'][shared_path]:
                 res = 'shared/{0}/{1}'.format(username, filepath)
                 userdata[user]['shared_files'].pop(res)
+                if auto_remove_share:
+                    userdata[user]['shared_with_me'][username].remove(shared_path)
 
+            if auto_remove_share:
+                userdata[username]['shared_with_others'].pop(shared_path)
 
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
