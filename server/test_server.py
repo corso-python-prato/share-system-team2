@@ -1254,6 +1254,13 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(USR, server.userdata[SHAREUSR]['shared_with_me'].keys())
         self.assertEqual(test.status_code, HTTP_NOT_FOUND)
 
+    def test_share_already_shared_folder(self):
+        sharedPath = 'Misc'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedPath + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        test_2 = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test_2.status_code, HTTP_CONFLICT)
+
     def test_get_shared_file(self):
         """
         Server return HTTP_OK code if an authenticated user request an existing shared file.
@@ -1301,19 +1308,62 @@ class TestShares(unittest.TestCase):
                             headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
-    # def test_delete_shared_file(self):
-    #     sharedFile = 'test.txt'
-    #     _create_file(USR, sharedFile, 'test')
-    #     q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
-    #     test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
-    #     sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
-    #     q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
-    #     test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
-    #     #check if the owner correctly shared access to the file with the sharing receiver
-    #     self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
-    #     #check if the sharing receiver correctly received the shared file access from the owner
-    #     self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
+    def test_delete_shared_file(self):
+        sharedFile = 'test.txt'
+        _create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
+        self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
+    def test_delete_shared_folder(self):
+        sharedFolder = 'Music'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFolder))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFolder])
+        self.assertNotIn(sharedFolder, server.userdata[SHAREUSR]['shared_with_me'][USR])
+
+    def test_delete_shared_file_with_no_user(self):
+        sharedFile = 'test.txt'
+        _create_file(USR, sharedFile, 'test')
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFile))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFile)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
+        self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
+    def test_delete_shared_folder_with_no_user(self):
+        sharedFolder = 'Music'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        sharedFileRealPath = userpath2serverpath(os.path.join(USR,sharedFolder))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFolder])
+        self.assertNotIn(sharedFolder, server.userdata[SHAREUSR]['shared_with_me'][USR])
+
+    def test_delete_not_shared_folder(self):
+        sharedFolder = 'Music'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+
+    def test_delete_shared_folder_with_wrong_user(self):
+        sharedFolder = 'Music'
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + 'Other_User')
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
+        self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
+        q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
+        test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
 
 if __name__ == '__main__':
     unittest.main()
