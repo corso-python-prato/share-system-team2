@@ -1366,5 +1366,25 @@ class TestShares(unittest.TestCase):
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
         test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
 
+    def test_delete_file_from_shared_folder(self):
+        """
+        Test if a created file is deleted and assures it doesn't exists anymore with assertFalse
+        """
+        delete_test_url = SERVER_ACTIONS_API + 'delete'
+        delete_test_file_path = 'Music/Music.txt'
+        to_delete_filepath = userpath2serverpath(USR, delete_test_file_path)
+
+
+        q = urlparse.urljoin(SERVER_SHARES_API, 'Music/' + SHAREUSR)
+        share = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+
+        #self.assertIn('shared/user@mail.com/Music/Music.txt', server.userdata[SHAREUSR]['shared_files'])
+
+        test = self.app.post(delete_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'filepath': delete_test_file_path}, follow_redirects=True)
+        #Check that there is no file and no folder, as it is empty shared.
+        #self.assertNotIn('Music', server.userdata[SHAREUSR]['shared_with_me'][USR])
+        self.assertNotIn('shared/user@mail.com/Music/Music.txt', server.userdata[SHAREUSR]['shared_files'])
 if __name__ == '__main__':
     unittest.main()
