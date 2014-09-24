@@ -174,8 +174,6 @@ class TestClientDaemonConfig(unittest.TestCase):
         global base_dir_tree, shared_files_dir_tree
         base_dir_tree = {}
         shared_files_dir_tree = {}
-        self.daemon.observer.stop()
-        self.daemon.observer.join()
         destroy_folder()
 
     def test__build_directory(self):
