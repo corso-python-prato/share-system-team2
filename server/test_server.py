@@ -57,11 +57,6 @@ def pick_rand_str(length, possible_chars=string.ascii_lowercase):
     return ''.join([random.choice(possible_chars) for _ in xrange(length)])
 
 
-def pick_rand_pw(length=8):
-    possible_chars = string.letters + string.punctuation + string.digits
-    return pick_rand_str(length, possible_chars)
-
-
 def pick_rand_email():
     res = '{}@{}.{}'.format(pick_rand_str(random.randrange(3, 12)),
                             pick_rand_str(random.randrange(3, 8)),
@@ -777,12 +772,16 @@ class TestUsersPost(unittest.TestCase):
 
     def test_user_already_existing(self):
         """
-        Existing user --> 409.
+        Existing user --> 409 + no email.
         """
         _manually_create_user(self.username, self.password)
 
-        test = self.app.post(urlparse.urljoin(SERVER_API, 'users/' + self.username),
-                             data={'password': self.password})
+        with server.mail.record_messages() as outbox:
+            test = self.app.post(urlparse.urljoin(SERVER_API,
+                                                  'users/' + self.username),
+                                 data={'password': self.password})
+        # No mail must be sent if this user already exists!
+        self.assertEqual(len(outbox), 0)
 
         self.assertEqual(test.status_code, HTTP_CONFLICT)
 
@@ -943,7 +942,7 @@ class TestUsersGet(unittest.TestCase):
 
     def test_get_self(self):
         username = 'pippo@topolinia.com'
-        pw = pick_rand_pw()
+        pw = '123.Abc'
         _manually_create_user(username, pw)
         url = SERVER_API + 'users/' + username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
@@ -952,7 +951,7 @@ class TestUsersGet(unittest.TestCase):
     def test_get_other(self):
         username = 'pippo@topolinia.com'
         other_username = 'a' + username
-        pw = pick_rand_pw()
+        pw = '123.Abc'
         _manually_create_user(username, pw)
         url = SERVER_API + 'users/' + other_username
         test = self.app.get(url, headers=make_basicauth_headers(username, pw))
@@ -967,7 +966,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.app.testing = True
 
         self.active_user = 'Activateduser'
-        self.active_user_pw = pick_rand_pw(8)
+        self.active_user_pw = '234.Cde'
         _manually_create_user(self.active_user, self.active_user_pw)
 
         self.inactive_username = 'inactiveuser'
@@ -993,8 +992,10 @@ class TestUsersRecoverPassword(unittest.TestCase):
         self.assertIsNotNone(server.userdata[self.active_user].get('recoverpass_data'))
 
     def test_inactive_user(self):
+        """
+        Test recover password request for inactive user
+        """
         url = SERVER_API + 'users/{}/reset'.format(self.inactive_username)
-        new_password = pick_rand_pw(10)
         previous_activation_data = server.userdata[self.inactive_username][server.USER_CREATION_DATA]
         previous_inactive_activation = previous_activation_data['activation_code']
         previous_inactive_timestamp = previous_activation_data['creation_timestamp']
@@ -1009,6 +1010,9 @@ class TestUsersRecoverPassword(unittest.TestCase):
                         activation_data['creation_timestamp'])
 
     def test_unknown_user(self):
+        """
+        Test recover password request for unknown user
+        """
         url = SERVER_API + 'users/{}/reset'.format('unknown@pippo.it')
         test = self.app.post(url,
                              data={'password': 'okokokoko'})
@@ -1031,7 +1035,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
         # then, put with given code and new password
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                             data={'recoverpass_code': recoverpass_code,
-                                  'password': pick_rand_pw(10)})
+                                  'password': self.active_user_pw})
         self.assertEqual(test.status_code, HTTP_OK)
         self.assertNotEqual(old_password, server.userdata[self.active_user]['password'])
 
@@ -1056,7 +1060,7 @@ class TestUsersRecoverPassword(unittest.TestCase):
             server.now_timestamp = lambda: now  # Time machine Python powered :)
             test_responses.append(self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
                                                data={'recoverpass_code': 'ok_code',
-                                                     'password': 'does not matter'}))
+                                                     'password': '123.Abc'}))
         # The first must be expired, the second must be valid.
         self.assertEqual([test.status_code for test in test_responses], [HTTP_NOT_FOUND, HTTP_OK])
 
@@ -1087,6 +1091,21 @@ class TestUsersRecoverPassword(unittest.TestCase):
         """
         test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user))
         self.assertEqual(test.status_code, HTTP_BAD_REQUEST)
+
+    def test_put_active_user_weak_password(self):
+        """
+        Test put request with weak password and assures user password was not updated on disk
+        """
+        recoverpass_code = 'arbitrarycode'
+        server.userdata[self.active_user]['recoverpass_data'] = {'recoverpass_code': recoverpass_code,
+                                                                 'timestamp': server.now_timestamp(),
+                                                                 }
+
+        test = self.app.put(SERVER_API + 'users/{}'.format(self.active_user),
+                            data={'recoverpass_code': recoverpass_code,
+                                  'password': 'weakpass'})
+        self.assertEqual(test.status_code, HTTP_FORBIDDEN)
+        self.assertNotEqual(server.userdata[self.active_user]['password'], 'weakpass')
 
 
 def get_dic_dir_states():

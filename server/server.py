@@ -303,6 +303,17 @@ def reset_userdata():
     userdata.clear()
 
 
+def _is_shared_with_others(path, username):
+    """
+    Check if the path belong to a shared folder
+    """
+    shared_path = path.split('/')[0]
+
+    if userdata[username]['shared_with_others'].has_key(shared_path):
+        return True
+    return False
+
+
 @auth.verify_password
 def verify_password(username, password):
     """
@@ -490,6 +501,11 @@ class Users(Resource):
             return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
 
+        if username in userdata:
+            # If an user is pending for activation, it can't be another one with the same name
+            #  asking for registration
+            return 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
+
         # Composing email
         subject = '[{}] Confirm your email address'.format(__title__)
         sender = 'donotreply@{}.com'.format(__title__)
@@ -503,14 +519,7 @@ class Users(Resource):
 
         send_email(subject, sender, recipients, text_body)
 
-        if username in userdata:
-            # If an user is pending for activation, it can't be another one with the same name
-            #  asking for registration
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
-            return create_user(username, password, activation_code)
-
-        return response
+        return create_user(username, password, activation_code)
 
     def put(self, username):
         """
@@ -529,6 +538,10 @@ class Users(Resource):
                     new_password = request.form[PWD]
                 except KeyError:
                     abort(HTTP_BAD_REQUEST)
+
+                strength, improvements = passwordmeter.test(new_password)
+                if strength <= 0.5:
+                    return improvements, HTTP_FORBIDDEN
 
                 request_recoverpass_code = request.form['recoverpass_code']
                 recoverpass_stuff = userdata[username].get('recoverpass_data')
@@ -656,17 +669,6 @@ class Actions(Resource):
             save_userdata()
             return resp
 
-    def _is_shared_with_others(self, path, username):
-        """
-        Check if the path belong to a shared folder
-        """
-
-        shared_path = path.split('/')[0]
-
-        if userdata[username]['shared_with_others'].has_key(shared_path):
-            return True
-        return False
-
     def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
@@ -691,7 +693,7 @@ class Actions(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
 
-        if self._is_shared_with_others(filepath, username):
+        if _is_shared_with_others(filepath, username):
             auto_remove_share = False
             shared_path = filepath.split('/')[0]
             # check if must be removed the share
@@ -748,12 +750,12 @@ class Actions(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
 
-        if self._is_shared_with_others(normpath(dst), username):
+        # if path is a shared path then track it in all users that have that share
+        if _is_shared_with_others(normpath(dst), username):
             shared_path = normpath(dst).split('/')[0]
             for user in userdata[username]['shared_with_others'][shared_path]:
                 res = 'shared/{0}/{1}'.format(username, normpath(dst))
                 userdata[user]['shared_files'][res] = [last_server_timestamp, md5]
-
 
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -786,12 +788,12 @@ class Actions(Resource):
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
 
-        if self._is_shared_with_others(normpath(dst), username):
+        # if path is a shared path then track it in all users that have that share
+        if _is_shared_with_others(normpath(dst), username):
             shared_path = normpath(dst).split('/')[0]
             for user in userdata[username]['shared_with_others'][shared_path]:
                 res = 'shared/{0}/{1}'.format(username, normpath(dst))
                 userdata[user]['shared_files'][res] = [last_server_timestamp, md5]
-
 
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
@@ -864,24 +866,32 @@ class Shares(Resource):
     """
     @auth.login_required
     def post(self, root_path, username):
+        """API function: creates the share"""
+
         owner = auth.username()
-        #Check if the path is in the owner root
+        # Check if the path is in the owner root
         if not check_path(root_path, owner):
             abort(HTTP_FORBIDDEN)
-        #Cheks if the path exists
+
+        # Check if the path exists
         path = os.path.abspath(join(FILE_ROOT, owner, root_path))   
         if not os.path.exists(path):
             abort(HTTP_NOT_FOUND)
-        #Check if the path is sharable
+
+        # Check if the path is sharable
         if not self._is_sharable(root_path, owner):
             abort(HTTP_FORBIDDEN)    
-       
+
+        # create the share
         self._share(root_path, username, owner)
         save_userdata()
+
         return HTTP_OK
 
     @auth.login_required
     def delete(self, root_path, username=''):
+        """API Function: delete the share"""
+
         owner = auth.username()
         if not self._is_shared(root_path, owner):
             abort(HTTP_NOT_FOUND)
@@ -901,6 +911,8 @@ class Shares(Resource):
         abort(HTTP_NOT_FOUND)
 
     def _remove_share_from_user(self, root_path, username, owner):
+        """Removes the share manipulating the userdata"""
+
         path = os.path.abspath(join(FILE_ROOT, owner, root_path))
         file_root_abs_path = os.path.abspath(FILE_ROOT)
         if os.path.isdir(path):
@@ -909,33 +921,38 @@ class Shares(Resource):
                     temp_path = string.replace(root, join(file_root_abs_path, owner), '')
                     res = 'shared/{0}/{1}'.format(owner, join(temp_path[1:], f))
                     userdata[username]['shared_files'].pop(res)
+
             userdata[username]['shared_with_me'][owner].remove(root_path)
             userdata[owner]['shared_with_others'][root_path].remove(username)
-            #userdata[owner]['shared_with_others'].pop(root_path)
-        else:
+        else:  # it's a single file
             res = 'shared/{0}/{1}'.format(owner, root_path)
             userdata[username]['shared_files'].pop(res)
             userdata[username]['shared_with_me'][owner].remove(root_path)
             userdata[owner]['shared_with_others'][root_path].remove(username)
-            #userdata[owner]['shared_with_others'].pop(root_path)
 
     def _is_shared(self, path, owner):
+        """Check if the path is a valid shared path"""
+
         if path in userdata[owner]['shared_with_others']:
             return True
         return False
 
     def _share(self, path, username, owner):
+        """Creates the share manipulating the userdata"""
+
         if not (owner in userdata[username]['shared_with_me']):
             userdata[username]['shared_with_me'][owner] = []
 
         if not (path in userdata[owner]['shared_with_others']):
             userdata[owner]['shared_with_others'][path] = []
 
+        # check if the share already exists
         if (path in userdata[username]['shared_with_me'][owner]) or (username in userdata[owner]['shared_with_others'][path]):
             abort(HTTP_CONFLICT)
         userdata[username]['shared_with_me'][owner].append(path)
         userdata[owner]['shared_with_others'][path].append(username)
-        
+
+        # track the shared files into userdata
         abs_path = os.path.abspath(join(FILE_ROOT, owner, path))
         file_root_abs_path = os.path.abspath(FILE_ROOT)
         if os.path.isdir(abs_path):
@@ -1013,9 +1030,8 @@ class Files(Resource):
         return response
     
     def _is_shared_with_me(self, path, username):
-        #shared, ownresourceplit('/',2)
+        """Check if the path belong to a shared path"""
 
-        #if shared == 'shared' and resource in userdata[usepòrname][shared_with_me].get(owner):
         if path.split('/')[0] == 'shared':
             _, owner, resource = path.split('/', 2)
 
@@ -1025,18 +1041,9 @@ class Files(Resource):
                 return True
         return False
 
-    def _is_shared_with_others(self, path, username):
-        """
-        Check if the path belong to a shared folder
-        """
-
-        shared_path = path.split('/')[0]
-
-        if userdata[username]['shared_with_others'].has_key(shared_path):
-            return True
-        return False
-
     def _update_shared_files(self, path, username, timestamp, md5):
+        """Track the path in all users that have that share"""
+
         shared_path = path.split('/')[0]
         for user in userdata[username]['shared_with_others'][shared_path]:
             res = 'shared/{0}/{1}'.format(username, path)
@@ -1071,8 +1078,8 @@ class Files(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, new_md5]
 
-        # update userdata['shared_files'] of all shared user
-        if self._is_shared_with_others(path, username):
+        # if path is a shared path then update userdata to permit all user to synchronize with the share
+        if _is_shared_with_others(path, username):
             self._update_shared_files(path, username, last_server_timestamp, new_md5)
 
         save_userdata()
