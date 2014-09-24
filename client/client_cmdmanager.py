@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import cmd
+import argparse
 import socket
 import struct
 import json
@@ -16,6 +17,16 @@ CONFIG_FILEPATH = os.path.join(CONFIG_DIR, 'daemon_config')
 # Default configuration for socket
 daemon_host = 'localhost'
 daemon_port = 50001
+
+# Allowed operation directly from console
+ALLOWED_COMMAND = {
+    'register': 'do_register',
+    'activate': 'do_activate',
+    'recoverpass': 'do_recoverpass',
+    'login': 'do_login',
+    'shutdown': 'do_shutdown'
+}
+
 
 # A regular expression to check if an email address is valid or not.
 # WARNING: it seems a not 100%-exhaustive email address validation.
@@ -102,7 +113,10 @@ class CommandParser(cmd.Cmd):
 
     def __init__(self):
         cmd.Cmd.__init__(self)
+
+    def init_cmdparser(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((daemon_host, daemon_port))
 
     def _send_to_daemon(self, message=None):
         """
@@ -138,18 +152,6 @@ class CommandParser(cmd.Cmd):
             # log exception message
             print 'Socket Error: ', ex
 
-    def preloop(self):
-        """
-        setup before the looping start
-        """
-        self.sock.connect((daemon_host, daemon_port))
-
-    def postloop(self):
-        """
-        Closures when looping stop
-        """
-        self.sock.close()
-
     def postcmd(self, stop, line):
         """
         This function is called after any do_<something>.
@@ -159,6 +161,7 @@ class CommandParser(cmd.Cmd):
         :return:
         """
         if stop == 'exit':
+            self.sock.close()
             return True
 
     def do_quit(self, line):
@@ -173,7 +176,9 @@ class CommandParser(cmd.Cmd):
         Shutdown the daemon
         """
         message = {'shutdown': ()}
-        self._send_to_daemon(message)
+        response = self._send_to_daemon(message)
+        print response['content']
+        return 'exit'
 
     def do_register(self, line):
         """
@@ -187,18 +192,17 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: register <e-mail> <password>'
             # for testing purpose
-            return False
+            return
+        message = {'register': (mail, password)}
+        response = self._send_to_daemon(message)
+        if 'improvements' in response:
+            print '\nThe password you entered is weak, possible improvements:'
+            for k, v in response['improvements'].iteritems():
+                print '{}: {}'.format(k, v)
         else:
-            message = {'register': (mail, password)}
-            response = self._send_to_daemon(message)
-            if 'improvements' in response:
-                print '\nThe password you entered is weak, possible improvements:'
-                for k, v in response['improvements'].iteritems():
-                    print '{}: {}'.format(k, v)
-            else:
-                print response['content']
-            # for testing purpose
-            return response
+            print response['content']
+        # for testing purpose
+        return response
 
     def do_activate(self, line):
         """
@@ -212,12 +216,29 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: activate <e-mail> <token>'
             # for testing purpose
-            return False
-        else:
-            message = {'activate': (mail, token)}
-            response = self._send_to_daemon(message)
-            print response['content']
-            return response
+            return
+        message = {'activate': (mail, token)}
+        response = self._send_to_daemon(message)
+        print response['content']
+        return response
+
+    def do_login(self, line):
+        """
+        Login the user:
+        Verify user data entered by user
+        Usage: activate <e-mail> <password>
+        """
+        try:
+            mail, password = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: login <e-mail> <password>'
+            # for testing purpose
+            return
+        message = {'login': (mail, password)}
+        response = self._send_to_daemon(message)
+        print response['content']
+        return response
 
     def do_recoverpass(self, line):
         """
@@ -273,6 +294,26 @@ class CommandParser(cmd.Cmd):
         return False
 
 
-if __name__ == '__main__':
+def main():
     load_cfg()
-    CommandParser().cmdloop()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-ni', '--no-interactive', dest='interact', default=False, action='store_true',
+                        help="Execute a single command from console")
+    for command, method in ALLOWED_COMMAND.iteritems():
+        parser.add_argument('-' + command, nargs='*', required=False,
+                            help=getattr(CommandParser, method).__doc__)
+    args = parser.parse_args()
+    cmd_parser = CommandParser()
+    cmd_parser.init_cmdparser()
+    # This list comprehension search any command from ALLOWED_COMMAND that the user enter in console
+    console_command = [command for command in ALLOWED_COMMAND if getattr(args, command) is not None]
+    if args.interact and console_command:
+        for command in console_command:
+            cmd_name = ALLOWED_COMMAND[command]
+            cmd_line = ' '.join(getattr(args, command))
+            getattr(cmd_parser, cmd_name)(cmd_line)
+    else:
+        cmd_parser.cmdloop()
+
+if __name__ == '__main__':
+    main()

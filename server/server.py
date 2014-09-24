@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import time
 import string
+import re
 
 join = os.path.join
 normpath = os.path.normpath
@@ -46,15 +47,17 @@ PASSWORD_RECOVERY_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
 SIGNUP_EMAIL_TEMPLATE_FILE_PATH = os.path.join(SERVER_DIRECTORY,
                                                'signup_email_template.txt')
 
-USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3  # expires after 3 days
+USER_ACTIVATION_TIMEOUT = 60 * 60 * 24 * 3 * 10000 # expires after 3 days
 USER_RECOVERPASS_TIMEOUT = 60 * 60 * 24 * 2 * 10000  # expires after 2 days (arbitrarily)
 
-# json key to access to the user directory snapshot:
+# json/dict key to access to the user directory snapshot:
 SNAPSHOT = 'files'
 LAST_SERVER_TIMESTAMP = 'server_timestamp'
 PWD = 'password'
 USER_CREATION_TIME = 'creation_timestamp'
 DEFAULT_USER_DIRS = ('Misc', 'Music', 'Photos', 'Projects', 'Work')
+USER_IS_ACTIVE = 'active'
+USER_CREATION_DATA = 'activation_data'
 
 UNWANTED_PASS = 'words'
 
@@ -82,8 +85,6 @@ if not os.path.isdir('log'):
     os.mkdir('log')
 
 logger = logging.getLogger('Server log')
-# Set the default logging level, actually used if the module is imported:
-logger.setLevel(logging.WARN)
 
 # It's useful to log all messages of all severities to a text file while simultaneously
 # logging errors or above to the console. You set this up simply configuring the appropriate handlers.
@@ -104,7 +105,6 @@ logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now
 # Server initialization
 # =====================
 userdata = {}
-pending_users = {}
 
 app = Flask(__name__)
 app.testing = __name__ != '__main__'  # Reasonable assumption?
@@ -112,8 +112,36 @@ app.testing = __name__ != '__main__'  # Reasonable assumption?
 EMAIL_SETTINGS_FILEPATH = join(os.path.dirname(__file__),
                                ('email_settings.ini', 'email_settings.ini.example')[app.testing])
 
+
+# A regular expression to check if an email address is valid or not.
+# WARNING: it seems a not 100%-exhaustive email address validation.
+# source: http://www.regular-expressions.info/email.html (modified)
+
+EMAIL_REG_OBJ = re.compile(r'^[A-Z0-9]'  # the first char must be alphanumeric (no dots etc...)
+                           r'[A-Z0-9._%+-]+'  # allowed characters in the "local part"
+                           # NB: many email providers allow letters, numbers, and '.', '-' and '_' only.
+                           # GMail even allows letters, numbers and dots only (no '-' nor underscores).
+                           r'[A-Z0-9_-]'  # no dots before the '@'
+                           r'@'
+                           r'[A-Z0-9.-]+'  # domain part before the last dot ('.' and '-' allowed too)
+                           r'\.[A-Z]{2,4}$',  # domain extension: 2, 3 or 4 letters
+                           re.IGNORECASE | re.VERBOSE)
+
 api = Api(app)
 auth = HTTPBasicAuth()
+
+
+def validate_email(address):
+    """
+    Validate an email address according to http://www.regular-expressions.info/email.html.
+    In addition, at most one '.' before the '@' and no '..' in the domain part are allowed.
+    :param address: str
+    :return: bool
+    """
+    if not re.search(EMAIL_REG_OBJ, address) or '..' in address:
+        return False
+    else:
+        return True
 
 
 def update_passwordmeter_terms(terms_file):
@@ -265,10 +293,9 @@ def save_userdata():
 
 def reset_userdata():
     """
-    Clear userdata and pending_users dictionaries.
+    Clear userdata dictionary.
     """
     userdata.clear()
-    pending_users.clear()
 
 
 @auth.verify_password
@@ -290,34 +317,49 @@ def verify_password(username, password):
     return res
 
 
-def create_user(username, password):
+def activate_user(username, encrypted_password):
     """
-    Handle the creation of a new user.
+    Handle the activation of an existing user(with flag active: True).
     """
-    # Example of creation using requests:
-    # requests.post('http://127.0.0.1:5000/API/V1/signup',
-    # data={'username': 'Pippo', 'password': 'ciao'})
+    logger.debug('Activating user...')
+
+    temp = init_user_directory(username)
+    last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
+
+    single_user_data = {USER_CREATION_TIME: now_timestamp(),
+                        PWD: encrypted_password,
+                        LAST_SERVER_TIMESTAMP: last_server_timestamp,
+                        SNAPSHOT: dir_snapshot,
+                        USER_IS_ACTIVE: True,
+                        }
+    userdata[username] = single_user_data
+    save_userdata()
+    response = 'User "{}" activated.\n'.format(username), HTTP_OK
+
+    logger.debug(response)
+    return response
+
+
+def create_user(username, password, activation_code):
+    """
+    Handle the creation of a new user(with flag active: False).
+    User's password is encrypted here.
+    """
     logger.debug('Creating user...')
     if username and password:
-        if username in userdata:
-            # user already exists!
-            response = 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
-        else:
-            enc_pass = _encrypt_password(password)
-
-            temp = init_user_directory(username)
-            last_server_timestamp, dir_snapshot = temp[LAST_SERVER_TIMESTAMP], temp[SNAPSHOT]
-
-            single_user_data = {USER_CREATION_TIME: now_timestamp(),
-                                PWD: enc_pass,
-                                LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: dir_snapshot,
-                                }
-            userdata[username] = single_user_data
-            save_userdata()
-            response = 'User "{}" created.\n'.format(username), HTTP_CREATED
+        enc_pass = _encrypt_password(password)
+        single_user_data = {USER_IS_ACTIVE: False,
+                            PWD: enc_pass,
+                            USER_CREATION_DATA: {'creation_timestamp': now_timestamp(),
+                                                 'activation_code': activation_code}
+                            }
+        userdata[username] = single_user_data
+        save_userdata()
+        response = 'User activation email sent to {}'.format(username), HTTP_CREATED
     else:
-        response = 'Error: username or password is missing.\n', HTTP_BAD_REQUEST
+        raise ServerInternalError('Unexpected error: username and password must not be empty here!!!\n'
+                                  'username: "%"" - password: "%"' % (username, password))
+
     logger.debug(response)
     return response
 
@@ -362,16 +404,19 @@ def send_email(subject, sender, recipients, text_body):
 
 
 class Users(Resource):
-    def _clean_pending_users(self):
+    @staticmethod
+    def _clean_inactive_users():
         """
-        Remove expired pending users (users whose activation time is expired)
+        Remove expired inactive users (users whose activation time is expired)
         and return a list of them.
         :return: list
         """
-        # Remove expired pending users.
-        to_remove = [username for (username, data) in pending_users.iteritems()
-                     if now_timestamp() - data['timestamp'] > USER_ACTIVATION_TIMEOUT]
-        [pending_users.pop(username) for username in to_remove]
+        to_remove = [username for (username, data) in userdata.iteritems()
+                     if userdata[username][USER_IS_ACTIVE] is False and
+                     now_timestamp() - data[USER_CREATION_DATA][USER_CREATION_TIME] >
+                     USER_ACTIVATION_TIMEOUT]
+        for username in to_remove:
+            userdata.pop(username)
         return to_remove
 
     @auth.login_required
@@ -393,18 +438,17 @@ class Users(Resource):
         else:
             if app.debug:
                 if username == '__all__':
-                    # Easter egg to see a list of registered and pending users.
+                    # Easter egg to see a list of active and pending (inactive) users.
                     logger.warn('WARNING: showing the list of all users (debug mode)!!!')
                     if userdata:
-                        reg_users_listr = ', '.join(userdata.keys())
+                        active_users = [username for username in userdata if userdata[username][USER_IS_ACTIVE]]
+                        active_users_str = ', '.join(active_users)
+                        inactive_users = [username for username in userdata if not userdata[username][USER_IS_ACTIVE]]
+                        inactive_users_str = ', '.join(inactive_users)
                     else:
-                        reg_users_listr = 'no registered users'
-                    if pending_users:
-                        pending_users_listr = ', '.join(pending_users.keys())
-                    else:
-                        pending_users_listr = 'no pending users'
-                    response = 'Registered users: {}. Pending users: {}'.format(reg_users_listr, pending_users_listr), \
-                               HTTP_OK
+                        reg_users_str = 'neither registered nor pending users'
+
+                    response = 'Activated users: {}. Inactive users: {}'.format(active_users_str, inactive_users_str), HTTP_OK
                 else:
                     logger.warn('WARNING: showing {}\'s info (debug mode)!!!'.format(username))
                     if username in userdata:
@@ -426,14 +470,22 @@ class Users(Resource):
         A not-logged user is asking to register himself.
         NB: username must be a valid email address.
         """
-        if username in userdata:
-            abort(HTTP_CONFLICT)
+        if not validate_email(username):
+            return 'Error: username must be a valid email address!', HTTP_BAD_REQUEST
 
         password = request.form['password']
+        if not password:
+            return 'Error: the password mustn\'t be empty', HTTP_BAD_REQUEST
+
         strength, improvements = passwordmeter.test(password)
         if strength <= 0.5:
             return improvements, HTTP_FORBIDDEN
         activation_code = os.urandom(16).encode('hex')
+
+        if username in userdata:
+            # If an user is pending for activation, it can't be another one with the same name
+            #  asking for registration
+            return 'Error: username "{}" already exists!\n'.format(username), HTTP_CONFLICT
 
         # Composing email
         subject = '[{}] Confirm your email address'.format(__title__)
@@ -448,79 +500,77 @@ class Users(Resource):
 
         send_email(subject, sender, recipients, text_body)
 
-        pending_users[username] = {
-            'timestamp': now_timestamp(),
-            'activation_code': activation_code,
-            PWD: password,
-        }
-        return 'User activation email sent to {}'.format(username), HTTP_OK
+        return create_user(username, password, activation_code)
 
     def put(self, username):
         """
-        Create user using activation code sent by email, or reset its password.
+        Activate user using activation code sent by email, or reset its password.
         """
-        logger.debug('Pending users: {}'.format(pending_users.keys()))
+        # create a list of all usernames with flag active: False
 
         pending_user_data = pending_users.get(username)
 
         # Pending users cleanup
-        expired_pending_users = self._clean_pending_users()
+        expired_pending_users = self._clean_inactive_users()
         logging.info('Expired pending users: {}'.format(expired_pending_users))
 
         if username in userdata:
-            # The user is already active, so it should be a request of password resetting.
-            if username in pending_users:
-                raise ServerInternalError('User {} must\'n t be both pending and active'.format(username))
-            try:
-                new_password = request.form[PWD]
-            except KeyError:
-                abort(HTTP_BAD_REQUEST)
-            else:
+            if userdata[username][USER_IS_ACTIVE] is True:
+                # User active -> Password recovery/reset
+                try:
+                    new_password = request.form[PWD]
+                except KeyError:
+                    abort(HTTP_BAD_REQUEST)
+
+                strength, improvements = passwordmeter.test(new_password)
+                if strength <= 0.5:
+                    return improvements, HTTP_FORBIDDEN
+
                 request_recoverpass_code = request.form['recoverpass_code']
                 recoverpass_stuff = userdata[username].get('recoverpass_data')
+
                 if recoverpass_stuff:
-                    recoverpass_code, recoverpass_ctime = recoverpass_stuff
+                    recoverpass_code = recoverpass_stuff['recoverpass_code']
+                    recoverpass_timestamp = recoverpass_stuff['timestamp']
                     if request_recoverpass_code == recoverpass_code and \
-                            (now_timestamp() - recoverpass_ctime < USER_RECOVERPASS_TIMEOUT):
-                        userdata[PWD] = new_password
-                        #print('Updating password with "{}"'.format(new_password))
+                            (now_timestamp() - recoverpass_timestamp < USER_RECOVERPASS_TIMEOUT):
+                        userdata[username][PWD] = new_password
                         enc_pass = _encrypt_password(new_password)
                         userdata[username][PWD] = enc_pass
                         userdata[username].pop('recoverpass_data')
                         return 'Password changed succesfully', HTTP_OK
-            # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
-            return 'Invalid code', HTTP_NOT_FOUND
-        else:
-            activation_code = request.form['activation_code']
-            logger.debug('Got activation code: {}'.format(activation_code))
-            logger.debug('no {} in userdata.keys() = {}'.format(username, userdata.keys()))
-            pending_user_data = pending_users.get(username)
-            if pending_user_data:
-                logger.debug('Activating user {}'.format(username))
-                if activation_code == pending_user_data['activation_code']:
-                    # Actually create user
-                    password = pending_user_data[PWD]
-                    pending_users.pop(username)
-                    return create_user(username, password)
+                # NB: old generated tokens are refused, but, currently, they are not removed from userdata.
+                return 'Invalid code', HTTP_NOT_FOUND
+            else:
+                # User inactive -> activation
+                activation_code = request.form['activation_code']
+                logger.debug('Got activation code: {}'.format(activation_code))
+
+                user_data = userdata[username]
+                logger.debug('Creating user {}'.format(username))
+                if activation_code == user_data[USER_CREATION_DATA]['activation_code']:
+                    # Actually activate user
+                    encrypted_password = user_data[PWD]
+                    return activate_user(username, encrypted_password)
                 else:
                     abort(HTTP_NOT_FOUND)
-            else:
-                #### DEBUG-MODE BACKDOOR ####
-                # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
-                if app.debug and activation_code == 'BACKDOOR':
-                    password = 'debug-password'
-                    logger.warn('WARNING: Creating user "{}" (password="{}") '
-                                 'without email confirmation via backdoor!!!'.format(username, password))
-                    return create_user(username, password)
-                #### DEBUG-MODE BACKDOOR ####
+        else:
+            # Not-existing user --> 404 (OR create it in debug mode with a backdoor)
+            #### DEBUG-MODE BACKDOOR ####
+            # Shortcut to create an user skipping the email confirmation (valid in debug mode only!).
+            if app.debug and activation_code == 'BACKDOOR':
+                password = 'debug-password'
+                logger.warn('WARNING: Creating user "{}" (password="{}") '
+                             'without email confirmation via backdoor!!!'.format(username, password))
+                return create_user(username, password, activation_code)
+            #### DEBUG-MODE BACKDOOR ####
 
-                logger.info('{} is not pending'.format(username))
-                abort(HTTP_NOT_FOUND)
+            return 'Error: username not found!\n', HTTP_NOT_FOUND
 
     @auth.login_required
     def delete(self, username):
         """
-        Delete all logged user's files and data.
+        Delete all logged user's files and data. Remove also inactive users.
         The same user won't more log in, but it can be recreated with the signup procedure.
         """
         logged = auth.username()
@@ -529,9 +579,12 @@ class Users(Resource):
             # I mustn't delete other users!
             abort(HTTP_FORBIDDEN)
 
+        if userdata[username][USER_IS_ACTIVE]:
+            # Remove also the user's folder
+            shutil.rmtree(userpath2serverpath(username))
+
         userdata.pop(username)
-        # TODO: add save_userdata()
-        shutil.rmtree(userpath2serverpath(username))
+        save_userdata()
         return 'User "{}" removed.\n'.format(username), HTTP_OK
 
 
@@ -550,7 +603,7 @@ class UsersRecoverPassword(Resource):
         recoverpass_code = os.urandom(16).encode('hex')
 
         # The password reset must be called from an active or inactive user
-        if not(username in userdata or username in pending_users):
+        if username not in userdata:
             abort(HTTP_NOT_FOUND)
 
         # Composing email
@@ -566,12 +619,18 @@ class UsersRecoverPassword(Resource):
 
         send_email(subject, sender, recipients, text_body)
 
-        if username in userdata:
+        if userdata[username][USER_IS_ACTIVE] is True:
             # create or update 'recoverpass_data' key.
-            userdata[username]['recoverpass_data'] = (recoverpass_code, now_timestamp())
-        elif username in pending_users:
-            pending_users[username] = {'timestamp': now_timestamp(),
-                                       'activation_code': recoverpass_code}
+            userdata[username]['recoverpass_data'] = {
+                'recoverpass_code': recoverpass_code,
+                'timestamp': now_timestamp()
+                }
+            save_userdata()
+
+        elif userdata[username][USER_IS_ACTIVE] is False:
+            userdata[username][USER_CREATION_DATA] = {'creation_timestamp': now_timestamp(),
+                                                      'activation_code': recoverpass_code}
+            save_userdata()
         # the else case is already covered in the first if
 
         return 'Reset email sent to {}'.format(username), HTTP_ACCEPTED

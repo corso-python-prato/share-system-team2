@@ -5,7 +5,7 @@ import unittest
 import json
 
 import client_cmdmanager
-import test_utils
+import tstutils
 
 
 # Test-user account details
@@ -41,11 +41,24 @@ def _fake_send_to_daemon(message):
             return {'content': 'Message relative already existent user creation', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
+
     elif 'activate' in message:
         if 'valid_token' in message['activate'][1]:
             return {'content': 'Message relative successful activation of user', 'successful': True}
         if 'bad_token' in message['activate'][1]:
             return {'content': 'Message relative failed activation', 'successful': False}
+        else:
+            return {'Error': 'You must never came here!'}
+
+    elif 'login' in message:
+        if 'valid_user' in message['login'][0] and 'valid_pass' in message['login'][1]:
+            return {'content': 'Message relative successful login of user', 'successful': True}
+        elif 'valid_user' in message['login'][0] and 'bad_pass' in message['login'][1]:
+            return {'content': 'Message relative failed login', 'successful': False}
+        elif 'bad_user' in message['login'][0] and 'valid_pass' in message['login'][1]:
+            return {'content': 'Message relative failed login', 'successful': False}
+        elif 'bad_user' in message['login'][0] and 'bad_pass' in message['login'][1]:
+            return {'content': 'Message relative failed login', 'successful': False}
         else:
             return {'Error': 'You must never came here!'}
 
@@ -56,7 +69,7 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
     """
     def setUp(self):
         self.commandparser = client_cmdmanager.CommandParser()
-        self.commandparser.sock = test_utils.FakeSocket()
+        self.commandparser.sock = tstutils.FakeSocket()
 
     def test_sent_to_daemon_input(self):
         """
@@ -172,6 +185,65 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         response = self.commandparser.do_activate(self.line)
         self.assertFalse(response)
 
+    def test_do_login_with_valid_userdata(self):
+        """
+        Test the successful login of user.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format('valid_user', 'valid_pass')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_login(self.line)
+        self.assertIsInstance(response['content'], str)
+        self.assertTrue(response['successful'])
+
+    def test_do_login_with_bad_user(self):
+        """
+        Test do_login with a bad user but valid_pass.
+        The server refuse to authenticate the user and we received a False from client_daemon.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format('bad_user', 'valid_pass')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_login(self.line)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    def test_do_login_with_bad_password(self):
+        """
+        Test do_login with a valid user but bad password.
+        The server refuse to authenticate the user and we received a False from client_daemon.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format('valid_user', 'bad_pass')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_login(self.line)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    def test_do_login_with_bad_userdata(self):
+        """
+        Test do_login with a alla user data wrong.
+        The server refuse to authenticate the user and we received a False from client_daemon.
+        :return: the response received from daemon
+        """
+        self.line = '{} {}'.format('bad_user', 'bad_pass')
+        self.commandparser._send_to_daemon = _fake_send_to_daemon
+        response = self.commandparser.do_login(self.line)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    def test_do_login_with_bad_arguments(self):
+        """
+        Test the activation of user with bad arguments,
+        :return: the response received from daemon
+
+        """
+        self.line = '{0} {0} {1}'.format(USR, PW)
+        response = self.commandparser.do_login(self.line)
+        self.assertFalse(response)
+        self.line = '{0}'.format(USR, PW)
+        response = self.commandparser.do_login(self.line)
+        self.assertFalse(response)
 
 class TestDoQuitDoEOF(unittest.TestCase):
     """
