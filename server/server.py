@@ -795,6 +795,12 @@ class Actions(Resource):
                 res = 'shared/{0}/{1}'.format(username, normpath(dst))
                 userdata[user]['shared_files'][res] = [last_server_timestamp, md5]
 
+        if _is_shared_with_others(normpath(src), username):
+            shared_path = normpath(src).split('/')[0]
+            for user in userdata[username]['shared_with_others'][shared_path]:
+                res = 'shared/{0}/{1}'.format(username, normpath(src))
+                userdata[user]['shared_files'].pop(res)
+
         save_userdata()
         return jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp})
 
