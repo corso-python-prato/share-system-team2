@@ -303,6 +303,17 @@ def reset_userdata():
     userdata.clear()
 
 
+def _is_shared_with_others(path, username):
+    """
+    Check if the path belong to a shared folder
+    """
+    shared_path = path.split('/')[0]
+
+    if userdata[username]['shared_with_others'].has_key(shared_path):
+        return True
+    return False
+
+
 @auth.verify_password
 def verify_password(username, password):
     """
@@ -656,17 +667,6 @@ class Actions(Resource):
             save_userdata()
             return resp
 
-    def _is_shared_with_others(self, path, username):
-        """
-        Check if the path belong to a shared folder
-        """
-
-        shared_path = path.split('/')[0]
-
-        if userdata[username]['shared_with_others'].has_key(shared_path):
-            return True
-        return False
-
     def _delete(self, username):
         """
         Delete a file for a given <filepath>, and return the current server timestamp in a json.
@@ -691,7 +691,7 @@ class Actions(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'].pop(normpath(filepath))
 
-        if self._is_shared_with_others(filepath, username):
+        if _is_shared_with_others(filepath, username):
             auto_remove_share = False
             shared_path = filepath.split('/')[0]
             # check if must be removed the share
@@ -748,7 +748,7 @@ class Actions(Resource):
         userdata[username][LAST_SERVER_TIMESTAMP] = last_server_timestamp
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
 
-        if self._is_shared_with_others(normpath(dst), username):
+        if _is_shared_with_others(normpath(dst), username):
             shared_path = normpath(dst).split('/')[0]
             for user in userdata[username]['shared_with_others'][shared_path]:
                 res = 'shared/{0}/{1}'.format(username, normpath(dst))
@@ -786,7 +786,7 @@ class Actions(Resource):
         userdata[username]['files'].pop(normpath(src))
         userdata[username]['files'][normpath(dst)] = [last_server_timestamp, md5]
 
-        if self._is_shared_with_others(normpath(dst), username):
+        if _is_shared_with_others(normpath(dst), username):
             shared_path = normpath(dst).split('/')[0]
             for user in userdata[username]['shared_with_others'][shared_path]:
                 res = 'shared/{0}/{1}'.format(username, normpath(dst))
@@ -1025,17 +1025,6 @@ class Files(Resource):
                 return True
         return False
 
-    def _is_shared_with_others(self, path, username):
-        """
-        Check if the path belong to a shared folder
-        """
-
-        shared_path = path.split('/')[0]
-
-        if userdata[username]['shared_with_others'].has_key(shared_path):
-            return True
-        return False
-
     def _update_shared_files(self, path, username, timestamp, md5):
         shared_path = path.split('/')[0]
         for user in userdata[username]['shared_with_others'][shared_path]:
@@ -1072,7 +1061,7 @@ class Files(Resource):
         userdata[username]['files'][normpath(path)] = [last_server_timestamp, new_md5]
 
         # update userdata['shared_files'] of all shared user
-        if self._is_shared_with_others(path, username):
+        if _is_shared_with_others(path, username):
             self._update_shared_files(path, username, last_server_timestamp, new_md5)
 
         save_userdata()
