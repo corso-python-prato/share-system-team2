@@ -1386,5 +1386,24 @@ class TestShares(unittest.TestCase):
         #Check that there is no file and no folder, as it is empty shared.
         #self.assertNotIn('Music', server.userdata[SHAREUSR]['shared_with_me'][USR])
         self.assertNotIn('shared/user@mail.com/Music/Music.txt', server.userdata[SHAREUSR]['shared_files'])
+
+
+    def test_copy_file_to_shared_folder(self):
+        """
+        Test if a created source file is copied in a shared folder and assures that the new file is shared too.
+        """
+        copy_test_url = SERVER_ACTIONS_API + 'copy'
+        src_copy_test_file_path = 'Misc/Misc.txt'
+        dst_copy_test_file_path = 'Work/MiscCopy.txt'
+        # Create source file to be copied and its destination.
+        
+        q = urlparse.urljoin(SERVER_SHARES_API, 'Work/' + SHAREUSR)
+        share = self.app.post(q, headers=make_basicauth_headers(USR, PW))
+
+        test = self.app.post(copy_test_url,
+                             headers=make_basicauth_headers(USR, PW),
+                             data={'src': src_copy_test_file_path, 'dst': dst_copy_test_file_path},
+                             follow_redirects=True)
+        self.assertIn('shared/user@mail.com/Work/MiscCopy.txt', server.userdata[SHAREUSR]['shared_files'])
 if __name__ == '__main__':
     unittest.main()
