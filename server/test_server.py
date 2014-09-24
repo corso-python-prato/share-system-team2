@@ -1308,7 +1308,7 @@ class TestShares(unittest.TestCase):
                             headers=make_basicauth_headers(SHAREUSR, SHAREUSRPW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
-    def test_delete_shared_file(self):
+    def test_remove_shared_file(self):
         sharedFile = 'test.txt'
         _create_file(USR, sharedFile, 'test')
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
@@ -1319,7 +1319,7 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
         self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
-    def test_delete_shared_folder(self):
+    def test_remove_shared_folder(self):
         sharedFolder = 'Music'
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
@@ -1329,7 +1329,7 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFolder])
         self.assertNotIn(sharedFolder, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
-    def test_delete_shared_file_with_no_user(self):
+    def test_remove_shared_file_with_no_user(self):
         sharedFile = 'test.txt'
         _create_file(USR, sharedFile, 'test')
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFile + '/' + SHAREUSR)
@@ -1339,7 +1339,8 @@ class TestShares(unittest.TestCase):
         test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
         self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFile])
         self.assertNotIn(sharedFile, server.userdata[SHAREUSR]['shared_with_me'][USR])
-    def test_delete_shared_folder_with_no_user(self):
+
+    def test_remove_shared_folder_with_no_user(self):
         sharedFolder = 'Music'
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
@@ -1349,13 +1350,13 @@ class TestShares(unittest.TestCase):
         self.assertNotIn(SHAREUSR, server.userdata[USR]['shared_with_others'][sharedFolder])
         self.assertNotIn(sharedFolder, server.userdata[SHAREUSR]['shared_with_me'][USR])
 
-    def test_delete_not_shared_folder(self):
+    def test_remove_not_shared_folder(self):
         sharedFolder = 'Music'
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder)
         test = self.app.delete(q, headers=make_basicauth_headers(USR, PW))
         self.assertEqual(test.status_code, server.HTTP_NOT_FOUND)
 
-    def test_delete_shared_folder_with_wrong_user(self):
+    def test_remove_shared_folder_with_wrong_user(self):
         sharedFolder = 'Music'
         q = urlparse.urljoin(SERVER_SHARES_API, sharedFolder + '/' + SHAREUSR)
         test = self.app.post(q, headers=make_basicauth_headers(USR, PW))
