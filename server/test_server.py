@@ -17,6 +17,7 @@ import hashlib
 import tempfile
 import random
 import string
+import mock
 
 import server
 from server import userpath2serverpath
@@ -191,15 +192,11 @@ def _make_temp_file():
 
 
 @unittest.skipUnless(hasattr(server, 'configure_email'),
-                     'This unit test is based on server.configure_email function. \
-If not present, it could be due to a refactoring.')
+                     'This unit test is based on "server.configure_email" function which is missing. \
+It could be due to a refactoring, so this test should be updated or removed.')
 class TestServerConfigureEmail(unittest.TestCase):
-    def setUp(self):
-        # control: must not raise exceptions
-        server.configure_email()
-
-    def tearDown(self):
-        # control: must not raise exceptions
+    def test_no_exception(self):
+        # Control: must not raise exceptions
         server.configure_email()
 
     def test_missing_email_settings_file(self):
@@ -207,16 +204,15 @@ class TestServerConfigureEmail(unittest.TestCase):
         Missing emailSettings.ini must raise a ServerConfigurationError,
         when calling server.configure_email.
         """
-        # Mock os.path.exists to return always False
-        original_exists = os.path.exists
-        os.path.exists = lambda file_path: False
+        with mock.patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = False
+            self.assertRaises(
+                server.ServerConfigurationError,
+                server.configure_email,
+            )
 
-        self.assertRaises(
-            server.ServerConfigurationError,
-            server.configure_email,
-        )
-
-        os.path.exists = original_exists
+        # Control: ensure is called only once, since we mocked every os.path.exists calls
+        mock_exists.assert_called_once_with(server.EMAIL_SETTINGS_FILEPATH)
 
 
 class TestRequests(unittest.TestCase):
