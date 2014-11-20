@@ -190,24 +190,33 @@ def _make_temp_file():
     return temp_file, test_md5
 
 
-class TestServerConfig(unittest.TestCase):
+@unittest.skipUnless(hasattr(server, 'configure_email'),
+                     'This unit test is based on server.configure_email function. \
+If not present, it could be due to a refactoring.')
+class TestServerConfigureEmail(unittest.TestCase):
+    def setUp(self):
+        # control: must not raise exceptions
+        server.configure_email()
+
+    def tearDown(self):
+        # control: must not raise exceptions
+        server.configure_email()
+
     def test_missing_email_settings_file(self):
         """
         Missing emailSettings.ini must raise a ServerConfigurationError,
         when calling server.configure_email.
         """
-        def fake_os_path_exists(path):
-            if path == server.EMAIL_SETTINGS_FILEPATH:
-                # I want simulate that this file does not exist.
-                return False
-            else:
-                return os.path.exists(path)
+        # Mock os.path.exists to return always False
+        original_exists = os.path.exists
+        os.path.exists = lambda file_path: False
 
-        pre = server.os_path_exists
-        server.os_path_exists = fake_os_path_exists
-        self.assertRaises(server.ServerConfigurationError, server.configure_email)
-        # Restore normal function
-        server.os_path_exists = pre
+        self.assertRaises(
+            server.ServerConfigurationError,
+            server.configure_email,
+        )
+
+        os.path.exists = original_exists
 
 
 class TestRequests(unittest.TestCase):
