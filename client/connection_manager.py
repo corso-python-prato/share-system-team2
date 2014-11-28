@@ -312,7 +312,8 @@ class ConnectionManager(object):
             r.raise_for_status()
             return {'content': r.json(), 'successful': True}
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
-            return {'content': 'Failed to get server snapshot, maybe server down?\nError: {}'.format(e), 'successful': False}
+            return {'content': 'Failed to get server snapshot, maybe server down?\nError: {}'.format(e),
+                    'successful': False}
 
     def _default(self, method):
         self.class_logger.error('ERROR! Received Unknown Command from client_daemon!\n'

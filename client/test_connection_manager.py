@@ -280,6 +280,21 @@ class TestConnectionManager(unittest.TestCase):
         self.assertFalse(response['successful'])
 
     @httpretty.activate
+    def test_login_fail_connection(self):
+        """
+        Test login user api:
+        method = get
+        resource = <user>
+        data = password=<password>
+        """
+        data = (USR, PW)
+        url = self.files_url
+        httpretty.register_uri(httpretty.GET, url, status=400)
+        response = self.cm.do_login(data)
+        self.assertIsInstance(response['content'], str)
+        self.assertFalse(response['successful'])
+
+    @httpretty.activate
     def test_post_recover_password_not_found(self):
         """
         Test that if /users/<email>/reset POST == 404 then cm return None
@@ -440,6 +455,19 @@ class TestConnectionManager(unittest.TestCase):
         self.assertEqual(response['content'], msg)
 
     @httpretty.activate
+    def test_do_upload_fail(self):
+
+        # prepare fake server
+        url = ''.join((self.files_url, 'foo.txt'))
+        httpretty.register_uri(httpretty.POST, url, status=404,
+                               content_type="application/json")
+
+        # call api
+        response = self.cm.do_upload({'filepath': 'foo.txt', 'md5': 'test_md5'})
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
+
+    @httpretty.activate
     def test_encode_of_url_with_strange_char(self):
         """
         Test the url encode of filename with strange char.
@@ -481,6 +509,16 @@ class TestConnectionManager(unittest.TestCase):
         self.assertEqual(response['content'], msg)
 
     @httpretty.activate
+    def test_do_move_fail(self):
+        url = ''.join((self.actions_url, 'move'))
+        httpretty.register_uri(httpretty.POST, url, status=404,
+                               content_type="application/json")
+
+        response = self.cm.do_move({'src': 'foo.txt', 'dst': 'folder/foo.txt'})
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
+
+    @httpretty.activate
     def test_do_delete(self):
         url = ''.join((self.actions_url, 'delete'))
         msg = {'server_timestamp': time.time()}
@@ -495,6 +533,17 @@ class TestConnectionManager(unittest.TestCase):
         self.assertEqual(response['content'], msg)
 
     @httpretty.activate
+    def test_do_delete_fail(self):
+        url = ''.join((self.actions_url, 'delete'))
+        httpretty.register_uri(httpretty.POST, url, status=404,
+                               content_type="application/json")
+        d = {'filepath': 'foo.txt'}
+
+        response = self.cm.do_delete(d)
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
+
+    @httpretty.activate
     def test_do_modify(self):
         url = ''.join((self.files_url, 'foo.txt'))
         msg = {'server_timestamp': time.time()}
@@ -506,6 +555,16 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
         self.assertTrue(response['successful'])
         self.assertEqual(response['content'], msg)
+
+    @httpretty.activate
+    def test_do_modify_fail(self):
+        url = ''.join((self.files_url, 'foo.txt'))
+        httpretty.register_uri(httpretty.PUT, url, status=404,
+                               content_type="application/json")
+
+        response = self.cm.do_modify({'filepath': 'foo.txt', 'md5': 'test_md5'})
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
 
     @httpretty.activate
     def test_do_copy(self):
@@ -522,6 +581,17 @@ class TestConnectionManager(unittest.TestCase):
         self.assertEqual(response['content'], msg)
 
     @httpretty.activate
+    def test_do_copy_fail(self):
+        url = ''.join([self.actions_url, 'copy'])
+        d = {'src': 'foo.txt', 'dst': 'folder/foo.txt'}
+        httpretty.register_uri(httpretty.POST, url, status=404,
+                               content_type="application/json")
+
+        response = self.cm.do_copy(d)
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
+
+    @httpretty.activate
     def test_get_server_snapshot(self):
         url = self.files_url
         msg = {'files': 'foo.txt'}
@@ -534,6 +604,17 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_get_server_snapshot('')
         self.assertTrue(response['successful'])
         self.assertEqual(response['content'], msg)
+
+    @httpretty.activate
+    def test_get_server_snapshot_fail(self):
+        url = self.files_url
+
+        httpretty.register_uri(httpretty.GET, url, status=404,
+                               content_type="application/json")
+
+        response = self.cm.do_get_server_snapshot('')
+        self.assertFalse(response['successful'])
+        self.assertIsInstance(response['content'], str)
 
 if __name__ == '__main__':
     unittest.main()
