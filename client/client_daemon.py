@@ -106,7 +106,6 @@ class Daemon(FileSystemEventHandler):
             'addshare': self._add_share,
             'removeshare': self._remove_share,
             'removeshareduser': self._remove_shared_user,
-            'activate': self._activate_user,
         }
 
     def _build_directory(self, path):
@@ -1078,19 +1077,6 @@ class Daemon(FileSystemEventHandler):
             return '\'%s\' not exists' % shared_folder
 
         return self.conn_mng.dispatch_request('removeshareduser', data)
-
-    def _activate_user(self, data):
-        """
-        Makes user activation and update internal data structure
-        """
-        cmd = 'activate'
-        response = self.conn_mng.dispatch_request(cmd, data)
-
-        if response:
-            # (WIP) it update internal data structure
-            pass
-
-        return response
 
     def stop(self, exit_status, exit_message=None):
         """
