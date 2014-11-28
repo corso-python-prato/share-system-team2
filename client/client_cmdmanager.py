@@ -59,7 +59,7 @@ def load_cfg(cfg_path=CONFIG_FILEPATH):
             daemon_host = loaded_config['cmd_address']
             global daemon_port
             daemon_port = loaded_config['cmd_port']
-            return
+            return None
         except KeyError:
             pass
     # If all go right i will not do this print
@@ -194,7 +194,7 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: register <e-mail> <password>'
             # for testing purpose
-            return
+            return None
         message = {'register': (mail, password)}
         response = self._send_to_daemon(message)
         if 'improvements' in response:
@@ -218,7 +218,7 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: activate <e-mail> <token>'
             # for testing purpose
-            return
+            return None
         message = {'activate': (mail, token)}
         response = self._send_to_daemon(message)
         print response['content']
@@ -236,7 +236,7 @@ class CommandParser(cmd.Cmd):
             print 'Bad arguments:'
             print 'usage: login <e-mail> <password>'
             # for testing purpose
-            return
+            return None
         message = {'login': (mail, password)}
         response = self._send_to_daemon(message)
         print response['content']
