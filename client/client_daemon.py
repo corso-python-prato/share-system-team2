@@ -62,7 +62,7 @@ class SkipObserver(Observer):
 
     def skip(self, path):
         self._skip_list.append(path)
-        print 'Path "{}" added to skip list!!!'.format(path)
+        logger.debug('Path "{}" added to skip list!!!'.format(path))
 
     def dispatch_events(self, event_queue, timeout):
         event, watch = event_queue.get(block=True, timeout=timeout)
@@ -150,10 +150,10 @@ class Daemon(FileSystemEventHandler):
             try:
                 os.makedirs(path)
             except OSError:
-                print '\nImpossible to create directory at the following path:\n{}\n'.format(path)
+                logger.warning('\nWARNING!Impossible to create directory at the following path:\n{}\n'.format(path))
                 return False
             else:
-                print 'Created folder:\n', path
+                logger.info('Created folder: {}'.format(path))
         return True
 
     def _create_cfg(self, cfg_path, sharing_path):
@@ -201,8 +201,8 @@ class Daemon(FileSystemEventHandler):
                     for k, v in json.load(fo).iteritems():
                         loaded_config[k] = v
             except ValueError:
-                print '\nImpossible to read "{0}"!' \
-                      '\nConfig file overwrited and loaded with default configuration!\n'.format(cfg_path)
+                logger.warning('\nImpossible to read "{0}"!\n'
+                               'Config file overwrited and loaded with default configuration!\n'.format(cfg_path))
             else:
                 # Check that all the key in DEF_CONF are in loaded_config
                 if not [True for k in Daemon.DEF_CONF if k not in loaded_config]:
@@ -210,11 +210,11 @@ class Daemon(FileSystemEventHandler):
                     Daemon.CONFIG_FILEPATH = cfg_path
                     Daemon.CONFIG_DIR = os.path.dirname(cfg_path)
                     return loaded_config
-                print '\nWarning "{0}" corrupted!\nConfig file overwrited and loaded with default configuration!\n'\
-                    .format(cfg_path)
+                logger.warning('\nWarning "{0}" corrupted!\n'
+                               'Config file overwrited and loaded with default configuration!\n'.format(cfg_path))
         else:
-            print '\nWarning "{0}" doesn\'t exist!' \
-                  '\nNew config file created and loaded with default configuration!\n'.format(cfg_path)
+            logger.warning('\nWarning "{0}" doesn\'t exist!\n'
+                           'New config file created and loaded with default configuration!\n'.format(cfg_path))
         return self._create_cfg(cfg_path, sharing_path)
 
     def _save_pass(self, password):
@@ -339,8 +339,9 @@ class Daemon(FileSystemEventHandler):
             copy2(abs_src, abs_dst)
         except IOError:
             return False
-
         self.client_snapshot[dst] = self.client_snapshot[src]
+        logging.info('Copied file on client during SYNC.\n'
+                     'Source filepath: {}\nDestination filepath: {}\n'.format(abs_src, abs_dst))
         return True
 
     def _make_move_on_client(self, src, dst):
@@ -368,6 +369,8 @@ class Daemon(FileSystemEventHandler):
 
         self.client_snapshot[dst] = self.client_snapshot[src]
         self.client_snapshot.pop(src)
+        logger.info('Moved file on client during SYNC.\n'
+                     'Source filepath: {}\nDestination filepath: {}\n'.format(abs_src, abs_dst))
         return True
 
     def _make_delete_on_client(self, filepath):
@@ -381,13 +384,14 @@ class Daemon(FileSystemEventHandler):
         try:
             os.remove(abs_path)
         except OSError as e:
-            print 'WARNING impossible delete file during SYNC on path: {}\n' \
-                  'Error occurred: {}'.format(abs_path, e)
+            logger.warning('WARNING impossible delete file during SYNC on path: {}\n'
+                           'Error occurred: {}'.format(abs_path, e))
         if self.client_snapshot.pop(filepath, 'ERROR') != 'ERROR':
-            print 'Deleted file on server during SYNC.\nDeleted filepath: ', abs_path
+            logger.info('Deleted file on client during SYNC.\nDeleted filepath: {}'.format(abs_path))
         else:
-            print 'WARNING inconsistency error during delete operation!' \
-                  'Impossible to find the following file in stored data (client_snapshot):\n', abs_path
+            logger.warning('WARNING inconsistency error during delete operation!\n'
+                           'Impossible to find the following file in stored data (client_snapshot):\n'
+                           '{}'.format(abs_path))
 
     def _sync_process(self, server_timestamp, server_dir_tree, shared_dir_tree={}):
         # Makes the synchronization logic and return a list of commands to launch
@@ -430,7 +434,8 @@ class Daemon(FileSystemEventHandler):
 
         if self._is_directory_modified():
             if local_timestamp == server_timestamp:
-                print 'local_timestamp == server_timestamp and directory IS modified'
+                logger.debug('local_timestamp == server_timestamp and directory IS modified')
+                logger.debug(tree_diff)
                 # simple case: the client has the command
                 # it sends all folder modifications to server
 
@@ -449,8 +454,9 @@ class Daemon(FileSystemEventHandler):
                     # self.conn_mng.dispatch_request('upload', {'filepath': filepath})
 
             else:  # local_timestamp < server_timestamp
-                print 'local_timestamp < server_timestamp and directory IS modified'
-                assert local_timestamp <= server_timestamp, 'e\' successo qualcosa di brutto nella sync, ' \
+                logger.debug('local_timestamp < server_timestamp and directory IS modified')
+                logger.debug(tree_diff)
+                assert local_timestamp <= server_timestamp, 'ERROR something bad happen during SYNC process, ' \
                                                             'local_timestamp > di server_timestamp '
                 # the server has the command
                 for filepath in tree_diff['new_on_server']:
@@ -509,13 +515,16 @@ class Daemon(FileSystemEventHandler):
 
         else:  # directory not modified
             if local_timestamp == server_timestamp:
-                print 'local_timestamp == server_timestamp and directory IS NOT modified'
+                logger.debug('local_timestamp == server_timestamp and directory IS NOT modified')
+                logger.debug(tree_diff)
                 # it's the best case. Client and server are already synchronized
                 for key in tree_diff:
-                    assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty!\ntree_diff:\n{}".format(tree_diff)
+                    assert not tree_diff[key], 'local_timestamp == server_timestamp but tree_diff is not empty!\n' \
+                                               'tree_diff:\n{}'.format(tree_diff)
                 sync_commands = []
             else:  # local_timestamp < server_timestamp
-                print 'local_timestamp < server_timestamp and directory IS NOT modified'
+                logger.debug('local_timestamp < server_timestamp and directory IS NOT modified')
+                logger.debug(tree_diff)
                 assert local_timestamp <= server_timestamp, 'ERROR something bad happen during SYNC process, ' \
                                                             'local_timestamp > di server_timestamp'
                 # the server has the command
@@ -560,10 +569,15 @@ class Daemon(FileSystemEventHandler):
             self.observer.skip(abs_filepath)
             try:
                 os.remove(abs_filepath)
-            except OSError as ex:
-                print "Delete EXEPTION INTO SYNC : {}".format(ex)
-
-            self.shared_snapshot.pop(filepath)
+            except OSError as e:
+                logger.warning('WARNING impossible delete file during SYNC on path: {}\n'
+                               'Error occurred: {}'.format(abs_filepath, e))
+            if self.shared_snapshot.pop(filepath, None):
+                logger.info('Deleted file on client during SYNC.\nDeleted filepath: {}'.format(abs_filepath))
+            else:
+                logger.warning('WARNING inconsistency error during delete operation!\n'
+                               'Impossible to find the following file in stored data (shared_snapshot):\n'
+                               '{}'.format(abs_filepath))
 
         for filepath in shared_tree_diff['modified']:
             sync_commands.append(('download', filepath))
@@ -602,10 +616,11 @@ class Daemon(FileSystemEventHandler):
                 if response['successful']:
                     last_operation_timestamp = response['content']['server_timestamp']
                     if self.client_snapshot.pop(path, 'ERROR') != 'ERROR':
-                        print 'Deleted file on server during SYNC.\nDeleted filepath: ', abs_path
+                        logger.info('Deleted file on server during SYNC.\nDeleted filepath: {}'.format(abs_path))
                     else:
-                        print 'WARNING inconsistency error during delete operation!' \
-                              'Impossible to find the following file in stored data (client_snapshot):\n', abs_path
+                        logger.warning('WARNING inconsistency error during delete operation!\n'
+                                       'Impossible to find the following file in stored data (client_snapshot):\n'
+                                       '{}'.format(abs_path))
                 else:
                     self.stop(1, response['content'])
 
@@ -615,8 +630,8 @@ class Daemon(FileSystemEventHandler):
                 response = self.conn_mng.dispatch_request(command, {'filepath': path, 'md5': new_md5})
                 if response['successful']:
                     last_operation_timestamp = response['content']['server_timestamp']
-                    print '{} file on server during SYNC.\n{} filepath: {}'\
-                        .format(('Modified', 'Updated')[command == 'modify'], abs_path)
+                    cmd_type = ('Modified', 'Updated')[command == 'modify']
+                    logger.info('{0} file on server during SYNC.\n{0} filepath: {1}'.format(cmd_type, abs_path))
                 else:
                     self.stop(1, response['content'])
 
@@ -626,10 +641,10 @@ class Daemon(FileSystemEventHandler):
                 self.observer.skip(abs_path)
                 response = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if response['successful']:
+                    logger.info('Downloaded file from server during SYNC.\nDownloaded filepath: {}'.format(abs_path))
                     if self._is_shared_file(path):
                         self.shared_snapshot[path] = shared_files[path]
                     else:
-                        print 'Downloaded file from server during SYNC.\nDownloaded filepath: {}'.format(abs_path)
                         self.client_snapshot[path] = server_snapshot[path]
                 else:
                     self.stop(1, response['content'])
@@ -697,30 +712,33 @@ class Daemon(FileSystemEventHandler):
         # with this check i found the copy events
         if founded_path:
             abs_founded_path = self.absolutize_path(founded_path)
-            print 'Start copy from path : {}\n to path: {}'.format(abs_founded_path, e.src_path)
+            logger.info('Copy event from path : {}\n to path: {}'.format(abs_founded_path, e.src_path))
             data = build_data('copy', rel_new_path, new_md5, founded_path)
         # this elif check that this create event aren't modify event.
         # Normally this never happen but sometimes watchdog fail to understand what has happened on file.
         # For example Gedit generate a create event instead modify event when a file is saved.
         elif rel_new_path in self.client_snapshot:
-            print 'WARNING this is modify event FROM CREATE EVENT! Path of file already existent:', e.src_path
+            logger.warning('WARNING this is modify event FROM CREATE EVENT!'
+                           'Path of file already existent: {}'.format(e.src_path))
             data = build_data('modify', rel_new_path, new_md5)
 
         else:  # Finally we find a real create event!
-            print 'Start create in path:', e.src_path
+            logger.info('Create event on path: {}'.format(e.src_path))
             data = build_data('upload', rel_new_path, new_md5)
 
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
         if self._is_shared_file(rel_new_path):
-            print 'you are writing file into a read-only folder, so it will not be synchronized with server'
+            logger.warning('You are writing file in path: {}\n'
+                           'This is a read-only folder, so it will not be synchronized with server'
+                           .format(rel_new_path))
         else:
             response = self.conn_mng.dispatch_request(data['cmd'], data['file'])
             if response['successful']:
                 event_timestamp = response['content']['server_timestamp']
                 self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
                 self.update_local_dir_state(event_timestamp)
-                print '{} event completed.'.format(data['cmd'])
+                logger.debug('{} event completed.'.format(data['cmd']))
             else:
                 self.stop(1, response['content'])
 
@@ -735,9 +753,7 @@ class Daemon(FileSystemEventHandler):
         N.B: Sometime on_move event is a copy event for erroneous survey, so the method check if this error has happened.
         :param e: event object with information about what has happened
         """
-
-        print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
-
+        logger.info('Move event from path : {}\n to path: {}'.format(e.src_path,e.dest_path))
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
 
@@ -750,7 +766,7 @@ class Daemon(FileSystemEventHandler):
         if not os.path.exists(e.src_path):
             cmd = 'move'
         else:
-            print 'WARNING this is COPY event from MOVE EVENT!'
+            logger.warning('WARNING this is COPY event from MOVE EVENT!')
             cmd = 'copy'
 
         if source_shared and not dest_shared:  # file moved from shared path to not shared path
@@ -797,8 +813,9 @@ class Daemon(FileSystemEventHandler):
                 if response['successful']:
                     event_timestamp = response['content']['server_timestamp']
                     if self.client_snapshot.pop(rel_src_path, 'ERROR') == 'ERROR':
-                        print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(
-                            rel_src_path)
+                        logger.warning('WARNING inconsistency error during delete operation!\n'
+                                       'Impossible to find the following file in stored data (client_snapshot):\n'
+                                       '{}'.format(rel_src_path))
                     self.update_local_dir_state(event_timestamp)
                 else:
                     self.stop(1, response['content'])
@@ -812,7 +829,8 @@ class Daemon(FileSystemEventHandler):
         else:  # file moved from not shared path to not shared path (standard case)
             if not self.client_snapshot.get(rel_src_path)[1]:
                 self.stop(1, 'WARNING inconsistency error during {} operation!\n'
-                             'Impossible to find the following file in stored data (client_snapshot):\n{}'.format(cmd, rel_src_path))
+                             'Impossible to find the following file in stored data (client_snapshot):\n'
+                             '{}'.format(cmd, rel_src_path))
             md5 = self.client_snapshot[rel_src_path][1]
             data = {'src': rel_src_path,
                     'dst': rel_dest_path,
@@ -827,7 +845,7 @@ class Daemon(FileSystemEventHandler):
                     # rel_src_path already checked
                     self.client_snapshot.pop(rel_src_path)
                 self.update_local_dir_state(event_timestamp)
-                print '{} event completed.'.format(cmd)
+                logger.debug('{} event completed.'.format(cmd))
             else:
                 self.stop(1, response['content'])
 
@@ -840,13 +858,13 @@ class Daemon(FileSystemEventHandler):
         will be updated.
         :param e: event object with information about what has happened
         """
-        print 'start modify of file:', e.src_path
+        logger.info('Modify event on file:', e.src_path)
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
-        data = {'filepath': rel_path,
-                'md5': new_md5
-                }
-
+        data = {
+            'filepath': rel_path,
+            'md5': new_md5
+        }
         if self._is_shared_file(rel_path):
             # if it has modified a file tracked by shared snapshot, then force the re-download of it
             try:
@@ -861,7 +879,7 @@ class Daemon(FileSystemEventHandler):
                 event_timestamp = response['content']['server_timestamp']
                 self.client_snapshot[rel_path] = [event_timestamp, new_md5]
                 self.update_local_dir_state(event_timestamp)
-                print 'Modify event completed.'
+                logger.debug('Modify event completed.')
             else:
                 self.stop(1, response['content'])
 
@@ -874,9 +892,8 @@ class Daemon(FileSystemEventHandler):
         will be updated.
         :param e: event object with information about what has happened
         """
-        print 'start delete of file:', e.src_path
+        logger.info('Delete event on file: {}'.format(e.src_path))
         rel_path = self.relativize_path(e.src_path)
-
         if self._is_shared_file(rel_path):
             # if it has modified a file tracked by shared snapshot, then force the re-download of it
             try:
@@ -890,10 +907,11 @@ class Daemon(FileSystemEventHandler):
             if response['successful']:
                 event_timestamp = response['content']['server_timestamp']
                 if self.client_snapshot.pop(rel_path, 'ERROR') == 'ERROR':
-                    print 'WARNING inconsistency error during delete operation!' \
-                          'Impossible to find the following file in stored data (client_snapshot):\n', e.src_path
+                    logger.warning('WARNING inconsistency error during delete operation!\n'
+                                    'Impossible to find the following file in stored data (client_snapshot):\n'
+                                    '{}'.format(e.src_path))
                 self.update_local_dir_state(event_timestamp)
-                print 'Delete event completed.'
+                logger.debug('Delete event completed.')
             else:
                 self.stop(1, response['content'])
 
@@ -1120,7 +1138,7 @@ class Daemon(FileSystemEventHandler):
             if self.local_dir_state:
                 self.save_local_dir_state()
         if exit_message:
-            print exit_message
+            logger.error(exit_message)
         exit(exit_status)
 
     def update_local_dir_state(self, last_timestamp):
@@ -1150,12 +1168,12 @@ class Daemon(FileSystemEventHandler):
 
         if os.path.isfile(self.cfg['local_dir_state_path']):
             self.local_dir_state = json.load(open(self.cfg['local_dir_state_path'], 'r'))
-            print 'Loaded local_dir_state'
+            logger.debug('Loaded local_dir_state')
         else:
-            print 'local_dir_state not found. Initialize new local_dir_state'
+            logger.debug('local_dir_state not found. Initialize new local_dir_state')
             _rebuild_local_dir_state()
 
-    def md5_of_client_snapshot(self, verbose=0):
+    def md5_of_client_snapshot(self):
         """
         Calculate the md5 of the entire directory snapshot,
         with the md5 in client_snapshot and the md5 of full filepath string.
