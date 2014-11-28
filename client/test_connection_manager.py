@@ -332,6 +332,77 @@ class TestConnectionManager(unittest.TestCase):
         response = self.cm.do_recoverpass(data)
         self.assertTrue(response)
 
+    @httpretty.activate
+    def test_addshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        shared_folder = 'folder'
+        data = (shared_folder, user)
+        url = ''.join([self.shares_url, shared_folder, '/', user])
+
+        httpretty.register_uri(httpretty.POST, url, status=200, body='added shared folder')
+        response = self.cm.do_addshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.POST, url, status=404)
+        self.assertFalse(self.cm.do_addshare(data))
+
+        httpretty.register_uri(httpretty.POST, url, status=409)
+        self.assertFalse(self.cm.do_addshare(data))
+
+    @httpretty.activate
+    def test_removeshare(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        shared_folder = 'folder'
+        data = (shared_folder, )
+        url = ''.join([self.shares_url, shared_folder])
+
+        httpretty.register_uri(httpretty.DELETE, url, status=200, body='share removed')
+        response = self.cm.do_removeshare(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.DELETE, url, status=404)
+        self.assertFalse(self.cm.do_removeshare(data))
+
+        httpretty.register_uri(httpretty.DELETE, url, status=409)
+        self.assertFalse(self.cm.do_removeshare(data))
+
+    @httpretty.activate
+    def test_removeshareduser(self):
+        """
+        Test activate user api:
+        method = PUT
+        resource = <user>
+        data = activation_code=<token>
+        """
+        user = 'mail@mail.it'
+        shared_folder = 'folder'
+        data = (shared_folder, user)
+        url = ''.join([self.shares_url, shared_folder, '/', user])
+
+        httpretty.register_uri(httpretty.DELETE, url, status=200, body='removed user from share')
+        response = self.cm.do_removeshareduser(data)
+        self.assertNotEqual(response, False)
+        self.assertIsInstance(response, unicode)
+
+        httpretty.register_uri(httpretty.DELETE, url, status=404)
+        self.assertFalse(self.cm.do_removeshareduser(data))
+
+        httpretty.register_uri(httpretty.DELETE, url, status=409)
+        self.assertFalse(self.cm.do_removeshareduser(data))
+
     # files:
     @httpretty.activate
     def test_download_normal_file(self):

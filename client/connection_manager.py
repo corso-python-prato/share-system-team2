@@ -170,6 +170,59 @@ class ConnectionManager(object):
         except ConnectionManager.EXCEPTIONS_CATCHED as e:
             self.logger.error('do_recoverpass: URL: {} - EXCEPTION_CATCHED: {}'.format(url, e))
 
+    # shares
+
+    def do_addshare(self, data):
+        """
+        send the request to add a new user to a shared folder
+        """
+        share_folder, user = data
+        url = ''.join([self.shares_url, share_folder, '/', user])
+        self.logger.info('do_addshare: URL: {}'.format(url))
+
+        try:
+            r = requests.post(url, auth=self.auth)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_addshare: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
+    def do_removeshare(self, data):
+        """
+        send the request to remove the sharing on a folder
+        """
+        share_folder = data[0]
+        url = ''.join([self.shares_url, share_folder])
+        self.logger.info('do_removeshare: URL: {}'.format(url))
+
+        try:
+            r = requests.delete(url, auth=self.auth)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_removeshare: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
+    def do_removeshareduser(self, data):
+        """
+        send the request to remove that user from the shared folder
+        """
+        share_folder, user = data
+        url = ''.join([self.shares_url, share_folder, '/', user])
+        self.logger.info('do_removeshareduser: URL: {}'.format(url))
+
+        try:
+            r = requests.delete(url, auth=self.auth)
+            r.raise_for_status()
+        except ConnectionManager.EXCEPTIONS_CATCHED as e:
+            self.logger.error('do_removedshareduser: URL: {} - EXCEPTION_CATCHED: {} '.format(url, e))
+        else:
+            return r.text
+        return False
+
     # files
 
     def do_download(self, data):

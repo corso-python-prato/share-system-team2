@@ -80,8 +80,8 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         self.commandparser.sock.set_response(json.dumps({'message': response}))
         input_str = 'input'
 
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
-        self.assertEquals(self.commandparser._send_to_daemon(input_str * 100000), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str * 100000, False), response)
 
     def test_send_to_daemon_output(self):
         """
@@ -90,13 +90,12 @@ class TestCmdManagerDaemonConnection(unittest.TestCase):
         """
         input_str = 'input'
         response = 'ciao sono test'
-        self.commandparser.sock.set_response(json.dumps({'message': response}))
 
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response)
+        self.commandparser.sock.set_response(json.dumps({'message': response}))
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response)
 
         self.commandparser.sock.set_response(json.dumps({'message': response * 100000}))
-
-        self.assertEquals(self.commandparser._send_to_daemon(input_str), response * 100000)
+        self.assertEquals(self.commandparser._send_to_daemon(input_str, False), response * 100000)
 
     def test_do_register(self):
         """

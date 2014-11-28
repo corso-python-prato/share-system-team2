@@ -118,9 +118,10 @@ class CommandParser(cmd.Cmd):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.connect((daemon_host, daemon_port))
 
-    def _send_to_daemon(self, message=None):
+    def _send_to_daemon(self, message=None, show=True):
         """
         it sends user input command to the daemon server
+        if show = True then print response message, otherwise it get message response without printing it
         """
         if not message:
             raise
@@ -144,6 +145,7 @@ class CommandParser(cmd.Cmd):
                     response_packet = ''.join([response_packet, response_buffer])
 
                 response = json.loads(response_packet)
+
                 return response['message']
             else:
                 raise Exception('Error: lost connection with daemon')
@@ -239,6 +241,54 @@ class CommandParser(cmd.Cmd):
         response = self._send_to_daemon(message)
         print response['content']
         return response
+
+    def do_addshare(self, line):
+        """
+        Share a folder with a new user
+        Usage: addshare <shared_folder> <user>
+        """
+        try:
+            shared_folder, user = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: addshare <share_folder> <user>'
+        else:
+            message = {'addshare': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
+
+    def do_removeshare(self, line):
+        """
+        Remove completely the sharing in a folder
+        Usage: removeshare <shared_folder>
+        """
+        try:
+            shared_folder = line.split()[0]
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: removeshare <share_folder>'
+        else:
+            message = {'removeshare': (shared_folder, )}
+            response = self._send_to_daemon(message)
+            print response
+            return response
+
+    def do_removeshareduser(self, line):
+        """
+        Remove the user from the shared folder
+        Usage: removeshareduser <shared_folder> <user>
+        """
+        try:
+            shared_folder, user = line.split()
+        except ValueError:
+            print 'Bad arguments:'
+            print 'usage: removeshareduser <share_folder> <user>'
+        else:
+            message = {'removeshareduser': (shared_folder, user)}
+            response = self._send_to_daemon(message)
+            print response
+            return response
 
     def do_recoverpass(self, line):
         """

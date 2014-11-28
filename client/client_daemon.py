@@ -92,6 +92,7 @@ class Daemon(FileSystemEventHandler):
         self.daemon_state = 'down'  # TODO implement the daemon state (disconnected, connected, syncronizing, ready...)
         self.running = 0
         self.client_snapshot = {}  # EXAMPLE {'<filepath1>: ['<timestamp>', '<md5>', '<filepath2>: ...}
+        self.shared_snapshot = {}
         self.local_dir_state = {}  # EXAMPLE {'last_timestamp': '<timestamp>', 'global_md5': '<md5>'}
         self.listener_socket = None
         self.observer = None
@@ -100,6 +101,12 @@ class Daemon(FileSystemEventHandler):
         self._init_sharing_path(sharing_path)
 
         self.conn_mng = ConnectionManager(self.cfg)
+
+        self.INTERNAL_COMMANDS = {
+            'addshare': self._add_share,
+            'removeshare': self._remove_share,
+            'removeshareduser': self._remove_shared_user,
+        }
 
     def _build_directory(self, path):
         """
@@ -220,7 +227,41 @@ class Daemon(FileSystemEventHandler):
             for filename in files:
                 filepath = os.path.join(dirpath, filename)
                 rel_filepath = self.relativize_path(filepath)
-                self.client_snapshot[rel_filepath] = ['', self.hash_file(filepath)]
+
+                if not self._is_shared_file(rel_filepath):
+                    self.client_snapshot[rel_filepath] = ['', self.hash_file(filepath)]
+
+    def build_shared_snapshot(self):
+        """
+        Build the snapshot of the shared files according this structure:
+        {
+            "shared/<user>/<file_path>":('<timestamp>', '<md5>')
+        }
+        """
+        response = self.conn_mng.dispatch_request('get_server_snapshot', '')
+        if response['successful']:
+            try:
+                self.shared_snapshot = response['content']['shared_files']
+            except KeyError:
+                self.shared_snapshot = {}
+        else:
+            self.stop(1, '\nReceived None snapshot. Server down?\n')
+
+        # check the consistency of client snapshot retrieved by the server with the real files on clients
+        file_md5 = None
+        for filepath in self.shared_snapshot.keys():
+            file_md5 = self.hash_file(self.absolutize_path(filepath))
+            if not file_md5 or file_md5 != self.shared_snapshot[filepath][1]:
+                # force the re-download at next synchronization
+                self.shared_snapshot.pop(filepath)
+
+        # NOTE: for future implementation:
+        #
+        # At startup it can't know if the owner of shared file has removed that share, so the files will remain into
+        # shared folder as a zombie files, that means they will not update their status
+        #
+        # P.S. It can't delete them because some files could be not shared files, so it's safe don't force
+        # the deletion of them
 
     def _is_directory_modified(self):
         """
@@ -316,11 +357,11 @@ class Daemon(FileSystemEventHandler):
             print 'WARNING inconsistency error during delete operation!' \
                   'Impossible to find the following file in stored data (client_snapshot):\n', abs_path
 
-    def _sync_process(self, server_timestamp, server_dir_tree):
+    def _sync_process(self, server_timestamp, server_dir_tree, shared_dir_tree={}):
         # Makes the synchronization logic and return a list of commands to launch
         # for server synchronization
 
-        def _filter_tree_difference(server_dir_tree):
+        def _filter_tree_difference(client_dir_tree, server_dir_tree):
             # process local dir_tree and server dir_tree
             # and makes a diffs classification
             # return a dict representing that classification
@@ -328,7 +369,7 @@ class Daemon(FileSystemEventHandler):
             # 'modified'          : <[<filepath>, ...]>,  # files in server and client, but different
             # 'new_on_client'     : <[<filepath>, ...]>,  # files not in server, but in client
             # }
-            client_files = set(self.client_snapshot.keys())
+            client_files = set(client_dir_tree.keys())
             server_files = set(server_dir_tree.keys())
 
             new_on_server = list(server_files.difference(client_files))
@@ -338,7 +379,7 @@ class Daemon(FileSystemEventHandler):
             for filepath in server_files.intersection(client_files):
                 # check files md5
 
-                if server_dir_tree[filepath][1] != self.client_snapshot[filepath][1]:
+                if server_dir_tree[filepath][1] != client_dir_tree[filepath][1]:
                     modified.append(filepath)
 
             return {'new_on_server': new_on_server, 'modified': modified, 'new_on_client': new_on_client}
@@ -351,7 +392,8 @@ class Daemon(FileSystemEventHandler):
             return result
 
         local_timestamp = self.local_dir_state['last_timestamp']
-        tree_diff = _filter_tree_difference(server_dir_tree)
+        tree_diff = _filter_tree_difference(self.client_snapshot, server_dir_tree)
+        shared_tree_diff = _filter_tree_difference(self.shared_snapshot, shared_dir_tree)
         sync_commands = []
 
         if self._is_directory_modified():
@@ -439,7 +481,7 @@ class Daemon(FileSystemEventHandler):
                 # it's the best case. Client and server are already synchronized
                 for key in tree_diff:
                     assert not tree_diff[key], "local_timestamp == server_timestamp but tree_diff is not empty!\ntree_diff:\n{}".format(tree_diff)
-                return []
+                sync_commands = []
             else:  # local_timestamp < server_timestamp
                 print 'local_timestamp < server_timestamp and directory IS NOT modified'
                 assert local_timestamp <= server_timestamp, 'ERROR something bad happen during SYNC process, ' \
@@ -480,6 +522,23 @@ class Daemon(FileSystemEventHandler):
                     # files that have been deleted on server, so we have to delete them
                     self._make_delete_on_client(filepath)
 
+        for filepath in shared_tree_diff['new_on_client']:
+            # files deleted on server
+            abs_filepath = self.absolutize_path(filepath)
+            self.observer.skip(abs_filepath)
+            try:
+                os.remove(abs_filepath)
+            except OSError as ex:
+                print "Delete EXEPTION INTO SYNC : {}".format(ex)
+
+            self.shared_snapshot.pop(filepath)
+
+        for filepath in shared_tree_diff['modified']:
+            sync_commands.append(('download', filepath))
+
+        for filepath in shared_tree_diff['new_on_server']:
+            sync_commands.append(('download', filepath))
+
         return sync_commands
 
     def sync_with_server(self):
@@ -493,7 +552,12 @@ class Daemon(FileSystemEventHandler):
         server_timestamp = response['content']['server_timestamp']
         server_snapshot = response['content']['files']
 
-        sync_commands = self._sync_process(server_timestamp, server_snapshot)
+        try:
+            shared_files = response['content']['shared_files']
+        except KeyError:
+            shared_files = {}
+
+        sync_commands = self._sync_process(server_timestamp, server_snapshot, shared_files)
 
         # Initialize the variable where we put the timestamp of the last operation we did
         last_operation_timestamp = server_timestamp
@@ -530,12 +594,26 @@ class Daemon(FileSystemEventHandler):
                 self.observer.skip(abs_path)
                 response = self.conn_mng.dispatch_request(command, {'filepath': path})
                 if response['successful']:
-                    print 'Downloaded file from server during SYNC.\nDownloaded filepath: {}'.format(abs_path)
-                    self.client_snapshot[path] = server_snapshot[path]
+                    if self._is_shared_file(path):
+                        self.shared_snapshot[path] = shared_files[path]
+                    else:
+                        print 'Downloaded file from server during SYNC.\nDownloaded filepath: {}'.format(abs_path)
+                        self.client_snapshot[path] = server_snapshot[path]
                 else:
                     self.stop(1, response['content'])
 
         self.update_local_dir_state(last_operation_timestamp)
+
+    def _is_shared_file(self, path):
+        """
+        Check if the given path is a shared file.(Check if is located in 'shared' folder)
+        :param path:
+        :return: True, False
+        """
+
+        if path.split('/')[0] == 'shared':
+            return True
+        return False
 
     def relativize_path(self, abs_path):
         """
@@ -602,14 +680,17 @@ class Daemon(FileSystemEventHandler):
 
         # Send data to connection manager dispatcher and check return value.
         # If all go right update client_snapshot and local_dir_state
-        response = self.conn_mng.dispatch_request(data['cmd'], data['file'])
-        if response['successful']:
-            event_timestamp = response['content']['server_timestamp']
-            self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
-            print '{} event completed.'.format(data['cmd'])
+        if self._is_shared_file(rel_new_path):
+            print 'you are writing file into a read-only folder, so it will not be synchronized with server'
         else:
-            self.stop(1, response['content'])
+            response = self.conn_mng.dispatch_request(data['cmd'], data['file'])
+            if response['successful']:
+                event_timestamp = response['content']['server_timestamp']
+                self.client_snapshot[rel_new_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp)
+                print '{} event completed.'.format(data['cmd'])
+            else:
+                self.stop(1, response['content'])
 
     @is_directory
     def on_moved(self, e):
@@ -622,9 +703,15 @@ class Daemon(FileSystemEventHandler):
         N.B: Sometime on_move event is a copy event for erroneous survey, so the method check if this error has happened.
         :param e: event object with information about what has happened
         """
+
         print 'Start move from path : {}\n to path: {}'.format(e.src_path,e.dest_path)
+
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
+
+        source_shared = self._is_shared_file(rel_src_path)
+        dest_shared = self._is_shared_file(rel_dest_path)
+
         # this check that move event isn't modify event.
         # Normally this never happen but sometimes watchdog fail to understand what has happened on file.
         # For example Gedit generate a move event instead copy event when a file is saved.
@@ -633,26 +720,84 @@ class Daemon(FileSystemEventHandler):
         else:
             print 'WARNING this is COPY event from MOVE EVENT!'
             cmd = 'copy'
-        if not self.client_snapshot.get(rel_src_path)[1]:
-            self.stop(1, 'WARNING inconsistency error during {} operation!\n'
-                         'Impossible to find the following file in stored data (client_snapshot):\n{}'.format(cmd, rel_src_path))
-        md5 = self.client_snapshot[rel_src_path][1]
-        data = {'src': rel_src_path,
-                'dst': rel_dest_path,
-                'md5': md5}
-        # Send data to connection manager dispatcher and check return value.
-        # If all go right update client_snapshot and local_dir_state
-        response = self.conn_mng.dispatch_request(cmd, data)
-        if response['successful']:
-            event_timestamp = response['content']['server_timestamp']
-            self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
+
+        if source_shared and not dest_shared:  # file moved from shared path to not shared path
+            # upload the file
+            new_md5 = self.hash_file(e.dest_path)
+            data = {
+                'filepath': rel_dest_path,
+                'md5': new_md5
+            }
+
+            response = self.conn_mng.dispatch_request('upload', data)
+            if response['successful']:
+                event_timestamp = response['content']['server_timestamp']
+                self.client_snapshot[rel_dest_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp)
+
+                if cmd == 'move':
+                    # force the re-download of the file at next synchronization
+                    try:
+                        self.shared_snapshot.pop(rel_src_path)
+                    except KeyError:
+                        pass
+            else:
+                self.stop(1, response['content'])
+
+        elif source_shared and dest_shared:  # file moved from shared path to shared path
             if cmd == 'move':
-                # rel_src_path already checked
-                self.client_snapshot.pop(rel_src_path)
-            self.update_local_dir_state(event_timestamp)
-            print '{} event completed.'.format(cmd)
-        else:
-            self.stop(1, response['content'])
+                # force the re-download of the file moved at the next synchronization
+                try:
+                    self.shared_snapshot.pop(rel_src_path)
+                except KeyError:
+                    pass
+
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_dest_path)
+            except KeyError:
+                pass
+
+        elif not source_shared and dest_shared:  # file moved from not shared path to shared path
+            if cmd == 'move':
+                # delete file on server
+                response = self.conn_mng.dispatch_request('delete', {'filepath': rel_src_path})
+                if response['successful']:
+                    event_timestamp = response['content']['server_timestamp']
+                    if self.client_snapshot.pop(rel_src_path, 'ERROR') == 'ERROR':
+                        print 'Error during delete event! Impossible to find "{}" inside client_snapshot'.format(
+                            rel_src_path)
+                    self.update_local_dir_state(event_timestamp)
+                else:
+                    self.stop(1, response['content'])
+
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_dest_path)
+            except KeyError:
+                pass
+
+        else:  # file moved from not shared path to not shared path (standard case)
+            if not self.client_snapshot.get(rel_src_path)[1]:
+                self.stop(1, 'WARNING inconsistency error during {} operation!\n'
+                             'Impossible to find the following file in stored data (client_snapshot):\n{}'.format(cmd, rel_src_path))
+            md5 = self.client_snapshot[rel_src_path][1]
+            data = {'src': rel_src_path,
+                    'dst': rel_dest_path,
+                    'md5': md5}
+            # Send data to connection manager dispatcher and check return value.
+            # If all go right update client_snapshot and local_dir_state
+            response = self.conn_mng.dispatch_request(cmd, data)
+            if response['successful']:
+                event_timestamp = response['content']['server_timestamp']
+                self.client_snapshot[rel_dest_path] = [event_timestamp, md5]
+                if cmd == 'move':
+                    # rel_src_path already checked
+                    self.client_snapshot.pop(rel_src_path)
+                self.update_local_dir_state(event_timestamp)
+                print '{} event completed.'.format(cmd)
+            else:
+                self.stop(1, response['content'])
 
     @is_directory
     def on_modified(self, e):
@@ -667,17 +812,26 @@ class Daemon(FileSystemEventHandler):
         new_md5 = self.hash_file(e.src_path)
         rel_path = self.relativize_path(e.src_path)
         data = {'filepath': rel_path,
-                'md5': new_md5}
-        # Send data to connection manager dispatcher and check return value.
-        # If all go right update client_snapshot and local_dir_state
-        response = self.conn_mng.dispatch_request('modify', data)
-        if response['successful']:
-            event_timestamp = response['content']['server_timestamp']
-            self.client_snapshot[rel_path] = [event_timestamp, new_md5]
-            self.update_local_dir_state(event_timestamp)
-            print 'Modify event completed.'
+                'md5': new_md5
+                }
+
+        if self._is_shared_file(rel_path):
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_path)
+            except KeyError:
+                pass
         else:
-            self.stop(1, response['content'])
+            # Send data to connection manager dispatcher and check return value.
+            # If all go right update client_snapshot and local_dir_state
+            response = self.conn_mng.dispatch_request('modify', data)
+            if response['successful']:
+                event_timestamp = response['content']['server_timestamp']
+                self.client_snapshot[rel_path] = [event_timestamp, new_md5]
+                self.update_local_dir_state(event_timestamp)
+                print 'Modify event completed.'
+            else:
+                self.stop(1, response['content'])
 
     @is_directory
     def on_deleted(self, e):
@@ -690,18 +844,26 @@ class Daemon(FileSystemEventHandler):
         """
         print 'start delete of file:', e.src_path
         rel_path = self.relativize_path(e.src_path)
-        # Send data to connection manager dispatcher and check return value.
-        # If all go right update client_snapshot and local_dir_state
-        response = self.conn_mng.dispatch_request('delete', {'filepath': rel_path})
-        if response['successful']:
-            event_timestamp = response['content']['server_timestamp']
-            if self.client_snapshot.pop(rel_path, 'ERROR') == 'ERROR':
-                print 'WARNING inconsistency error during delete operation!' \
-                      'Impossible to find the following file in stored data (client_snapshot):\n', e.src_path
-            self.update_local_dir_state(event_timestamp)
-            print 'Delete event completed.'
+
+        if self._is_shared_file(rel_path):
+            # if it has modified a file tracked by shared snapshot, then force the re-download of it
+            try:
+                self.shared_snapshot.pop(rel_path)
+            except KeyError:
+                pass
         else:
-            self.stop(1, response['content'])
+            # Send data to connection manager dispatcher and check return value.
+            # If all go right update client_snapshot and local_dir_state
+            response = self.conn_mng.dispatch_request('delete', {'filepath': rel_path})
+            if response['successful']:
+                event_timestamp = response['content']['server_timestamp']
+                if self.client_snapshot.pop(rel_path, 'ERROR') == 'ERROR':
+                    print 'WARNING inconsistency error during delete operation!' \
+                          'Impossible to find the following file in stored data (client_snapshot):\n', e.src_path
+                self.update_local_dir_state(event_timestamp)
+                print 'Delete event completed.'
+            else:
+                self.stop(1, response['content'])
 
     def _get_cmdmanager_request(self, socket):
         """
@@ -741,6 +903,7 @@ class Daemon(FileSystemEventHandler):
         We create the client_snapshot, load the information stored inside local_dir_state and create observer.
         """
         self.build_client_snapshot()
+        self.build_shared_snapshot()
         self.load_local_dir_state()
         self.create_observer()
         self.observer.start()
@@ -831,19 +994,25 @@ class Daemon(FileSystemEventHandler):
                         req = self._get_cmdmanager_request(s)
 
                         if req:
-                            for cmd, data in req.iteritems():
+                            for cmd, data in req.items():
+                                # TODO is required to refact/reingeneering stop/shutdown for a clean closure
+                                # now used an expedient (raise KeyboardInterrupt) to make it runnable
                                 if cmd == 'shutdown':
                                     response = {'content': 'Daemon is shutting down', 'successful': True}
                                     self._set_cmdmanager_response(s, response)
                                     raise KeyboardInterrupt
-                                else:
-                                    if not self.cfg.get('activate'):
-                                        response = self._activation_check(s, cmd, data)
-                                    elif cmd == 'login':
-                                        response = {'content': 'Warning! There is a user already authenticated on this '
-                                                               'computer. Impossible to login account',
-                                                    'successful': False}
-                                    else:  # client is already activated
+
+                                if not self.cfg.get('activate'):
+                                    response = self._activation_check(s, cmd, data)
+                                elif cmd == 'login':
+                                    response = {'content': 'Warning! There is a user already authenticated on this '
+                                                           'computer. Impossible to login account',
+                                                'successful': False}
+
+                                else:  # client is already activated
+                                    try:
+                                        response = self.INTERNAL_COMMANDS[cmd](data)
+                                    except KeyError:
                                         response = self.conn_mng.dispatch_request(cmd, data)
                                         # for now the protocol is that for request sent by
                                         # command manager, the server reply with a string
@@ -851,7 +1020,8 @@ class Daemon(FileSystemEventHandler):
                                         # daemon and cmdmanager comunications, it rebuild a json
                                         # to send like response
                                         # TODO it's advisable to make attention to this assertion or refact the architecture
-                                    self._set_cmdmanager_response(s, response)
+
+                                self._set_cmdmanager_response(s, response)
                         else:  # it receives the FIN packet that close the connection
                             s.close()
                             r_list.remove(s)
@@ -871,6 +1041,42 @@ class Daemon(FileSystemEventHandler):
             self.observer.stop()
             self.observer.join()
         self.listener_socket.close()
+
+    def _validate_path(self, path):
+
+        if os.path.exists(''.join([self.cfg['sharing_path'], os.sep, path])):
+            return True
+        return False
+
+    def _add_share(self, data):
+        """
+        handle the adding of shared folder with a user
+        """
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('addshare', data)
+
+    def _remove_share(self, data):
+        """
+        handle the removing of a shared folder
+        """
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('removeshare', data)
+
+    def _remove_shared_user(self, data):
+        """
+        handle the removing of an user from a shared folder
+        """
+        shared_folder = data[0]
+        if not self._validate_path(shared_folder):
+            return '\'%s\' not exists' % shared_folder
+
+        return self.conn_mng.dispatch_request('removeshareduser', data)
 
     def stop(self, exit_status, exit_message=None):
         """

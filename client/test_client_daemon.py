@@ -35,7 +35,20 @@ LIST_OF_TEST_FILES = [
     'folder6/iacopy.txt',
 ]
 
+LIST_OF_TEST_SHARED_FILES = [
+    'shared/user1/file1.txt',
+    'shared/user1/file2.dat',
+    'shared/pysqualo/file1.txt',
+    'shared/jacopyno/file2.dat',
+    'shared/milly/folder/file.txt',
+    'shared/millino/folder/filefile.dat',
+    'shared/millito/jacopo.txt',
+    'shared/utente/graphics.psd',
+
+]
+
 base_dir_tree = {}
+shared_files_dir_tree = {}
 
 TEST_CFG = {
     'local_dir_state_path': LOCAL_DIR_STATE_FOR_TEST,
@@ -54,6 +67,14 @@ TEST_CFG = {
 USR, PW = 'user@mail.com', 'Mail_85'
 
 
+def fake_hash_file(file_path, chunk_size=1024):
+    return 'test'
+
+
+def fake_search_md5(searched_md5):
+    return None
+
+
 def timestamp_generator():
     timestamp_generator.__test__ = False
     return long(time.time()*10000)
@@ -66,6 +87,15 @@ def create_base_dir_tree(list_of_files=LIST_OF_TEST_FILES):
         time_stamp = timestamp_generator()
         md5 = hashlib.md5(path).hexdigest()
         base_dir_tree[path] = [time_stamp, md5]
+
+
+def create_shared_files_dir_tree(files=LIST_OF_TEST_SHARED_FILES):
+    global shared_files_dir_tree
+    shared_files_dir_tree = {}
+    for path in files:
+        time_stamp = timestamp_generator()
+        md5 = hashlib.md5(path).hexdigest()
+        shared_files_dir_tree[path] = [time_stamp, md5]
 
 
 def create_environment():
@@ -109,13 +139,52 @@ def fake_set_cmdmanager_response(socket, message):
     return response_packet
 
 
+class FakeConnMng(object):
+
+    def __init__(self):
+        self.called_cmd = ''
+        self.received_data = ''
+
+    def dispatch_request(self, cmd, data):
+        self.called_cmd = cmd
+        self.received_data = data
+        return {'content': {'server_timestamp': time.time()*10000}, 'successful': True}
+
+
+class FileFakeEvent(object):
+    """
+    Class that simulates a file related event sent from watchdog.
+    Actually create <src_path> and <dest_path> attributes and the file on disk.
+    """
+    def __init__(self, src_path, src_content='', dest_path=None, dest_content=''):
+        self.src_path = src_path
+        self.dest_path = dest_path
+        if src_content:
+            self.create_file(src_path, content=src_content)
+        if dest_content:
+            self.create_file(dest_path, content=dest_content)
+        self.is_directory = False
+
+    def create_file(self, path, content=''):
+        path_dir = os.path.dirname(path)
+        if not os.path.exists(path_dir):
+            os.makedirs(path_dir)
+        with open(path, 'w') as f:
+            f.write(content)
+
+
 class TestClientDaemonConfig(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
+        create_shared_files_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
 
     def tearDown(self):
+
+        global base_dir_tree, shared_files_dir_tree
+        base_dir_tree = {}
+        shared_files_dir_tree = {}
         destroy_folder()
 
     def test__build_directory(self):
@@ -509,6 +578,7 @@ class TestClientDaemonSync(unittest.TestCase):
     def setUp(self):
         create_environment()
         create_base_dir_tree()
+        create_shared_files_dir_tree()
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
         self.daemon.operation_happened = 'initial'
         self.daemon.create_observer()
@@ -665,6 +735,257 @@ class TestClientDaemonSync(unittest.TestCase):
 
         # Local Directory is MODIFIED
         self.assertNotEqual(new_global_md5_client, old_global_md5_client)
+
+########################SHARED FILES TESTING#####################################################################
+    def test__read_only_shared_folder_new_file(self):
+        """
+        Test SYNC: Test the case when the user create a new file in a shared path (read-only)
+        it must ignore the tracking of file and it mustn't synchronize with the server
+        """
+
+        #setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        new_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FileFakeEvent(new_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.search_md5 = fake_search_md5
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        self.daemon.on_created(event)
+
+        self.assertEqual(self.daemon.shared_snapshot, shared_files_dir_tree)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+
+    def test__read_only_shared_folder_move_file_from_shared_to_not_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a shared path to a not shared path (read-only)
+
+        """
+
+        #setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'new_file.txt')
+        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        expected_shared_snapshop = self.daemon.shared_snapshot.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.daemon.on_moved(event)
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertIn('new_file.txt', self.daemon.client_snapshot)
+
+    def test__read_only_shared_folder_move_file_from_shared_to_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a shared path to a shared path (read-only)
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path it' a new path
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+
+
+        # setup the mock
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
+        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path already exist so it means that old file is modified
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+        expected_shared_snapshop.pop('shared/millino/folder/filefile.dat')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+
+    def test__read_only_shared_folder_move_file_from_not_shared_to_shared(self):
+        """
+        Test SYNC: Test the case when the user moves a file from a not shared path to a shared path (read-only)
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
+        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path it' a new path
+        self.daemon.on_moved(event)
+
+        expected_client_snapshop = base_dir_tree.copy()
+        expected_client_snapshop.pop('file1.txt')
+
+        self.assertEqual(self.daemon.client_snapshot, expected_client_snapshop)
+        self.assertEqual(self.daemon.shared_snapshot, shared_files_dir_tree)
+
+
+        # setup the mock
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
+        dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
+        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test the case the dest_file_path already exist so it means that old file is modified
+        self.daemon.on_moved(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/millino/folder/filefile.dat')
+        expected_client_snapshop = base_dir_tree.copy()
+        expected_client_snapshop.pop('file1.txt')
+
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+        self.assertEqual(self.daemon.client_snapshot, expected_client_snapshop)
+
+    def test__read_only_shared_folder_file_modified(self):
+        """
+        Test SYNC: Test the case when the user modify a file in shared folder
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        event = FileFakeEvent(source_file_path)
+
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        self.daemon.on_modified(event)
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
+
+    def test__read_only_shared_folder_file_deleted(self):
+        """
+        Test SYNC: Test the case when the user removes a file from shared folder
+
+        """
+
+        # setup the mock
+
+        server_timestamp = timestamp_generator()
+
+        # server tree and client tree starting with the same situation
+        server_dir_tree = shared_files_dir_tree.copy()
+        server_dir_tree.update(base_dir_tree.copy())
+        self.daemon.shared_snapshot = shared_files_dir_tree.copy()
+        self.daemon.client_snapshot = base_dir_tree.copy()
+        old_global_md5_client = self.daemon.md5_of_client_snapshot()
+
+        # client timestamp = server_timestamp
+        self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
+
+        source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
+        event = FileFakeEvent(source_file_path)
+
+        self.daemon.conn_mng = FakeConnMng()
+        self.daemon.hash_file = fake_hash_file
+
+        # test
+        self.daemon.on_deleted(event)
+
+
+        expected_shared_snapshop = shared_files_dir_tree.copy()
+        expected_shared_snapshop.pop('shared/user1/file1.txt')
+
+        self.assertEqual(self.daemon.client_snapshot, base_dir_tree)
+        self.assertEqual(self.daemon.shared_snapshot, expected_shared_snapshop)
 
     def test_sync_process_delete(self):
         """
@@ -1065,40 +1386,6 @@ def replace_conn_mng(daemon, fake):
     original, daemon.conn_mng = daemon.conn_mng, fake
     yield
     daemon.conn_mng = original
-
-
-class FakeConnMng(object):
-
-    def __init__(self):
-        self.called_cmd = ''
-        self.received_data = ''
-
-    def dispatch_request(self, cmd, data):
-        self.called_cmd = cmd
-        self.received_data = data
-        return {'content': {'server_timestamp': time.time()*10000}, 'successful': True}
-
-
-class FileFakeEvent(object):
-    """
-    Class that simulates a file related event sent from watchdog.
-    Actually create <src_path> and <dest_path> attributes and the file on disk.
-    """
-    def __init__(self, src_path, src_content='', dest_path=None, dest_content=''):
-        self.src_path = src_path
-        self.dest_path = dest_path
-        if src_content:
-            self.create_file(src_path, content=src_content)
-        if dest_content:
-            self.create_file(dest_path, content=dest_content)
-        self.is_directory = False
-
-    def create_file(self, path, content=''):
-        path_dir = os.path.dirname(path)
-        if not os.path.exists(path_dir):
-            os.makedirs(path_dir)
-        with open(path, 'w') as f:
-            f.write(content)
 
 
 class TestDaemonCmdManagerConnection(unittest.TestCase):
