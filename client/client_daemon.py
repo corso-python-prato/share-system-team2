@@ -26,20 +26,13 @@ from connection_manager import ConnectionManager
 # Logging configuration
 # =====================
 LOG_FILENAME = 'log/client_daemon.log'
-if not os.path.isdir('log'):
-    os.mkdir('log')
 
-# create logger with 'spam_application'
+# create logger
 logger = logging.getLogger('daemon')
 logger.setLevel(logging.DEBUG)
-# create file handler which logs even info messages
-file_handler = logging.FileHandler(LOG_FILENAME)
-file_handler.setLevel(logging.INFO)
-# create console handler with a higher log level
+
+# create console handler
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.WARNING)
-# add the handlers to the logger
-logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 # First log message
@@ -48,9 +41,7 @@ logger.info('-' * 60)
 logger.info('Client {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
 logger.info('-' * 60)
 
-# create formatter and add it to the handlers
-file_formatter = logging.Formatter('%(asctime)s %(name)-15s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
-file_handler.setFormatter(file_formatter)
+# create formatter and add it to the handler
 console_formatter = logging.Formatter('%(asctime)s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
 console_handler.setFormatter(console_formatter)
 
@@ -1210,6 +1201,16 @@ class Daemon(FileSystemEventHandler):
             self.stop(1, 'ERROR during hash of file: {}\nError happened: '.format(file_path, e))
 
 
+def create_log_file_handler():
+    # create file handler which logs even info messages
+    if not os.path.isdir('log'):
+        os.mkdir('log')
+    file_handler = logging.FileHandler(LOG_FILENAME)
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter('%(asctime)s %(name)-15s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    return file_handler
 
 def is_valid_file(string):
     if os.path.isfile(string) or string == DEF_CFG_FILEPATH:
@@ -1218,30 +1219,25 @@ def is_valid_file(string):
         parser.error('The path "%s" does not be a valid file!' % string)
 
 
-def is_valid_dir(string):
-    if os.path.isdir(string) or string == DEF_SHARING_PATH:
-        return string
-    else:
-        parser.error('The path "%s" does not be a valid directory!' % string)
+def main():
+    file_handler = create_log_file_handler()
 
-if __name__ == '__main__':
-    DEF_SHARING_PATH = Daemon.DEF_CONF['sharing_path']
-    DEF_CFG_FILEPATH = Daemon.CONFIG_FILEPATH
     parser = argparse.ArgumentParser()
     parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
     parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir,
                         default=DEF_SHARING_PATH, dest='custom_sharing_path')
     parser.add_argument('--debug', default=False, action='store_true',
-                        help='set console verbosity level to DEBUG (4) [default: %(default)s]')
+                        help='set console verbosity level to DEBUG (4) '
+                             '[default: %(default)s]')
     parser.add_argument('--verbose', default=False, action='store_true',
-                        help='set console verbosity level to INFO (3) [default: %(default)s]. \
-                        Ignored if --debug option is set.')
+                        help='set console verbosity level to INFO (3) [default: %(default)s].'
+                             'Ignored if --debug option is set.')
     parser.add_argument('-v', '--verbosity', type=int, choices=range(5), nargs='?',
-                        help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
-                        [default: %(default)s]. Ignored if --verbose or --debug option is set.')
+                        help='set console verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. '
+                             '[default: %(default)s]. Ignored if --verbose or --debug option is set.')
     parser.add_argument('-fv', '--file_verbosity', type=int, choices=range(5), nargs='?',
-                        help='set file verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. \
-                        [default: %(default)s].')
+                        help='set file verbosity: 0=CRITICAL, 1=ERROR, 2=WARN, 3=INFO, 4=DEBUG. '
+                             '[default: %(default)s].')
     parser.add_argument('-H', '--host', default='0.0.0.0',
                         help='set host address to run the server. [default: %(default)s].')
 
@@ -1255,6 +1251,10 @@ if __name__ == '__main__':
         console_handler.setLevel(logging.INFO)
     elif args.verbosity:
         console_handler.setLevel(levels[args.verbosity])
+    else:
+        # Set default console lvl
+        console_handler.setLevel(logging.WARNING)
+
     if args.file_verbosity:
         file_handler.setLevel(levels[args.file_verbosity])
 
@@ -1263,3 +1263,10 @@ if __name__ == '__main__':
 
     daemon = Daemon(args.cfg, args.custom_sharing_path)
     daemon.start()
+
+
+if __name__ == '__main__':
+    main()
+else:
+    # Silence logger in case of import
+    console_handler.setLevel(logging.CRITICAL)

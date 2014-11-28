@@ -82,30 +82,28 @@ class ServerInternalError(ServerError):
     """
     pass
 
-
 # Logging configuration
 # =====================
 LOG_FILENAME = 'log/server.log'
-if not os.path.isdir('log'):
-    os.mkdir('log')
 
+# create logger
 logger = logging.getLogger('Server log')
 logger.setLevel(logging.DEBUG)
-# It's useful to log all messages of all severities to a text file while simultaneously
-# logging errors or above to the console. You set this up simply configuring the appropriate handlers.
-# Create file handler which logs even debug messages:
-file_handler = logging.FileHandler(LOG_FILENAME)
-file_handler.setLevel(logging.DEBUG)
-# Create console handler with a higher log level:
+
+# create console handler
 console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.WARNING)  # changeable from command line passing verbosity option or --verbose or --debug
-logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
 # First log message
 launched_or_imported = {True: 'launched', False: 'imported'}[__name__ == '__main__']
-logger.info('-' * 79)
+logger.info('-' * 60)
 logger.info('Server {} at {}'.format(launched_or_imported, datetime.datetime.now().isoformat(' ')))
+logger.info('-' * 60)
+
+# create formatter and add it to the handler
+console_formatter = logging.Formatter('%(asctime)s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
+console_handler.setFormatter(console_formatter)
+
 
 # Server initialization
 # =====================
@@ -160,7 +158,7 @@ def update_passwordmeter_terms(terms_file):
             for term in terms_file:
                 costume_password.add(term)
     except IOError:
-        logging.info('Impossible to load file ! loaded default setting.')
+        logger.info('Impossible to load file ! loaded default setting.')
     else:
         passwordmeter.common10k = passwordmeter.common10k.union(costume_password)
     finally:
@@ -533,7 +531,7 @@ class Users(Resource):
 
         # Pending users cleanup
         expired_pending_users = self._clean_inactive_users()
-        logging.info('Expired pending users: {}'.format(expired_pending_users))
+        logger.info('Expired pending users: {}'.format(expired_pending_users))
 
         if username in userdata:
             if userdata[username][USER_IS_ACTIVE] is True:
@@ -862,7 +860,7 @@ def compute_dir_state(root_path):  # TODO: make function accepting just an usern
                 with open(filepath, 'rb') as fp:
                     md5 = calculate_file_md5(fp)
             except OSError as err:
-                logging.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
+                logger.warn('calculate_file_md5("{}") --> {}'.format(filepath, err))
             else:
                 snapshot[filepath[len(root_path) + 1:]] = [last_timestamp, md5]
     state = {LAST_SERVER_TIMESTAMP: last_timestamp,
@@ -1034,9 +1032,9 @@ class Files(Resource):
             last_server_timestamp = userdata[username][LAST_SERVER_TIMESTAMP]
             shared_files = userdata[username][SHARED_FILES]
             response = jsonify({LAST_SERVER_TIMESTAMP: last_server_timestamp,
-                                SNAPSHOT: snapshot, 
+                                SNAPSHOT: snapshot,
                                 SHARED_FILES: shared_files})
-        logging.debug(response)
+        logger.debug(response)
         return response
     
     def _is_shared_with_me(self, path, username):
@@ -1168,7 +1166,20 @@ api.add_resource(UsersRecoverPassword, '{}/users/<string:username>/reset'.format
 mail = configure_email()
 
 
+def create_log_file_handler():
+    # create file handler which logs even info messages
+    if not os.path.isdir('log'):
+        os.mkdir('log')
+    file_handler = logging.FileHandler(LOG_FILENAME)
+    file_handler.setLevel(logging.INFO)
+    file_formatter = logging.Formatter('%(asctime)s %(name)-15s  %(levelname)-8s  %(message)s', '%Y-%m-%d %H:%M:%S')
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    return file_handler
+
+
 def main():
+    file_handler = create_log_file_handler()
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', default=False, action='store_true',
                         help='set console verbosity level to DEBUG (4) [default: %(default)s]')
@@ -1191,8 +1202,12 @@ def main():
     elif args.verbosity:
         levels = [logging.CRITICAL, logging.ERROR, logging.WARNING, logging.INFO, logging.DEBUG]
         console_handler.setLevel(levels[args.verbosity])
+    else:
+        # Set default console lvl
+        console_handler.setLevel(logging.WARNING)
 
-    logger.debug('File logging level: {}'.format(file_handler.level))
+    logger.info('Console logging level: {}'.format(console_handler.level))
+    logger.info('File logging level: {}'.format(file_handler.level))
 
     update_passwordmeter_terms(UNWANTED_PASS)
 
@@ -1202,3 +1217,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+else:
+    # Silence logger in case of import
+    console_handler.setLevel(logging.CRITICAL)

@@ -14,14 +14,11 @@ import tstutils
 from contextlib import contextmanager
 
 #########################################################################################
-# This setting allow to silence client_daemon test, if u need to see all the log message
-# put the level at DEBUG level: --> client_daemon.logger.setLevel(DEBUG)
-from logging import CRITICAL, ERROR, WARNING, INFO, DEBUG
-client_daemon.logger.setLevel(CRITICAL)
-#########################################################################################
+# WARNING: If u need to see the log message in tests uncomment the following lines
 
-# Don't change this setting! This line avoid to write on log file during test
-client_daemon.file_handler.setLevel(CRITICAL)
+# from logging import DEBUG
+# client_daemon.logger.setLevel(DEBUG)
+#########################################################################################
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
