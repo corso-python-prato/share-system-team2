@@ -17,6 +17,7 @@ import hashlib
 import tempfile
 import random
 import string
+import mock
 
 import server
 from server import userpath2serverpath
@@ -196,6 +197,30 @@ def _make_temp_file():
     temp_file.seek(0)
     test_md5 = hashlib.md5('this is a test').hexdigest()
     return temp_file, test_md5
+
+
+@unittest.skipUnless(hasattr(server, 'configure_email'),
+                     'This unit test is based on "server.configure_email" function which is missing. \
+It could be due to a refactoring, so this test should be updated or removed.')
+class TestServerConfigureEmail(unittest.TestCase):
+    def test_no_exception(self):
+        # Control: must not raise exceptions
+        server.configure_email()
+
+    def test_missing_email_settings_file(self):
+        """
+        Missing emailSettings.ini must raise a ServerConfigurationError,
+        when calling server.configure_email.
+        """
+        with mock.patch('os.path.exists') as mock_exists:
+            mock_exists.return_value = False
+            self.assertRaises(
+                server.ServerConfigurationError,
+                server.configure_email,
+            )
+
+        # Control: ensure is called only once, since we mocked every os.path.exists calls
+        mock_exists.assert_called_once_with(server.EMAIL_SETTINGS_FILEPATH)
 
 
 class TestRequests(unittest.TestCase):

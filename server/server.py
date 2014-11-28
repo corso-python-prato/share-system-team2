@@ -387,6 +387,10 @@ def configure_email():
     """
     Configure Flask Mail from the email_settings.ini in place. Return a flask.ext.mail.Mail instance.
     """
+    if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
+        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
+        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
+
     # Relations between Flask configuration keys and settings file fields.
     keys_tuples = [
         ('MAIL_SERVER', 'smtp_address'),  # the address of the smtp server
@@ -1189,10 +1193,6 @@ def main():
         console_handler.setLevel(levels[args.verbosity])
 
     logger.debug('File logging level: {}'.format(file_handler.level))
-
-    if not os.path.exists(EMAIL_SETTINGS_FILEPATH):
-        # ConfigParser.ConfigParser.read doesn't tell anything if the email configuration file is not found.
-        raise ServerConfigurationError('Email configuration file "{}" not found!'.format(EMAIL_SETTINGS_FILEPATH))
 
     update_passwordmeter_terms(UNWANTED_PASS)
 
