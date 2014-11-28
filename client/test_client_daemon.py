@@ -13,6 +13,12 @@ import tstutils
 
 from contextlib import contextmanager
 
+#########################################################################################
+# WARNING: If u need to see the log message in tests uncomment the following lines
+
+# from logging import DEBUG
+# client_daemon.logger.setLevel(DEBUG)
+#########################################################################################
 
 TEST_DIR = os.path.join(os.environ['HOME'], 'daemon_test')
 CONFIG_DIR = os.path.join(TEST_DIR, '.PyBox')
@@ -470,17 +476,15 @@ class TestClientDaemonActions(unittest.TestCase):
         """
         create_base_dir_tree(['file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
-        server_timestamp = timestamp_generator()
         # Create the files in client_snapshot / base_dir_tree
         create_files(self.daemon.client_snapshot)
 
         file_to_copy = 'file1.txt'
         dst_file_of_copy = 'fake2/copy_file1.txt'
 
-        md5_before_copy = self.daemon.md5_of_client_snapshot()
-        self.assertEqual(self.daemon._make_copy_on_client(file_to_copy, dst_file_of_copy), True)
+        self.assertTrue(self.daemon._make_copy_on_client(file_to_copy, dst_file_of_copy))
 
-        self.assertIn('fake2/copy_file1.txt', self.daemon.client_snapshot)
+        self.assertIn(dst_file_of_copy, self.daemon.client_snapshot)
 
     def test_make_copy_not_src(self):
         """
@@ -518,19 +522,16 @@ class TestClientDaemonActions(unittest.TestCase):
         """
         create_base_dir_tree(['file1.txt'])
         self.daemon.client_snapshot = base_dir_tree.copy()
-        server_timestamp = timestamp_generator()
-        # Create the files in client_snapshot / base_dir_tree
 
+        # Create the files in client_snapshot / base_dir_tree
         create_files(self.daemon.client_snapshot)
-        md5_before_move = self.daemon.md5_of_client_snapshot()
 
         file_to_move_exists = 'file1.txt'
         dst_file_that_not_exists = 'fake2/move_file1.txt'
 
-        self.assertEqual(
-            self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists), True)
-        self.assertNotIn(file_to_move_exists, self.daemon.client_snapshot)
+        self.assertTrue(self.daemon._make_move_on_client(file_to_move_exists, dst_file_that_not_exists))
         self.assertIn(dst_file_that_not_exists, self.daemon.client_snapshot)
+
 
     def test_make_move_function_not_src(self):
         """
@@ -1380,6 +1381,7 @@ class TestClientDaemonSync(unittest.TestCase):
             # Check state after event
             self.assertIn(src_filename, self.daemon.client_snapshot)
             self.assertIn(dst_filename, self.daemon.client_snapshot)
+
 
 @contextmanager
 def replace_conn_mng(daemon, fake):
