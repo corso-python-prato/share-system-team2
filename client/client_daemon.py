@@ -370,7 +370,7 @@ class Daemon(FileSystemEventHandler):
         self.client_snapshot[dst] = self.client_snapshot[src]
         self.client_snapshot.pop(src)
         logger.info('Moved file on client during SYNC.\n'
-                     'Source filepath: {}\nDestination filepath: {}\n'.format(abs_src, abs_dst))
+                    'Source filepath: {}\nDestination filepath: {}\n'.format(abs_src, abs_dst))
         return True
 
     def _make_delete_on_client(self, filepath):
@@ -753,7 +753,7 @@ class Daemon(FileSystemEventHandler):
         N.B: Sometime on_move event is a copy event for erroneous survey, so the method check if this error has happened.
         :param e: event object with information about what has happened
         """
-        logger.info('Move event from path : {}\n to path: {}'.format(e.src_path,e.dest_path))
+        logger.info('Move event from path : {}\n to path: {}'.format(e.src_path, e.dest_path))
         rel_src_path = self.relativize_path(e.src_path)
         rel_dest_path = self.relativize_path(e.dest_path)
 
