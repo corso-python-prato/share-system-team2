@@ -184,6 +184,20 @@ class FileFakeEvent(object):
             f.write(content)
 
 
+class FakeEventQueue(object):
+    """Creates a fake event_queue to test SkipObserver"""
+
+    def __init__(self, event, watch):
+        self.event = event
+        self.watch = watch
+
+
+    def get(self, *args, **kwargs):
+        return self.event, self.watch
+    def task_done(self):
+        pass
+
+
 class TestClientDaemonConfig(unittest.TestCase):
     def setUp(self):
         create_environment()
