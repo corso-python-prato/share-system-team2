@@ -123,8 +123,12 @@ def create_files(dir_tree):
             f.write(file_path)
 
 
-def destroy_folder():
-    shutil.rmtree(TEST_DIR)
+def destroy_test_folder():
+    global base_dir_tree, shared_files_dir_tree
+    base_dir_tree = {}
+    shared_files_dir_tree = {}
+    if os.path.exists(TEST_DIR):
+        shutil.rmtree(TEST_DIR)
 
 
 def fake_make_move(self, src, dst):
@@ -187,19 +191,18 @@ class TestClientDaemonConfig(unittest.TestCase):
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
 
     def tearDown(self):
-
-        global base_dir_tree, shared_files_dir_tree
-        base_dir_tree = {}
-        shared_files_dir_tree = {}
-        destroy_folder()
+        destroy_test_folder()
 
     def test__build_directory(self):
         """
         Create directory
         :return: boolean value, True is created or already existent
         """
+        if os.path.exists('cartella_di_prova'):
+            shutil.rmtree('cartella_di_prova')
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
         self.assertTrue(self.daemon._build_directory('cartella_di_prova'))
+        shutil.rmtree('cartella_di_prova')
 
     def test__build_directory_in_forbidden_path(self):
         """
@@ -394,7 +397,7 @@ class TestClientDaemonDirState(unittest.TestCase):
         self.daemon = client_daemon.Daemon(CONFIG_FILEPATH, TEST_SHARING_FOLDER)
 
     def tearDown(self):
-        destroy_folder()
+        destroy_test_folder()
 
     def test_md5_of_client_snapshot(self):
         """
@@ -462,11 +465,9 @@ class TestClientDaemonActions(unittest.TestCase):
         self.daemon.observer.start()
 
     def tearDown(self):
-        global base_dir_tree
-        base_dir_tree = {}
+        destroy_test_folder()
         self.daemon.observer.stop()
         self.daemon.observer.join()
-        destroy_folder()
 
     ####################### TEST MOVE and COPY ON CLIENT ##############################
     def test_make_copy_function(self):
@@ -586,11 +587,9 @@ class TestClientDaemonSync(unittest.TestCase):
         self.daemon.observer.start()
 
     def tearDown(self):
-        global base_dir_tree
-        base_dir_tree = {}
+        destroy_test_folder()
         self.daemon.observer.stop()
         self.daemon.observer.join()
-        destroy_folder()
 
     ####################### DIRECTORY NOT MODIFIED #####################################
     def test_sync_process_move_on_server(self):
@@ -1405,6 +1404,7 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         self.init_observing_called = False
 
     def tearDown(self):
+        destroy_test_folder()
         self.daemon.observer.stop()
         self.daemon.observer.join()
 
