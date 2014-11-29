@@ -166,9 +166,10 @@ class FileFakeEvent(object):
     Class that simulates a file related event sent from watchdog.
     Actually create <src_path> and <dest_path> attributes and the file on disk.
     """
-    def __init__(self, src_path, src_content='', dest_path=None, dest_content=''):
+    def __init__(self, src_path, src_content=None, dest_path=None, dest_content=None):
         self.src_path = src_path
-        self.dest_path = dest_path
+        if dest_path:
+            self.dest_path = dest_path
         if src_content:
             self.create_file(src_path, content=src_content)
         if dest_content:
