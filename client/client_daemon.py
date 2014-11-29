@@ -1212,20 +1212,35 @@ def create_log_file_handler():
     logger.addHandler(file_handler)
     return file_handler
 
-def is_valid_file(string):
+
+def is_valid_file(parser, string):
     if os.path.isfile(string) or string == DEF_CFG_FILEPATH:
         return string
     else:
         parser.error('The path "%s" does not be a valid file!' % string)
 
 
+def is_valid_dir(parser, string):
+    if os.path.isdir(string) or string == DEF_SHARING_PATH:
+        return string
+    else:
+        parser.error('The path "%s" does not be a valid directory!' % string)
+
+DEF_SHARING_PATH = Daemon.DEF_CONF['sharing_path']
+DEF_CFG_FILEPATH = Daemon.CONFIG_FILEPATH
+
+
 def main():
     file_handler = create_log_file_handler()
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('-cfg', help='the configuration file filepath', type=is_valid_file, default=DEF_CFG_FILEPATH)
-    parser.add_argument('-sh', help='the sharing path that we will observing', type=is_valid_dir,
-                        default=DEF_SHARING_PATH, dest='custom_sharing_path')
+    parser.add_argument('-cfg', help='the configuration file filepath',
+                        type=lambda string: is_valid_file(parser, string),
+                        default=DEF_CFG_FILEPATH)
+    parser.add_argument('-sh', help='the sharing path that we will observing',
+                        type=lambda string: is_valid_dir(parser, string),
+                        default=DEF_SHARING_PATH,
+                        dest='custom_sharing_path')
     parser.add_argument('--debug', default=False, action='store_true',
                         help='set console verbosity level to DEBUG (4) '
                              '[default: %(default)s]')
