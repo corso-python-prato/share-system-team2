@@ -8,6 +8,8 @@ import shutil
 import json
 import time
 
+from mock import Mock
+
 import client_daemon
 import tstutils
 
@@ -1648,6 +1650,121 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         # Test the observing is started
         self.assertFalse(self.init_observing_called)
 
+
+class SkipObserverTest(unittest.TestCase):
+    def setUp(self):
+        self.skip_observer = client_daemon.SkipObserver()
+        self.skip_observer._skip_list = []
+
+    def test_dispatch_no_skip(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
+
+    def test_dispatch_skip_src_path(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Skip src_path
+        self.skip_observer.skip(src_path)
+        self.assertIn(src_path, self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.assertFalse(self.skip_observer._dispatch_event.called)
+
+    def test_dispatch_skip_dest_path(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        dest_path = 'folder2/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path, dest_path=dest_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Skip src_path
+        self.skip_observer.skip(dest_path)
+        self.assertIn(dest_path, self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.assertFalse(self.skip_observer._dispatch_event.called)
+
+    def test_dispatch_skip_multiple_path(self):
+        # Initialize event_queue
+        paths_to_skip = {
+            'folder/file.txt',
+            'folder2/file.txt',
+            'file.txt',
+            'folder/folder/file.txt',
+        }
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+
+        # Fill the skip list
+        for path in paths_to_skip:
+            self.skip_observer.skip(path)
+
+        # Check all path are in _skip_list
+        for path in paths_to_skip:
+            self.assertIn(path, self.skip_observer._skip_list)
+
+        # Check no skip for path not in paths_to_skip
+        new_src_path = 'folder/no_skip_file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=new_src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
+
+        # Reset Mock to cancel call count
+        self.skip_observer._dispatch_event = Mock()
+
+        for path in paths_to_skip:
+            timeout = 'timeout'
+            watch = 'watch'
+            event = FileFakeEvent(src_path=path)
+            event_queue = FakeEventQueue(event, watch)
+            # Starts tested method for any path
+            self.skip_observer.dispatch_events(event_queue, timeout)
+            self.assertFalse(self.skip_observer._dispatch_event.called)
+        # Check no skip for path not in paths_to_skip after the list is empty
+        new_src_path = 'folder/no_skip_file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=new_src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
 
 if __name__ == '__main__':
     unittest.main()
