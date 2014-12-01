@@ -193,9 +193,9 @@ class FakeEventQueue(object):
         self.event = event
         self.watch = watch
 
-
     def get(self, *args, **kwargs):
         return self.event, self.watch
+
     def task_done(self):
         pass
 
