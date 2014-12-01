@@ -58,23 +58,14 @@ class SkipObserver(Observer):
     def dispatch_events(self, event_queue, timeout):
         event, watch = event_queue.get(block=True, timeout=timeout)
         skip = False
-        try:
-            event.dest_path
-        except AttributeError:
-            pass
-        else:
+        if event.src_path in self._skip_list:
+            self._skip_list.remove(event.src_path)
+            skip = True
+
+        if hasattr(event, 'dest_path'):
             if event.dest_path in self._skip_list:
                 self._skip_list.remove(event.dest_path)
                 skip = True
-        try:
-            event.src_path
-        except AttributeError:
-            pass
-        else:
-            if event.src_path in self._skip_list:
-                self._skip_list.remove(event.src_path)
-                skip = True
-
         if not skip:
             self._dispatch_event(event, watch)
 

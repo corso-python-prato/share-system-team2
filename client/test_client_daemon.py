@@ -8,6 +8,8 @@ import shutil
 import json
 import time
 
+from mock import Mock
+
 import client_daemon
 import tstutils
 
@@ -166,21 +168,37 @@ class FileFakeEvent(object):
     Class that simulates a file related event sent from watchdog.
     Actually create <src_path> and <dest_path> attributes and the file on disk.
     """
-    def __init__(self, src_path, src_content='', dest_path=None, dest_content=''):
+    def __init__(self, src_path, src_content=None, dest_path=None, dest_content=None):
         self.src_path = src_path
-        self.dest_path = dest_path
+        if dest_path:
+            self.dest_path = dest_path
         if src_content:
             self.create_file(src_path, content=src_content)
         if dest_content:
             self.create_file(dest_path, content=dest_content)
         self.is_directory = False
 
-    def create_file(self, path, content=''):
+    @staticmethod
+    def create_file(path, content=''):
         path_dir = os.path.dirname(path)
         if not os.path.exists(path_dir):
             os.makedirs(path_dir)
         with open(path, 'w') as f:
             f.write(content)
+
+
+class FakeEventQueue(object):
+    """Creates a fake event_queue to test SkipObserver"""
+
+    def __init__(self, event, watch):
+        self.event = event
+        self.watch = watch
+
+    def get(self, *args, **kwargs):
+        return self.event, self.watch
+
+    def task_done(self):
+        pass
 
 
 class TestClientDaemonConfig(unittest.TestCase):
@@ -759,7 +777,7 @@ class TestClientDaemonSync(unittest.TestCase):
         self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
 
         new_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
-        event = FileFakeEvent(new_file_path)
+        event = FileFakeEvent(src_path=new_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.search_md5 = fake_search_md5
         self.daemon.hash_file = fake_hash_file
@@ -793,7 +811,8 @@ class TestClientDaemonSync(unittest.TestCase):
 
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
         dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'new_file.txt')
-        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        event = FileFakeEvent(src_path=source_file_path,
+                              dest_path=dest_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
 
@@ -829,7 +848,8 @@ class TestClientDaemonSync(unittest.TestCase):
 
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
         dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
-        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        event = FileFakeEvent(src_path=source_file_path,
+                              dest_path=dest_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
 
@@ -846,7 +866,8 @@ class TestClientDaemonSync(unittest.TestCase):
         # setup the mock
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
         dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
-        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        event = FileFakeEvent(src_path=source_file_path,
+                              dest_path=dest_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
 
@@ -883,7 +904,8 @@ class TestClientDaemonSync(unittest.TestCase):
 
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
         dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/test/new_file.txt')
-        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        event = FileFakeEvent(src_path=source_file_path,
+                              dest_path=dest_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
 
@@ -900,7 +922,8 @@ class TestClientDaemonSync(unittest.TestCase):
         # setup the mock
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'file1.txt')
         dest_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/millino/folder/filefile.dat')
-        event = FileFakeEvent(source_file_path, dest_path=dest_file_path)
+        event = FileFakeEvent(src_path=source_file_path,
+                              dest_path=dest_file_path)
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
 
@@ -937,7 +960,7 @@ class TestClientDaemonSync(unittest.TestCase):
         self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
 
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
-        event = FileFakeEvent(source_file_path)
+        event = FileFakeEvent(src_path=source_file_path)
 
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
@@ -972,7 +995,7 @@ class TestClientDaemonSync(unittest.TestCase):
         self.daemon.local_dir_state = {'last_timestamp': server_timestamp, 'global_md5': old_global_md5_client}
 
         source_file_path = os.path.join(TEST_SHARING_FOLDER, 'shared/user1/file1.txt')
-        event = FileFakeEvent(source_file_path)
+        event = FileFakeEvent(src_path=source_file_path)
 
         self.daemon.conn_mng = FakeConnMng()
         self.daemon.hash_file = fake_hash_file
@@ -1202,7 +1225,8 @@ class TestClientDaemonSync(unittest.TestCase):
             self.assertIn(filename, self.daemon.client_snapshot)
             self.assertIn(old_content_md5, self.daemon.client_snapshot[filename])
             # Load event
-            self.daemon.on_modified(FileFakeEvent(src_path=src_filepath, src_content=new_content))
+            self.daemon.on_modified(FileFakeEvent(src_path=src_filepath,
+                                                  src_content=new_content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'modify')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1228,7 +1252,8 @@ class TestClientDaemonSync(unittest.TestCase):
             # Check initial state
             self.assertIn(filename, self.daemon.client_snapshot)
             # Load event
-            self.daemon.on_deleted(FileFakeEvent(src_path=src_filepath, src_content=content_md5))
+            self.daemon.on_deleted(FileFakeEvent(src_path=src_filepath,
+                                                 src_content=content_md5))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'delete')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1251,7 +1276,8 @@ class TestClientDaemonSync(unittest.TestCase):
             # Check initial state
             self.assertNotIn(filename, self.daemon.client_snapshot)
             # Load event
-            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=content))
+            self.daemon.on_created(FileFakeEvent(src_path=src_filepath,
+                                                 src_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'upload')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1279,7 +1305,8 @@ class TestClientDaemonSync(unittest.TestCase):
             self.assertIn(filename, self.daemon.client_snapshot)
             self.assertIn(old_content_md5, self.daemon.client_snapshot[filename])
             # Load event
-            self.daemon.on_created(FileFakeEvent(src_path=src_filepath, src_content=new_content))
+            self.daemon.on_created(FileFakeEvent(src_path=src_filepath,
+                                                 src_content=new_content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'modify')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1312,7 +1339,8 @@ class TestClientDaemonSync(unittest.TestCase):
             # Load event
             # I will put dest_filepath in e.src_path because watchdog see copy event as create of new file.
             # During on_created method the program check if exist a src_path with the same md5
-            self.daemon.on_created(FileFakeEvent(src_path=dest_filepath, src_content=content))
+            self.daemon.on_created(FileFakeEvent(src_path=dest_filepath,
+                                                 src_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'copy')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1341,7 +1369,8 @@ class TestClientDaemonSync(unittest.TestCase):
             self.assertIn(src_filename, self.daemon.client_snapshot)
             self.assertNotIn(dst_filename, self.daemon.client_snapshot)
             # Load event
-            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath, dest_path=dest_filepath,
+            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath,
+                                               dest_path=dest_filepath,
                                                dest_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'move')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
@@ -1373,8 +1402,10 @@ class TestClientDaemonSync(unittest.TestCase):
             self.assertIn(src_filename, self.daemon.client_snapshot)
             self.assertNotIn(dst_filename, self.daemon.client_snapshot)
             # Load event
-            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath, src_content=content,
-                                               dest_path=dest_filepath, dest_content=content))
+            self.daemon.on_moved(FileFakeEvent(src_path=src_filepath,
+                                               src_content=content,
+                                               dest_path=dest_filepath,
+                                               dest_content=content))
             self.assertEqual(self.daemon.conn_mng.called_cmd, 'copy')
             self.assertEqual(self.daemon.conn_mng.received_data, received_data)
             # Check state after event
@@ -1620,6 +1651,121 @@ class TestDaemonCmdManagerConnection(unittest.TestCase):
         # Test the observing is started
         self.assertFalse(self.init_observing_called)
 
+
+class SkipObserverTest(unittest.TestCase):
+    def setUp(self):
+        self.skip_observer = client_daemon.SkipObserver()
+        self.skip_observer._skip_list = []
+
+    def test_dispatch_no_skip(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
+
+    def test_dispatch_skip_src_path(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Skip src_path
+        self.skip_observer.skip(src_path)
+        self.assertIn(src_path, self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.assertFalse(self.skip_observer._dispatch_event.called)
+
+    def test_dispatch_skip_dest_path(self):
+        # Initialize event_queue
+        src_path = 'folder/file.txt'
+        dest_path = 'folder2/file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=src_path, dest_path=dest_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+        # Check skip_list
+        self.assertFalse(self.skip_observer._skip_list)
+        # Skip src_path
+        self.skip_observer.skip(dest_path)
+        self.assertIn(dest_path, self.skip_observer._skip_list)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.assertFalse(self.skip_observer._dispatch_event.called)
+
+    def test_dispatch_skip_multiple_path(self):
+        # Initialize event_queue
+        paths_to_skip = {
+            'folder/file.txt',
+            'folder2/file.txt',
+            'file.txt',
+            'folder/folder/file.txt',
+        }
+        # Mock _dispatch_event to check the passed arguments
+        self.skip_observer._dispatch_event = Mock()
+
+        # Fill the skip list
+        for path in paths_to_skip:
+            self.skip_observer.skip(path)
+
+        # Check all path are in _skip_list
+        for path in paths_to_skip:
+            self.assertIn(path, self.skip_observer._skip_list)
+
+        # Check no skip for path not in paths_to_skip
+        new_src_path = 'folder/no_skip_file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=new_src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
+
+        # Reset Mock to cancel call count
+        self.skip_observer._dispatch_event = Mock()
+
+        for path in paths_to_skip:
+            timeout = 'timeout'
+            watch = 'watch'
+            event = FileFakeEvent(src_path=path)
+            event_queue = FakeEventQueue(event, watch)
+            # Starts tested method for any path
+            self.skip_observer.dispatch_events(event_queue, timeout)
+            self.assertFalse(self.skip_observer._dispatch_event.called)
+        # Check no skip for path not in paths_to_skip after the list is empty
+        new_src_path = 'folder/no_skip_file.txt'
+        timeout = 'timeout'
+        watch = 'watch'
+        event = FileFakeEvent(src_path=new_src_path)
+        event_queue = FakeEventQueue(event, watch)
+        # Starts tested method
+        self.skip_observer.dispatch_events(event_queue, timeout)
+
+        self.skip_observer._dispatch_event.assert_called_once_with(event,
+                                                                   watch)
 
 if __name__ == '__main__':
     unittest.main()
