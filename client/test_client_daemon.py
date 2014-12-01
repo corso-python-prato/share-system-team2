@@ -178,7 +178,8 @@ class FileFakeEvent(object):
             self.create_file(dest_path, content=dest_content)
         self.is_directory = False
 
-    def create_file(self, path, content=''):
+    @staticmethod
+    def create_file(path, content=''):
         path_dir = os.path.dirname(path)
         if not os.path.exists(path_dir):
             os.makedirs(path_dir)
