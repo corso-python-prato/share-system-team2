@@ -1036,11 +1036,12 @@ class Daemon(FileSystemEventHandler):
 
                                 if not self.cfg.get('activate'):
                                     response = self._activation_check(s, cmd, data)
-                                elif cmd == 'login':
-                                    response = {'content': 'Warning! There is a user already authenticated on this '
-                                                           'computer. Impossible to login account',
+                                # this elif avoid to modify user after authenticate daemon
+                                elif cmd in Daemon.ALLOWED_OPERATION:
+                                    response = {'content': 'Warning! User already authenticated! '
+                                                           'Impossible to execute {} on this computer.\n'
+                                                           'If you want {} you must delete local user configuration.'.format(cmd),
                                                 'successful': False}
-
                                 else:  # client is already activated
                                     try:
                                         response = self.INTERNAL_COMMANDS[cmd](data)
