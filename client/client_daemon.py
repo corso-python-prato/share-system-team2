@@ -80,6 +80,16 @@ def is_directory(method):
     return wrapper
 
 
+def remove_dir_if_empty(dir_path):
+    """
+    Given a directory path, delete it if empty.
+    :param dir_path: str
+    """
+    if not os.listdir(dir_path):
+        logger.debug('Removing empty directory {}'.format(dir_path))
+        os.rmdir(dir_path)
+
+
 class Daemon(FileSystemEventHandler):
     # The path for configuration directory and daemon configuration file
     CONFIG_DIR = os.path.join(os.environ['HOME'], '.PyBox')
@@ -328,7 +338,9 @@ class Daemon(FileSystemEventHandler):
 
     def _make_move_on_client(self, src, dst):
         """
-        Move the file from src to dst. if the dst already exists will be overwritten
+        Move the file from src to dst. if the dst already exists will be overwritten.
+        If the source directory remains empty, it is deleted.
+
         :param src: the relative path of source file to move
         :param dst: the relative path of destination file to move
         :return: True or False
@@ -348,6 +360,9 @@ class Daemon(FileSystemEventHandler):
             move(abs_src, abs_dst)
         except IOError:
             return False
+        else:
+            # After removing the file, remove the directory if it is empty.
+            remove_dir_if_empty(os.path.dirname(abs_src))
 
         self.client_snapshot[dst] = self.client_snapshot[src]
         self.client_snapshot.pop(src)
@@ -358,6 +373,8 @@ class Daemon(FileSystemEventHandler):
     def _make_delete_on_client(self, filepath):
         """
         Delete the file in filepath. In case of error print information about it.
+        If the directory remains empty, it is deleted.
+
         :param filepath: the path of file i will delete
         """
         abs_path = self.absolutize_path(filepath)
@@ -368,6 +385,10 @@ class Daemon(FileSystemEventHandler):
         except OSError as e:
             logger.warning('WARNING impossible delete file during SYNC on path: {}\n'
                            'Error occurred: {}'.format(abs_path, e))
+        else:
+            # After deleting the file, remove the directory if it is empty.
+            remove_dir_if_empty(os.path.dirname(abs_path))
+
         if self.client_snapshot.pop(filepath, 'ERROR') != 'ERROR':
             logger.info('Deleted file on client during SYNC.\nDeleted filepath: {}'.format(abs_path))
         else:
