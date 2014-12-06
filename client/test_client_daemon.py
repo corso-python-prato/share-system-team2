@@ -593,6 +593,29 @@ class TestClientDaemonActions(unittest.TestCase):
 
         self.assertEqual(self.daemon._make_move_on_client(file_to_move, dst_file_exists), True)
 
+    def test_delete_the_last_directory_file_and_check_directory_is_also_removed(self):
+        """
+        Delete (with _make_delete_on_client) an unique file inside a directory
+        and check that also the directory is removed.
+        """
+        # setup
+        filepath = 'folder6/iacopy.txt'
+        create_base_dir_tree([filepath])
+        create_files([filepath])
+
+        # pre-check
+        filename = os.path.basename(filepath)
+        abs_filepath = self.daemon.absolutize_path(filepath)
+        assert os.path.exists(abs_filepath), 'file <{}> does not exist'.format(abs_filepath)
+        abs_dirpath = os.path.dirname(abs_filepath)
+        assert os.path.exists(abs_dirpath) and os.path.isdir(abs_dirpath),\
+            'directory <{}> does not exist'.format(abs_dirpath)
+        assert os.listdir(abs_dirpath) == [filename], 'Wrong initial test conditions'
+
+        # test
+        self.daemon._make_delete_on_client(filepath)
+        self.assertFalse(os.path.exists(abs_dirpath))
+
 
 class TestClientDaemonSync(unittest.TestCase):
     def setUp(self):
