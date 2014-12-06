@@ -306,7 +306,13 @@ class Daemon(FileSystemEventHandler):
 
         :param dir_path: str
         """
-        if dir_path == self.cfg['sharing_path']:
+        sharing_path = self.cfg['sharing_path']
+        assert sharing_path in dir_path, \
+            'Programming error: I can\'t delete <{}> directory, \
+since it is outside the <{}> sharing path!'.format(dir_path, sharing_path)
+        assert os.path.isdir(dir_path), 'Programming error: <{}> is not a directory!'.format(dir_path)
+
+        if dir_path == sharing_path:
             # Do not delete the user sharing folder!
             return
 
