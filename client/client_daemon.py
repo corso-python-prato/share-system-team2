@@ -299,7 +299,7 @@ class Daemon(FileSystemEventHandler):
         else:
             return None
 
-    def remove_dir_if_empty(self, dir_path, recursive=True):
+    def _remove_dir_if_empty(self, dir_path, recursive=True):
         """
         Given a directory path, delete it if empty.
         If <recursive> is True, act recursively on the upper dir.
@@ -315,7 +315,7 @@ class Daemon(FileSystemEventHandler):
             os.rmdir(dir_path)
 
             if recursive:
-                self.remove_dir_if_empty(os.path.dirname(dir_path))
+                self._remove_dir_if_empty(os.path.dirname(dir_path))
 
     def _make_copy_on_client(self, src, dst):
         """
@@ -370,7 +370,7 @@ class Daemon(FileSystemEventHandler):
             return False
         else:
             # After removing the file, remove the directory if it is empty.
-            self.remove_dir_if_empty(os.path.dirname(abs_src))
+            self._remove_dir_if_empty(os.path.dirname(abs_src))
 
         self.client_snapshot[dst] = self.client_snapshot[src]
         self.client_snapshot.pop(src)
@@ -395,7 +395,7 @@ class Daemon(FileSystemEventHandler):
                            'Error occurred: {}'.format(abs_path, e))
         else:
             # After deleting the file, remove the directory if it is empty.
-            self.remove_dir_if_empty(os.path.dirname(abs_path))
+            self._remove_dir_if_empty(os.path.dirname(abs_path))
 
         if self.client_snapshot.pop(filepath, 'ERROR') != 'ERROR':
             logger.info('Deleted file on client during SYNC.\nDeleted filepath: {}'.format(abs_path))
